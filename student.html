@@ -650,6 +650,7 @@ async function startTask(){
         projectType,
         targetClasses:task.targetClasses,
         completedClasses:[],
+        incorrectClasses:[],
         progress:0,
         attempts:0,
         status:"inProgress",
@@ -738,7 +739,7 @@ async function startSelectedProject(){
   if(projectType==="image"){
     $("imageStage").classList.remove("hidden");
     $("switchBtn").classList.remove("hidden");
-    $("captureBtn").classList.toggle("hidden",isTeachingMode());
+    $("captureBtn").classList.remove("hidden");
     $("targetHint").textContent=task.taskMode==="teaching"?"自由辨識物品":"目前要找的物品";
 
     try{
@@ -838,11 +839,13 @@ async function startImage(){
     "success"
   );
 
+  $("captureBtn").classList.remove("hidden");
+
   if(isTeachingMode()){
-    $("captureBtn").classList.add("hidden");
-    imageLoop();
+    $("imageOverlay").textContent="請將物品放入框內，再按「拍照辨識」";
+    lastImageOverlayText=$("imageOverlay").textContent;
+    setStatus("recognitionStatus","教學模式相機已啟動，請按「拍照辨識」。","success");
   }else{
-    $("captureBtn").classList.remove("hidden");
     $("imageOverlay").textContent="請將物品放入框內，再按「拍照辨識」";
     lastImageOverlayText=$("imageOverlay").textContent;
     setStatus("recognitionStatus","相機已啟動，請按「拍照辨識」。","success");
@@ -850,7 +853,6 @@ async function startImage(){
 }
 async function captureAndRecognize(){
   if(
-    isTeachingMode() ||
     projectType!=="image" ||
     !imageStream ||
     finished ||
@@ -890,6 +892,51 @@ async function captureAndRecognize(){
     const sorted=[...predictions].sort((a,b)=>b.probability-a.probability);
     const top=sorted[0];
     const second=sorted[1]||{probability:0};
+    if(isTeachingMode()){
+      const confirmed=!!top &&
+        top.probability>=task.threshold &&
+        (top.probability-second.probability)>=0.10;
+
+      if(confirmed){
+        currentTeachingLabel=top.className;
+        const percent=Math.round(top.probability*100);
+
+        $("teachingName").textContent=top.className;
+        $("teachingConfidence").textContent="信心值："+percent+"%";
+        $("speakTeachingBtn").disabled=false;
+
+        if($("teachingNameTop")){
+          $("teachingNameTop").textContent=top.className;
+        }
+        if($("speakTeachingBtnTop")){
+          $("speakTeachingBtnTop").disabled=false;
+        }
+
+        $("imageOverlay").textContent=`辨識結果：${top.className}｜${percent}%`;
+        lastImageOverlayText=$("imageOverlay").textContent;
+        flashTeachingNameCard();
+      }else{
+        currentTeachingLabel="";
+        $("teachingName").textContent="";
+        $("teachingConfidence").textContent="";
+        $("speakTeachingBtn").disabled=true;
+
+        if($("teachingNameTop")){
+          $("teachingNameTop").textContent="";
+        }
+        if($("speakTeachingBtnTop")){
+          $("speakTeachingBtnTop").disabled=true;
+        }
+
+        $("imageOverlay").textContent="無法確定辨識，請重新拍照";
+        lastImageOverlayText=$("imageOverlay").textContent;
+      }
+
+      photoRecognizing=false;
+      $("captureBtn").disabled=false;
+      return;
+    }
+
     const target=task.targetClasses[currentIndex];
 
     const correct=!!top &&
@@ -919,6 +966,18 @@ async function captureAndRecognize(){
     }else{
       attempts++;
       playTaskErrorSound();
+
+      if(resultRef&&target){
+        try{
+          await resultRef.update({
+            attempts,
+            incorrectClasses:firebase.firestore.FieldValue.arrayUnion(target),
+            updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+          });
+        }catch(e){
+          console.warn("辨識錯誤物品紀錄失敗",e);
+        }
+      }
 
       $("imageOverlay").textContent="辨識錯誤，請重新拍照";
       lastImageOverlayText=$("imageOverlay").textContent;
