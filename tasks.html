@@ -146,9 +146,18 @@ async function refreshTasks(){
 $("refreshBtn").onclick=refreshTasks;
 
 async function render(docs){
-  if(!docs.length){$("taskList").innerHTML='<div class="status">尚未建立任務。</div>';return}
+  const evaluationDocs=docs.filter(doc=>{
+    const data=doc.data();
+    return data.taskMode!=="teaching";
+  });
+
+  if(!evaluationDocs.length){
+    $("taskList").innerHTML='<div class="status">尚未建立評量任務。</div>';
+    return;
+  }
+
   const out=[];
-  for(const doc of docs){
+  for(const doc of evaluationDocs){
     const t=doc.data();
     let resultDocs=[],resultError="";
     try{
