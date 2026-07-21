@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
@@ -366,6 +366,44 @@ function flashTaskResultBox(){
   setTimeout(()=>{
     box.classList.remove("task-success-flash");
   },850);
+}
+
+function playTaskSuccessSound(){
+  if(isTeachingMode())return;
+
+  try{
+    const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+    if(!AudioContextClass)return;
+
+    const ctx=new AudioContextClass();
+    const now=ctx.currentTime;
+    const gain=ctx.createGain();
+    gain.connect(ctx.destination);
+
+    gain.gain.setValueAtTime(0.0001,now);
+    gain.gain.exponentialRampToValueAtTime(0.18,now+0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001,now+0.42);
+
+    const first=ctx.createOscillator();
+    first.type="sine";
+    first.frequency.setValueAtTime(660,now);
+    first.connect(gain);
+    first.start(now);
+    first.stop(now+0.18);
+
+    const second=ctx.createOscillator();
+    second.type="sine";
+    second.frequency.setValueAtTime(880,now+0.18);
+    second.connect(gain);
+    second.start(now+0.18);
+    second.stop(now+0.42);
+
+    setTimeout(()=>{
+      try{ctx.close()}catch(e){}
+    },600);
+  }catch(e){
+    console.warn("成功音效播放失敗",e);
+  }
 }
 function norm(url){url=(url||"").trim();return url.endsWith("/")?url:url+"/"}
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
@@ -1147,6 +1185,7 @@ function processPredictions(predictions,evidenceCanvas){
       $("imageOverlay").textContent=successText;
       lastImageOverlayText=successText;
       flashTaskResultBox();
+      playTaskSuccessSound();
 
       setTimeout(async()=>{
         await completeCurrent(top.probability,evidenceCanvas);
@@ -1158,6 +1197,7 @@ function processPredictions(predictions,evidenceCanvas){
         }
       },850);
     }else{
+      playTaskSuccessSound();
       completeCurrent(top.probability,evidenceCanvas);
       taskSuccessAnimating=false;
     }
