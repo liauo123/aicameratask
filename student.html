@@ -174,7 +174,149 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
 .teaching-camera-card .guide{inset:10%}
 .teaching-camera-card .overlay{left:8px;right:8px;bottom:8px}
 
-@media(max-width:540px){.row{grid-template-columns:1fr}.pred-row{grid-template-columns:86px 1fr 46px}}
+/* iPhone／iPad 響應式顯示：避免相機區過高把按鈕推出畫面 */
+html,body{
+  width:100%;
+  max-width:100%;
+  overflow-x:hidden;
+  overflow-y:auto;
+  -webkit-overflow-scrolling:touch;
+}
+.app{
+  width:min(100%,960px);
+  max-width:100%;
+}
+.stage,
+.teaching-camera-card .stage{
+  aspect-ratio:auto;
+  height:clamp(300px,58svh,620px);
+  max-height:calc(100svh - 250px);
+}
+#imageVideo,
+#poseCanvas{
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+.card,
+.teaching-camera-card,
+.teaching-name-card,
+.target,
+.stage{
+  max-width:100%;
+}
+.row button{
+  min-width:0;
+  white-space:normal;
+}
+
+/* iPad 直向與橫向 */
+@media (min-width:541px) and (max-width:1024px){
+  .app{
+    padding:max(12px,env(safe-area-inset-top))
+            max(14px,env(safe-area-inset-right))
+            max(18px,env(safe-area-inset-bottom))
+            max(14px,env(safe-area-inset-left));
+  }
+  .card{padding:14px;margin-top:10px}
+  .stage,
+  .teaching-camera-card .stage{
+    height:clamp(360px,60svh,650px);
+    max-height:calc(100svh - 230px);
+  }
+}
+
+/* iPhone */
+@media(max-width:540px){
+  .app{
+    padding:max(7px,env(safe-area-inset-top))
+            max(7px,env(safe-area-inset-right))
+            max(10px,env(safe-area-inset-bottom))
+            max(7px,env(safe-area-inset-left));
+  }
+  .card{
+    padding:8px;
+    margin-top:6px;
+    border-radius:14px;
+  }
+  .target{
+    padding:8px;
+    margin-bottom:7px;
+    border-radius:13px;
+  }
+  .target strong{
+    font-size:clamp(22px,7vw,28px);
+    margin-top:2px;
+  }
+  .progress{margin-bottom:7px}
+  .teaching-name-card{
+    padding:8px;
+    margin-bottom:7px;
+    border-radius:13px;
+  }
+  .teaching-name-card strong{
+    font-size:clamp(23px,7vw,30px);
+  }
+  .teaching-camera-card{
+    padding:6px;
+    border-radius:14px;
+  }
+  .stage,
+  .teaching-camera-card .stage{
+    height:clamp(280px,56svh,500px);
+    max-height:calc(100svh - 205px);
+    border-radius:13px;
+  }
+  .guide{
+    inset:8%;
+    border-width:2px;
+    border-radius:18px;
+  }
+  .guide span{
+    bottom:7px;
+    padding:6px 10px;
+    font-size:.78rem;
+  }
+  .overlay{
+    left:6px;
+    right:6px;
+    bottom:6px;
+    padding:8px;
+    border-radius:10px;
+  }
+  .overlay-main{font-size:.92rem}
+  .row{
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:6px;
+    margin-top:7px;
+  }
+  .row button{
+    min-height:44px;
+    padding:0 6px;
+    font-size:.88rem;
+  }
+  #completeActions{
+    grid-template-columns:1fr 1fr;
+  }
+  .pred-row{grid-template-columns:76px 1fr 42px}
+}
+
+/* iPhone 橫向／低高度裝置 */
+@media(max-height:600px) and (orientation:landscape){
+  .app{padding-top:6px;padding-bottom:8px}
+  .card{padding:8px;margin-top:5px}
+  .target{padding:6px;margin-bottom:5px}
+  .target small{font-size:.75rem}
+  .target strong{font-size:21px}
+  .stage,
+  .teaching-camera-card .stage{
+    height:calc(100svh - 145px);
+    min-height:210px;
+    max-height:430px;
+  }
+  .row{margin-top:5px}
+  .row button{min-height:40px}
+}
 </style>
 </head>
 <body>
@@ -279,7 +421,6 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
     <div class="row">
       <button id="captureBtn" class="primary hidden">拍照辨識</button>
       <button id="switchBtn" class="secondary hidden">切換鏡頭</button>
-      <button id="pauseBtn" class="secondary">暫停辨識</button>
     </div>
 
     <div id="recognitionStatus" class="status">等待辨識。</div>
@@ -734,7 +875,6 @@ function buildPredictionUI(labels){
 
 async function startSelectedProject(){
   hideAllStages();
-  $("pauseBtn").textContent="暫停辨識";
 
   if(projectType==="image"){
     $("imageStage").classList.remove("hidden");
@@ -1535,7 +1675,6 @@ function stopAll(){
 
 async function togglePause(){
   paused=!paused;
-  $("pauseBtn").textContent=paused?"繼續辨識":"暫停辨識";
 
   if(paused){
     stopAll();
@@ -1548,7 +1687,6 @@ async function togglePause(){
       setStatus("recognitionStatus","辨識已繼續。","success");
     }catch(e){
       paused=true;
-      $("pauseBtn").textContent="繼續辨識";
       setStatus("recognitionStatus","無法重新啟動辨識：\n"+e.message,"error");
     }
   }
@@ -1572,7 +1710,6 @@ $("speakTeachingBtn").onclick=speakTeachingLabel;
 $("speakTeachingBtnTop").onclick=speakTeachingLabel;
 $("loadBtn").onclick=loadTask;
 $("startBtn").onclick=startTask;
-$("pauseBtn").onclick=togglePause;
 $("switchBtn").onclick=switchCamera;
 $("captureBtn").onclick=captureAndRecognize;
 $("againBtn").onclick=repeatTask;
