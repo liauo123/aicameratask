@@ -295,17 +295,21 @@ let poseWebcam=null,poseCtx=null,poseRaf=null,posePredicting=false,poseVideoStre
 let audioListening=false;
 let predictionRows={};
 
-// 省電設定：保留模型原本 224×224 輸入品質，只降低重複推論頻率。
-const IMAGE_INFERENCE_INTERVAL=125;   // 一般圖片約 8 次/秒
-const TEACHING_INFERENCE_INTERVAL=180; // 教學模式約 5.5 次/秒
-const POSE_INFERENCE_INTERVAL=160;    // 姿勢約 6 次/秒
-let lastImageInferenceTime=0;
-let lastPoseInferenceTime=0;
+// 深度省電設定：維持模型 224×224 輸入品質，改用低喚醒率計時器。
+const IMAGE_TASK_INTERVAL=160;       // 一般圖片約 6.25 次/秒
+const IMAGE_TEACHING_INTERVAL=240;   // 教學模式約 4.2 次/秒
+const IMAGE_TEACHING_STABLE_INTERVAL=500; // 結果穩定後約 2 次/秒
+const POSE_INTERVAL=210;             // 姿勢約 4.8 次/秒
+const POSE_STABLE_INTERVAL=320;      // 姿勢結果穩定後約 3.1 次/秒
 let pageAutoPaused=false;
 let lastImageOverlayText="";
 let lastPoseOverlayText="";
 let lastTeachingClass="";
 let lastTeachingPercent=-1;
+let imageStableClass="";
+let imageStableCount=0;
+let poseStableClass="";
+let poseStableCount=0;
 let selectedStudentNumber="";
 let currentTeachingLabel="";
 
@@ -651,7 +655,7 @@ async function startImage(){
       facingMode:{ideal:facingMode},
       width:{ideal:640},
       height:{ideal:480},
-      frameRate:{ideal:15,max:20}
+      frameRate:{ideal:12,max:15}
     },
     audio:false
   };
@@ -687,8 +691,9 @@ async function startImage(){
 
   await video.play();
 
-  lastImageInferenceTime=0;
   lastImageOverlayText="";
+  imageStableClass="";
+  imageStableCount=0;
   $("imageStage").classList.remove("hidden");
   $("imageOverlay").textContent="等待相機畫面…";
   setStatus(
@@ -702,7 +707,7 @@ async function startImage(){
   imageLoop();
 }
 function stopImage(cancel=true){
-  if(cancel&&imageRaf)cancelAnimationFrame(imageRaf);
+  if(cancel&&imageRaf)clearTimeout(imageRaf);
   imageRaf=null;
 
   if(imageStream){
@@ -711,35 +716,38 @@ function stopImage(cancel=true){
   }
 
   const video=$("imageVideo");
-  if(video)video.srcObject=null;
+  if(video){
+    try{video.pause();}catch(e){}
+    video.srcObject=null;
+  }
+
+  imagePredicting=false;
+  imageStableClass="";
+  imageStableCount=0;
 }
-async function imageLoop(timestamp=performance.now()){
+function scheduleImageLoop(delay){
   if(finished||paused||!imageStream)return;
+  if(imageRaf)clearTimeout(imageRaf);
+  imageRaf=setTimeout(()=>imageLoop(),delay);
+}
 
-  const interval=task&&task.taskMode==="teaching"
-    ? TEACHING_INFERENCE_INTERVAL
-    : IMAGE_INFERENCE_INTERVAL;
+async function imageLoop(){
+  if(finished||paused||!imageStream||imagePredicting)return;
 
-  if(timestamp-lastImageInferenceTime<interval){
-    imageRaf=requestAnimationFrame(imageLoop);
-    return;
-  }
-
-  if(imagePredicting){
-    imageRaf=requestAnimationFrame(imageLoop);
-    return;
-  }
-
-  lastImageInferenceTime=timestamp;
   imagePredicting=true;
+  let nextDelay=task&&task.taskMode==="teaching"
+    ? IMAGE_TEACHING_INTERVAL
+    : IMAGE_TASK_INTERVAL;
 
   try{
-    const video=$("imageVideo"),canvas=$("imageCanvas"),ctx=canvas.getContext("2d");
+    const video=$("imageVideo");
+    const canvas=$("imageCanvas");
+    const ctx=canvas.getContext("2d");
 
     if(video.readyState>=2&&video.videoWidth){
       const side=Math.min(video.videoWidth,video.videoHeight);
 
-      // 模型輸入仍維持原本 224×224，不降低單次推論品質。
+      // 每次推論仍使用完整 224×224 模型輸入。
       ctx.drawImage(
         video,
         (video.videoWidth-side)/2,
@@ -753,29 +761,43 @@ async function imageLoop(timestamp=performance.now()){
       );
 
       const predictions=await model.predict(canvas);
+      const sorted=[...predictions].sort((a,b)=>b.probability-a.probability);
+      const top=sorted[0];
+
       processPredictions(predictions,canvas);
 
-      const top=[...predictions].sort((a,b)=>b.probability-a.probability)[0];
-
       if(top){
-        const overlayText=
-          `目前辨識：${top.className}｜${Math.round(top.probability*100)}%`;
+        const percent=Math.round(top.probability*100);
+        const overlayText=`目前辨識：${top.className}｜${percent}%`;
 
-        // 只有內容改變才更新 DOM，減少畫面重繪。
         if(overlayText!==lastImageOverlayText){
           $("imageOverlay").textContent=overlayText;
           lastImageOverlayText=overlayText;
+        }
+
+        if(top.className===imageStableClass&&top.probability>=0.90){
+          imageStableCount++;
+        }else{
+          imageStableClass=top.className;
+          imageStableCount=1;
+        }
+
+        // 教學模式名稱穩定後，減少重複辨識；一般任務仍維持較快速度。
+        if(
+          task&&task.taskMode==="teaching"&&
+          imageStableCount>=4&&
+          top.probability>=0.90
+        ){
+          nextDelay=IMAGE_TEACHING_STABLE_INTERVAL;
         }
       }
     }
   }catch(e){
     setStatus("recognitionStatus","圖片辨識錯誤：\n"+e.message,"error");
+    nextDelay=500;
   }finally{
     imagePredicting=false;
-
-    if(!finished&&!paused&&imageStream){
-      imageRaf=requestAnimationFrame(imageLoop);
-    }
+    scheduleImageLoop(nextDelay);
   }
 }
 
@@ -804,7 +826,7 @@ async function startPose(){
       facingMode:{ideal:facingMode},
       width:{ideal:640},
       height:{ideal:480},
-      frameRate:{ideal:15,max:20}
+      frameRate:{ideal:12,max:15}
     },
     audio:false
   });
@@ -817,58 +839,43 @@ async function startPose(){
   canvas.height=420;
   poseCtx=canvas.getContext("2d");
 
-  lastPoseInferenceTime=0;
   lastPoseOverlayText="";
+  poseStableClass="";
+  poseStableCount=0;
   setStatus("recognitionStatus","姿勢相機已啟動，請讓全身進入框內。","success");
   poseLoop();
 }
 
-async function poseLoop(timestamp=performance.now()){
+function schedulePoseLoop(delay){
   if(finished||paused||!poseVideo||!poseVideoStream)return;
+  if(poseRaf)clearTimeout(poseRaf);
+  poseRaf=setTimeout(()=>poseLoop(),delay);
+}
 
-  if(timestamp-lastPoseInferenceTime<POSE_INFERENCE_INTERVAL){
-    poseRaf=requestAnimationFrame(poseLoop);
-    return;
-  }
+async function poseLoop(){
+  if(finished||paused||!poseVideo||!poseVideoStream||posePredicting)return;
 
-  if(posePredicting){
-    poseRaf=requestAnimationFrame(poseLoop);
-    return;
-  }
-
-  lastPoseInferenceTime=timestamp;
   posePredicting=true;
+  let nextDelay=POSE_INTERVAL;
 
   try{
     const canvas=$("poseCanvas");
     poseCtx.clearRect(0,0,canvas.width,canvas.height);
 
-    // 前鏡頭需要水平翻轉，避免 Pose 模型左右方向錯亂
     if(facingMode==="user"){
       poseCtx.save();
       poseCtx.translate(canvas.width,0);
       poseCtx.scale(-1,1);
-      poseCtx.drawImage(
-        poseVideo,
-        0,0,
-        canvas.width,
-        canvas.height
-      );
+      poseCtx.drawImage(poseVideo,0,0,canvas.width,canvas.height);
       poseCtx.restore();
     }else{
-      poseCtx.drawImage(
-        poseVideo,
-        0,0,
-        canvas.width,
-        canvas.height
-      );
+      poseCtx.drawImage(poseVideo,0,0,canvas.width,canvas.height);
     }
 
     const {pose,posenetOutput}=await model.estimatePose(canvas);
     const predictions=await model.predict(posenetOutput);
 
     drawPose(pose);
-
     processPredictions(predictions,canvas);
 
     const top=[...predictions].sort((a,b)=>b.probability-a.probability)[0];
@@ -881,17 +888,25 @@ async function poseLoop(timestamp=performance.now()){
         $("poseOverlay").textContent=overlayText;
         lastPoseOverlayText=overlayText;
       }
-    }
 
+      if(top.className===poseStableClass&&top.probability>=0.90){
+        poseStableCount++;
+      }else{
+        poseStableClass=top.className;
+        poseStableCount=1;
+      }
+
+      // 姿勢穩定時稍微降低推論頻率，動作改變後立即恢復。
+      if(poseStableCount>=5&&top.probability>=0.90){
+        nextDelay=POSE_STABLE_INTERVAL;
+      }
+    }
   }catch(e){
     setStatus("recognitionStatus","姿勢辨識錯誤：\n"+e.message,"error");
-  }
-
-  finally{
+    nextDelay=500;
+  }finally{
     posePredicting=false;
-    if(!finished&&!paused&&poseVideo){
-      poseRaf=requestAnimationFrame(poseLoop);
-    }
+    schedulePoseLoop(nextDelay);
   }
 }
 
@@ -1098,14 +1113,20 @@ function finishTask(){
 
 function stopAll(){
   stopImage();
-  if(poseRaf)cancelAnimationFrame(poseRaf);
+  if(poseRaf)clearTimeout(poseRaf);
   poseRaf=null;
   if(poseWebcam){try{poseWebcam.stop();}catch(e){} poseWebcam=null}
   if(poseVideoStream){
     poseVideoStream.getTracks().forEach(t=>t.stop());
     poseVideoStream=null;
   }
-  if(poseVideo)poseVideo.srcObject=null;
+  if(poseVideo){
+    try{poseVideo.pause();}catch(e){}
+    poseVideo.srcObject=null;
+  }
+  posePredicting=false;
+  poseStableClass="";
+  poseStableCount=0;
   stopAudio();
 }
 
@@ -1176,6 +1197,7 @@ document.addEventListener("visibilitychange",async()=>{
 });
 
 window.addEventListener("pagehide",stopAll);
+window.addEventListener("freeze",stopAll);
 window.addEventListener("beforeunload",stopAll);
 
 taskId=new URLSearchParams(location.search).get("task")||"";
