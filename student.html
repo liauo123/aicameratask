@@ -99,6 +99,14 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
 .audio-icon{font-size:72px}.audio-level{font-size:1.1rem;margin-top:12px}
 .overlay{position:absolute;left:10px;right:10px;bottom:10px;background:rgba(15,23,42,.82);color:#fff;border-radius:14px;padding:11px}
 .overlay-main{font-size:1.1rem;font-weight:900}
+@keyframes taskResultFlash{
+  0%,100%{background:rgba(15,23,42,.82);box-shadow:none;transform:scale(1)}
+  25%,75%{background:rgba(22,163,74,.96);box-shadow:0 0 0 5px rgba(34,197,94,.25);transform:scale(1.015)}
+  50%{background:rgba(15,23,42,.82);box-shadow:none;transform:scale(1)}
+}
+.overlay.task-success-flash{
+  animation:taskResultFlash .8s ease-in-out 1;
+}
 .prediction{margin-top:14px;display:grid;gap:9px}
 .pred-row{display:grid;grid-template-columns:minmax(82px,130px) 1fr 50px;align-items:center;gap:9px}
 .pred-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
@@ -281,6 +289,10 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
     <div class="icon">🎉</div>
     <h2>任務完成！</h2>
     <p id="completeMessage"></p>
+    <div id="completeActions" class="row">
+      <button id="againBtn" class="primary">再一次</button>
+      <button id="endBtn" class="secondary">結束</button>
+    </div>
   </section>
 </main>
 
@@ -305,7 +317,7 @@ let audioListening=false;
 let predictionRows={};
 
 // 深度省電設定：維持模型 224×224 輸入品質，改用低喚醒率計時器。
-const IMAGE_TASK_INTERVAL=160;       // 一般圖片約 6.25 次/秒
+const IMAGE_TASK_INTERVAL=240;       // 一般任務與教學模式相同，約 4.2 次/秒
 const IMAGE_TEACHING_INTERVAL=240;   // 教學模式約 4.2 次/秒
 const IMAGE_TEACHING_STABLE_INTERVAL=500; // 結果穩定後約 2 次/秒
 const POSE_INTERVAL=210;             // 姿勢約 4.8 次/秒
@@ -320,6 +332,7 @@ let imageStableClass="";
 let imageStableCount=0;
 let poseStableClass="";
 let poseStableCount=0;
+let taskSuccessAnimating=false;
 let selectedStudentNumber="";
 let currentTeachingLabel="";
 
@@ -341,9 +354,26 @@ function flashTeachingNameCard(){
     card.classList.remove("success-flash");
   },850);
 }
+
+function flashTaskResultBox(){
+  const box=$("imageOverlay")?.closest(".overlay");
+  if(!box)return;
+
+  box.classList.remove("task-success-flash");
+  void box.offsetWidth;
+  box.classList.add("task-success-flash");
+
+  setTimeout(()=>{
+    box.classList.remove("task-success-flash");
+  },850);
+}
 function norm(url){url=(url||"").trim();return url.endsWith("/")?url:url+"/"}
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 async function ensureAuth(){if(auth.currentUser)return auth.currentUser;return(await auth.signInAnonymously()).user}
+
+function isTeachingMode(){
+  return !!(task&&task.taskMode==="teaching");
+}
 
 function speakTeachingLabel(){
   const label=currentTeachingLabel.trim();
@@ -476,7 +506,7 @@ async function startTeachingModeDirectly(){
     holdCount=0;
     finished=false;
     paused=false;
-    resultRef=null;
+    resultRef=null; // 教學模式只讀取任務，不建立或更新任何 Firebase 作答資料。
 
     buildPredictionUI(labels);
 
@@ -533,7 +563,7 @@ async function startTask(){
     const missing=task.targetClasses.filter(x=>!labels.includes(x));
     if(missing.length)throw new Error("模型缺少類別："+missing.join("、"));
 
-    if(task.taskMode!=="teaching"){
+    if(!isTeachingMode()){
       resultRef=await db.collection("taskResults").add({
         taskId,
         teacherId:task.teacherId||"",
@@ -552,7 +582,7 @@ async function startTask(){
       resultRef=null;
     }
 
-    currentIndex=0;completed=[];attempts=0;holdCount=0;finished=false;paused=false;
+    currentIndex=0;completed=[];attempts=0;holdCount=0;finished=false;paused=false;taskSuccessAnimating=false;
     buildPredictionUI(labels);
 
     if(task.taskMode==="teaching"){
@@ -570,10 +600,10 @@ async function startTask(){
     }else{
       $("normalTaskHeader").classList.remove("hidden");
       $("teachingHeader").classList.add("hidden");
-      $("predictionList").classList.remove("hidden");
+      $("predictionList").classList.add("hidden");
       $("teachingResult").classList.add("hidden");
-      $("holdSection").classList.remove("hidden");
-      $("itemList").classList.remove("hidden");
+      $("holdSection").classList.add("hidden");
+      $("itemList").classList.add("hidden");
       renderTask();
     }
 
@@ -792,18 +822,22 @@ async function imageLoop(){
       if(top){
         const percent=Math.round(top.probability*100);
         const second=sorted[1]||{probability:0};
-        const teachingConfirmed=
-          !task ||
-          task.taskMode!=="teaching" ||
-          (
-            top.probability>=task.threshold &&
-            (top.probability-second.probability)>=0.10
-          );
+        const confirmed=
+          top.probability>=task.threshold &&
+          (top.probability-second.probability)>=0.10;
 
         const overlayText=
-          teachingConfirmed
-            ? `目前辨識：${top.className}｜${percent}%`
-            : "正在辨識…";
+          task&&task.taskMode==="teaching"
+            ? (
+                confirmed
+                  ? `目前辨識：${top.className}｜${percent}%`
+                  : "正在辨識…"
+              )
+            : (
+                taskSuccessAnimating
+                  ? `辨識成功：${top.className}`
+                  : "正在辨識…"
+              );
 
         if(overlayText!==lastImageOverlayText){
           $("imageOverlay").textContent=overlayText;
@@ -1104,9 +1138,29 @@ function processPredictions(predictions,evidenceCanvas){
   $("holdText").textContent=`${holdCount} / ${required}`;
   $("holdFill").style.width=Math.min(100,holdCount/required*100)+"%";
 
-  if(holdCount>=required){
+  if(holdCount>=required&&!taskSuccessAnimating){
     holdCount=0;
-    completeCurrent(top.probability,evidenceCanvas);
+    taskSuccessAnimating=true;
+
+    if(projectType==="image"){
+      const successText=`辨識成功：${top.className}`;
+      $("imageOverlay").textContent=successText;
+      lastImageOverlayText=successText;
+      flashTaskResultBox();
+
+      setTimeout(async()=>{
+        await completeCurrent(top.probability,evidenceCanvas);
+        taskSuccessAnimating=false;
+
+        if(!finished){
+          $("imageOverlay").textContent="正在辨識…";
+          lastImageOverlayText="正在辨識…";
+        }
+      },850);
+    }else{
+      completeCurrent(top.probability,evidenceCanvas);
+      taskSuccessAnimating=false;
+    }
   }
 }
 
@@ -1129,20 +1183,22 @@ async function completeCurrent(confidence,evidenceCanvas){
     evidence.photoDataURL=evidenceCanvas.toDataURL("image/jpeg",0.42);
   }
 
-  try{
-    await resultRef.collection("evidence").add(evidence);
-    const progress=Math.round(completed.length/task.targetClasses.length*100);
-    await resultRef.update({
-      completedClasses:[...completed],
-      progress,
-      attempts,
-      status:currentIndex>=task.targetClasses.length?"completed":"inProgress",
-      updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
-      ...(currentIndex>=task.targetClasses.length?{completedAt:firebase.firestore.FieldValue.serverTimestamp()}:{})
-    });
-  }catch(e){
-    console.error("回傳紀錄失敗",e);
-    setStatus("recognitionStatus","辨識成功，但 Firebase 紀錄失敗：\n"+e.message,"error");
+  if(!isTeachingMode()&&resultRef){
+    try{
+      await resultRef.collection("evidence").add(evidence);
+      const progress=Math.round(completed.length/task.targetClasses.length*100);
+      await resultRef.update({
+        completedClasses:[...completed],
+        progress,
+        attempts,
+        status:currentIndex>=task.targetClasses.length?"completed":"inProgress",
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+        ...(currentIndex>=task.targetClasses.length?{completedAt:firebase.firestore.FieldValue.serverTimestamp()}:{})
+      });
+    }catch(e){
+      console.error("回傳紀錄失敗",e);
+      setStatus("recognitionStatus","辨識成功，但 Firebase 紀錄失敗：\n"+e.message,"error");
+    }
   }
 
   if(currentIndex>=task.targetClasses.length){
@@ -1169,11 +1225,49 @@ function finishTask(){
   stopAll();
   $("taskCard").classList.add("hidden");
   $("completeCard").classList.remove("hidden");
+  $("completeActions").classList.toggle("hidden",isTeachingMode());
   const typeName={image:"圖片",audio:"音訊",pose:"姿勢"}[projectType];
   $("completeMessage").textContent=`已完成全部${typeName}任務，結果已回傳教師端。`;
 }
 
+async function repeatTask(){
+  if(isTeachingMode())return;
+
+  $("againBtn").disabled=true;
+  $("endBtn").disabled=true;
+  $("completeCard").classList.add("hidden");
+
+  try{
+    await startTask();
+  }finally{
+    $("againBtn").disabled=false;
+    $("endBtn").disabled=false;
+  }
+}
+
+function endTask(){
+  stopAll();
+
+  finished=false;
+  paused=false;
+  resultRef=null;
+  currentIndex=0;
+  completed=[];
+  attempts=0;
+  holdCount=0;
+  taskSuccessAnimating=false;
+
+  $("completeCard").classList.add("hidden");
+  $("taskCard").classList.add("hidden");
+  $("joinCard").classList.add("hidden");
+  $("loadCard").classList.remove("hidden");
+
+  $("loadStatus").textContent="等待任務資料。";
+  $("loadStatus").className="status";
+}
+
 function stopAll(){
+  taskSuccessAnimating=false;
   stopImage();
   if(poseRaf)clearTimeout(poseRaf);
   poseRaf=null;
@@ -1233,6 +1327,8 @@ $("loadBtn").onclick=loadTask;
 $("startBtn").onclick=startTask;
 $("pauseBtn").onclick=togglePause;
 $("switchBtn").onclick=switchCamera;
+$("againBtn").onclick=repeatTask;
+$("endBtn").onclick=endTask;
 
 document.addEventListener("visibilitychange",async()=>{
   if(document.hidden){
