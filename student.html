@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
@@ -277,6 +277,7 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
     <div id="predictionList" class="prediction"></div>
 
     <div class="row">
+      <button id="captureBtn" class="primary hidden">拍照辨識</button>
       <button id="switchBtn" class="secondary hidden">切換鏡頭</button>
       <button id="pauseBtn" class="secondary">暫停辨識</button>
     </div>
@@ -333,6 +334,7 @@ let imageStableCount=0;
 let poseStableClass="";
 let poseStableCount=0;
 let taskSuccessAnimating=false;
+let photoRecognizing=false;
 let selectedStudentNumber="";
 let currentTeachingLabel="";
 
@@ -403,6 +405,44 @@ function playTaskSuccessSound(){
     },600);
   }catch(e){
     console.warn("成功音效播放失敗",e);
+  }
+}
+
+function playTaskErrorSound(){
+  if(isTeachingMode())return;
+
+  try{
+    const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+    if(!AudioContextClass)return;
+
+    const ctx=new AudioContextClass();
+    const now=ctx.currentTime;
+    const gain=ctx.createGain();
+    gain.connect(ctx.destination);
+
+    gain.gain.setValueAtTime(0.0001,now);
+    gain.gain.exponentialRampToValueAtTime(0.16,now+0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001,now+0.36);
+
+    const first=ctx.createOscillator();
+    first.type="sine";
+    first.frequency.setValueAtTime(330,now);
+    first.connect(gain);
+    first.start(now);
+    first.stop(now+0.16);
+
+    const second=ctx.createOscillator();
+    second.type="sine";
+    second.frequency.setValueAtTime(220,now+0.16);
+    second.connect(gain);
+    second.start(now+0.16);
+    second.stop(now+0.36);
+
+    setTimeout(()=>{
+      try{ctx.close()}catch(e){}
+    },550);
+  }catch(e){
+    console.warn("錯誤音效播放失敗",e);
   }
 }
 function norm(url){url=(url||"").trim();return url.endsWith("/")?url:url+"/"}
@@ -698,6 +738,7 @@ async function startSelectedProject(){
   if(projectType==="image"){
     $("imageStage").classList.remove("hidden");
     $("switchBtn").classList.remove("hidden");
+    $("captureBtn").classList.toggle("hidden",isTeachingMode());
     $("targetHint").textContent=task.taskMode==="teaching"?"自由辨識物品":"目前要找的物品";
 
     try{
@@ -713,11 +754,13 @@ async function startSelectedProject(){
       throw e;
     }
   }else if(projectType==="pose"){
+    $("captureBtn").classList.add("hidden");
     $("poseStage").classList.remove("hidden");
     $("switchBtn").classList.remove("hidden");
     $("targetHint").textContent="目前要完成的動作";
     await startPose();
   }else{
+    $("captureBtn").classList.add("hidden");
     $("audioStage").classList.remove("hidden");
     $("switchBtn").classList.add("hidden");
     $("targetHint").textContent="目前要發出的聲音";
@@ -795,8 +838,111 @@ async function startImage(){
     "success"
   );
 
-  imageLoop();
+  if(isTeachingMode()){
+    $("captureBtn").classList.add("hidden");
+    imageLoop();
+  }else{
+    $("captureBtn").classList.remove("hidden");
+    $("imageOverlay").textContent="請將物品放入框內，再按「拍照辨識」";
+    lastImageOverlayText=$("imageOverlay").textContent;
+    setStatus("recognitionStatus","相機已啟動，請按「拍照辨識」。","success");
+  }
 }
+async function captureAndRecognize(){
+  if(
+    isTeachingMode() ||
+    projectType!=="image" ||
+    !imageStream ||
+    finished ||
+    paused ||
+    photoRecognizing ||
+    taskSuccessAnimating
+  )return;
+
+  photoRecognizing=true;
+  $("captureBtn").disabled=true;
+  $("imageOverlay").textContent="正在辨識照片…";
+  lastImageOverlayText=$("imageOverlay").textContent;
+
+  try{
+    const video=$("imageVideo");
+    const canvas=$("imageCanvas");
+    const ctx=canvas.getContext("2d");
+
+    if(video.readyState<2||!video.videoWidth){
+      throw new Error("相機畫面尚未準備完成");
+    }
+
+    const side=Math.min(video.videoWidth,video.videoHeight);
+    ctx.drawImage(
+      video,
+      (video.videoWidth-side)/2,
+      (video.videoHeight-side)/2,
+      side,
+      side,
+      0,
+      0,
+      224,
+      224
+    );
+
+    const predictions=await model.predict(canvas);
+    const sorted=[...predictions].sort((a,b)=>b.probability-a.probability);
+    const top=sorted[0];
+    const second=sorted[1]||{probability:0};
+    const target=task.targetClasses[currentIndex];
+
+    const correct=!!top &&
+      top.className===target &&
+      top.probability>=task.threshold &&
+      (top.probability-second.probability)>=0.10;
+
+    if(correct){
+      taskSuccessAnimating=true;
+      const successText=`辨識成功：${top.className}`;
+      $("imageOverlay").textContent=successText;
+      lastImageOverlayText=successText;
+      flashTaskResultBox();
+      playTaskSuccessSound();
+
+      setTimeout(async()=>{
+        await completeCurrent(top.probability,canvas);
+        taskSuccessAnimating=false;
+        photoRecognizing=false;
+        $("captureBtn").disabled=false;
+
+        if(!finished){
+          $("imageOverlay").textContent="請將下一個物品放入框內，再按「拍照辨識」";
+          lastImageOverlayText=$("imageOverlay").textContent;
+        }
+      },850);
+    }else{
+      attempts++;
+      playTaskErrorSound();
+
+      $("imageOverlay").textContent="辨識錯誤，請重新拍照";
+      lastImageOverlayText=$("imageOverlay").textContent;
+      setStatus("recognitionStatus","辨識錯誤，請將指定物品放入框內後重新拍照。","error");
+
+      setTimeout(()=>{
+        if(!finished){
+          $("imageOverlay").textContent="請將物品放入框內，再按「拍照辨識」";
+          lastImageOverlayText=$("imageOverlay").textContent;
+        }
+        photoRecognizing=false;
+        $("captureBtn").disabled=false;
+      },850);
+    }
+  }catch(e){
+    playTaskErrorSound();
+    $("imageOverlay").textContent="拍照辨識失敗，請再試一次";
+    lastImageOverlayText=$("imageOverlay").textContent;
+    setStatus("recognitionStatus","拍照辨識失敗：\n"+e.message,"error");
+    photoRecognizing=false;
+    $("captureBtn").disabled=false;
+  }
+}
+
 function stopImage(cancel=true){
   if(cancel&&imageRaf)clearTimeout(imageRaf);
   imageRaf=null;
@@ -1308,6 +1454,8 @@ function endTask(){
 
 function stopAll(){
   taskSuccessAnimating=false;
+  photoRecognizing=false;
+  if($("captureBtn"))$("captureBtn").disabled=false;
   stopImage();
   if(poseRaf)clearTimeout(poseRaf);
   poseRaf=null;
@@ -1367,6 +1515,7 @@ $("loadBtn").onclick=loadTask;
 $("startBtn").onclick=startTask;
 $("pauseBtn").onclick=togglePause;
 $("switchBtn").onclick=switchCamera;
+$("captureBtn").onclick=captureAndRecognize;
 $("againBtn").onclick=repeatTask;
 $("endBtn").onclick=endTask;
 
