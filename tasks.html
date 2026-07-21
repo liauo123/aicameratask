@@ -39,7 +39,7 @@ button,.navBtn{border-radius:10px;padding:11px 15px;font-weight:800;cursor:point
 <body>
 <header>
   <div class="head">
-    <div><h1>我的任務列表</h1><div class="small">重新產生 QR、查看學生完成度、刪除任務</div></div>
+<div></div>
     <div id="userArea" class="hidden">
       <a class="navBtn s" href="teacher.html">返回建立任務</a>
       <button id="logoutBtn" class="s">登出</button>
@@ -59,7 +59,7 @@ button,.navBtn{border-radius:10px;padding:11px 15px;font-weight:800;cursor:point
 
   <section id="taskCard" class="card hidden">
     <div class="top">
-      <div><h2>任務列表</h2><div class="small">教學模式與一般任務都會顯示在這裡</div></div>
+<div><h2>評量列表</h2></div>
       <button id="refreshBtn" class="s">重新整理</button>
     </div>
     <div id="taskList"></div>
@@ -158,17 +158,24 @@ async function render(docs){
 
     const rows=resultDocs.map(r=>{
       const d=r.data();
-      return `<div class="rr"><span>${esc(d.studentName||"未命名")}</span><span>${d.progress||0}%</span><span>${d.status==="completed"?"完成":"進行中"}</span><span>${d.attempts||0}</span></div>`;
+      const targets=Array.isArray(t.targetClasses)?t.targetClasses:[];
+      const completedItems=Array.isArray(d.completedClasses)?d.completedClasses:[];
+      const completedCount=Math.min(completedItems.length,targets.length);
+      const unfinishedItems=d.status==="completed"
+        ? []
+        : targets.slice(completedCount);
+      const unfinishedText=unfinishedItems.map(esc).join("、");
+
+      return `<div class="rr"><span>${esc(d.studentName||"未命名")}</span><span>${d.progress||0}%</span><span>${d.status==="completed"?"完成":"進行中"}</span><span>${unfinishedText}</span></div>`;
     }).join("");
 
     const resultSection=t.taskMode==="teaching"
       ? '<div class="small" style="margin-top:12px">教學模式不記錄一般任務完成度。</div>'
       : resultError
         ? `<div class="status err">${esc(resultError)}</div>`
-        : `<div style="margin-top:12px"><b>學生完成度（${resultDocs.length} 人）</b><div class="rr"><b>學生</b><b>進度</b><b>狀態</b><b>誤判</b></div>${rows||'<div class="small" style="padding:10px">尚無學生紀錄</div>'}</div>`;
+        : `<div style="margin-top:12px"><b>學生完成度（${resultDocs.length} 人）</b><div class="rr"><b>學生</b><b>進度</b><b>狀態</b><b>未完成</b></div>${rows||'<div class="small" style="padding:10px">尚無學生紀錄</div>'}</div>`;
 
-    const mode=t.taskMode==="teaching"?"教學模式":"一般任務";
-    out.push(`<div class="task"><div class="top"><div><div class="title">${esc(t.title||"未命名任務")}</div><div class="meta">類型：${mode}<br>物品：${(t.targetClasses||[]).map(esc).join(" → ")}</div></div><span class="badge">${t.status||"active"}</span></div><div class="row" style="margin-top:12px"><button class="s" onclick="showQR('${doc.id}','${esc(t.title||"任務")}')">重新產生 QR</button><button class="d" onclick="delTask('${doc.id}')">刪除任務</button></div>${resultSection}</div>`);
+    out.push(`<div class="task"><div class="top"><div><div class="title">${esc(t.title||"未命名任務")}</div><div class="meta">物品：${(t.targetClasses||[]).map(esc).join(" → ")}</div></div></div><div class="row" style="margin-top:12px"><button class="s" onclick="showQR('${doc.id}','${esc(t.title||"任務")}')">重新產生 QR</button><button class="d" onclick="delTask('${doc.id}')">刪除任務</button></div>${resultSection}</div>`);
   }
   $("taskList").innerHTML=out.join("");
 }
