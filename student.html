@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#2563eb">
+<title>AI 多專案學生任務 V2.1</title>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<!-- TensorFlow.js 與 Teachable Machine 三種專案 -->
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/audio@0.8/dist/teachablemachine-audio.min.js"></script>
+
+<style>
+:root{
+  --primary:#2563eb;--primary-dark:#1d4ed8;--success:#16a34a;
+  --danger:#dc2626;--bg:#f3f6fb;--card:#fff;--text:#172033;
+  --muted:#64748b;--border:#dce4f0;--radius:20px
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC","Microsoft JhengHei",sans-serif;color:var(--text);background:var(--bg)}
+body{min-height:100dvh;display:flex;justify-content:center}
+button,input{font:inherit}
+.app{width:min(100%,760px);min-height:100dvh;padding:max(16px,env(safe-area-inset-top)) 16px max(22px,env(safe-area-inset-bottom))}
+.header{background:linear-gradient(135deg,#2563eb,#4f46e5);color:#fff;border-radius:var(--radius);padding:20px;box-shadow:0 12px 28px rgba(37,99,235,.22);margin-bottom:14px}
+.header h1{margin:0 0 8px;font-size:clamp(1.4rem,5vw,2rem)}
+.header p{margin:0;line-height:1.6;opacity:.95}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:16px;box-shadow:0 8px 24px rgba(15,23,42,.07);margin-top:14px}
+.hidden{display:none!important}
+label{display:block;color:var(--muted);font-size:.92rem;margin:10px 0 7px}
+input{width:100%;min-height:48px;border:1px solid var(--border);border-radius:14px;padding:0 12px;background:#fff;color:var(--text)}
+button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer;font-weight:800}
+.primary{background:var(--primary);color:#fff}.primary:active{background:var(--primary-dark)}
+.secondary{background:#e8eef8;color:#24324b}.full{width:100%;margin-top:12px}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+
+.number-select-title{
+  margin:8px 0 12px;
+  font-size:1.1rem;
+  font-weight:900;
+  text-align:center;
+}
+.number-grid{
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:10px;
+  margin-top:10px;
+}
+.number-btn{
+  min-height:54px;
+  border:2px solid #cbd5e1;
+  border-radius:14px;
+  background:#fff;
+  color:#1e293b;
+  font-size:1.15rem;
+  font-weight:900;
+}
+.number-btn.selected{
+  border-color:#2563eb;
+  background:#2563eb;
+  color:#fff;
+  box-shadow:0 6px 16px rgba(37,99,235,.22);
+}
+.selected-number{
+  margin-top:12px;
+  padding:10px;
+  border-radius:12px;
+  background:#eff6ff;
+  color:#1d4ed8;
+  text-align:center;
+  font-weight:800;
+}
+@media(max-width:430px){
+  .number-grid{grid-template-columns:repeat(3,1fr)}
+}
+
+.status{display:flex;align-items:flex-start;gap:10px;margin-top:14px;padding:12px 14px;border-radius:14px;background:#eff6ff;color:#1e40af;font-weight:700;white-space:pre-wrap;word-break:break-word}
+.status::before{content:"";width:12px;height:12px;border-radius:50%;background:var(--primary);margin-top:4px;flex:none}
+.status.success{background:#ecfdf3;color:#166534}.status.success::before{background:var(--success)}
+.status.error{background:#fef2f2;color:#991b1b}.status.error::before{background:var(--danger)}
+.task-title{font-size:1.45rem;font-weight:900;margin-bottom:6px}.meta{color:var(--muted);line-height:1.6}
+.target{text-align:center;background:linear-gradient(135deg,#eff6ff,#dbeafe);border:2px solid #93c5fd;border-radius:18px;padding:16px;margin-bottom:12px}
+.target small{display:block;color:#475569}.target strong{display:block;font-size:30px;color:#1d4ed8;margin-top:5px}
+.progress-label{display:flex;justify-content:space-between;color:var(--muted);margin-bottom:7px}
+.progress{height:14px;background:#e7edf6;border-radius:999px;overflow:hidden;margin-bottom:14px}
+.progress>div{height:100%;width:0;background:var(--success);transition:width .2s}
+.stage{position:relative;width:100%;aspect-ratio:1/1;overflow:hidden;border-radius:20px;background:#0f172a;display:grid;place-items:center}
+#imageVideo{width:100%;height:100%;object-fit:cover}
+#poseCanvas{width:100%;height:100%;object-fit:cover;display:block}
+.guide{position:absolute;inset:9%;border:3px dashed rgba(255,255,255,.8);border-radius:24px;pointer-events:none}
+.guide span{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);white-space:nowrap;background:rgba(15,23,42,.75);color:#fff;border-radius:999px;padding:8px 14px;font-size:.9rem}
+.audio-stage{min-height:280px;background:linear-gradient(145deg,#0f172a,#1e3a8a);color:#fff;border-radius:20px;display:grid;place-items:center;text-align:center;padding:25px}
+.audio-icon{font-size:72px}.audio-level{font-size:1.1rem;margin-top:12px}
+.overlay{position:absolute;left:10px;right:10px;bottom:10px;background:rgba(15,23,42,.82);color:#fff;border-radius:14px;padding:11px}
+.overlay-main{font-size:1.1rem;font-weight:900}
+.prediction{margin-top:14px;display:grid;gap:9px}
+.pred-row{display:grid;grid-template-columns:minmax(82px,130px) 1fr 50px;align-items:center;gap:9px}
+.pred-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
+.pred-bar{height:13px;background:#e7edf6;border-radius:999px;overflow:hidden}
+.pred-fill{height:100%;width:0;background:var(--primary);transition:width .1s}
+.pred-value{text-align:right;font-weight:700}
+.hold{margin-top:14px}.hold-head{display:flex;justify-content:space-between;color:var(--muted);margin-bottom:7px}
+.hold-bar{height:18px;background:#e7edf6;border-radius:999px;overflow:hidden}.hold-fill{height:100%;width:0;background:var(--success)}
+.item{padding:10px 12px;border:1px solid var(--border);border-radius:11px;display:flex;justify-content:space-between;margin-top:8px}
+.item.done{background:#ecfdf5;border-color:#86efac;color:#166534}
+.complete{text-align:center;animation:pop .45s ease}.complete .icon{font-size:72px}
+@keyframes pop{0%{transform:scale(.75);opacity:0}100%{transform:scale(1);opacity:1}}
+.teaching-result{
+  margin-top:14px;
+  padding:18px;
+  border-radius:18px;
+  background:linear-gradient(135deg,#eff6ff,#dbeafe);
+  border:2px solid #93c5fd;
+  text-align:center;
+}
+.teaching-result small{display:block;color:#475569;margin-bottom:4px}
+.teaching-name-row{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:10px;
+  margin-top:4px;
+}
+.teaching-result strong{display:block;color:#1d4ed8;font-size:34px}
+.speak-btn{
+  width:46px;
+  height:46px;
+  min-height:46px;
+  border-radius:50%;
+  border:1px solid #93c5fd;
+  background:#fff;
+  color:#1d4ed8;
+  font-size:22px;
+  padding:0;
+  display:grid;
+  place-items:center;
+}
+.speak-btn:disabled{
+  opacity:.45;
+  cursor:not-allowed;
+}
+.teaching-result span{display:block;color:#334155;margin-top:5px}
+
+.teaching-page{margin-top:14px}
+.teaching-mode-title{font-size:1.5rem;font-weight:900;color:#172033;margin-bottom:12px}
+.teaching-name-card{background:#fff;border:2px solid #cbd5e1;border-radius:16px;padding:14px;text-align:center;margin-bottom:14px}
+.teaching-name-row{display:flex;align-items:center;justify-content:center;gap:10px}
+.teaching-name-card strong{color:#1d4ed8;font-size:32px;line-height:1.2}
+.teaching-camera-card{background:#fff;border:2px solid #cbd5e1;border-radius:18px;padding:12px}
+.teaching-camera-card .stage{aspect-ratio:3/4;border-radius:14px}
+.teaching-camera-card .guide{inset:10%}
+.teaching-camera-card .overlay{left:8px;right:8px;bottom:8px}
+
+@media(max-width:540px){.row{grid-template-columns:1fr}.pred-row{grid-template-columns:86px 1fr 46px}}
+</style>
+</head>
+<body>
+<main class="app">
+  <section id="loadCard" class="card">
+    <h2>載入任務</h2>
+    <label for="taskIdInput">任務代碼</label>
+    <input id="taskIdInput" placeholder="掃描 QR Code 會自動帶入">
+    <button id="loadBtn" class="primary full">載入任務</button>
+    <div id="loadStatus" class="status">等待任務資料。</div>
+  </section>
+
+  <section id="joinCard" class="card hidden">
+    <div id="taskTitle" class="task-title"></div>
+    <div id="taskMeta" class="meta"></div>
+
+    <div class="number-select-title">請選擇學生編號</div>
+    <div id="studentNumberGrid" class="number-grid">
+      <button type="button" class="number-btn" data-student-number="1">1</button>
+      <button type="button" class="number-btn" data-student-number="2">2</button>
+      <button type="button" class="number-btn" data-student-number="3">3</button>
+      <button type="button" class="number-btn" data-student-number="4">4</button>
+      <button type="button" class="number-btn" data-student-number="5">5</button>
+      <button type="button" class="number-btn" data-student-number="6">6</button>
+      <button type="button" class="number-btn" data-student-number="7">7</button>
+      <button type="button" class="number-btn" data-student-number="8">8</button>
+      <button type="button" class="number-btn" data-student-number="9">9</button>
+      <button type="button" class="number-btn" data-student-number="10">10</button>
+      <button type="button" class="number-btn" data-student-number="11">11</button>
+      <button type="button" class="number-btn" data-student-number="12">12</button>
+      <button type="button" class="number-btn" data-student-number="13">13</button>
+      <button type="button" class="number-btn" data-student-number="14">14</button>
+      <button type="button" class="number-btn" data-student-number="15">15</button>
+    </div>
+
+    <div id="selectedNumberText" class="selected-number">尚未選擇編號</div>
+
+    <button id="startBtn" class="primary full" disabled>開始任務</button>
+    <div id="joinStatus" class="status hidden"></div>
+  </section>
+
+  <section id="taskCard" class="card hidden">
+    <div id="normalTaskHeader">
+      <div class="progress-label"><b>任務進度</b><span id="progressText">0 / 0</span></div>
+      <div class="progress"><div id="progressFill"></div></div>
+
+      <div class="target">
+        <small id="targetHint">目前指定內容</small>
+        <strong id="currentTarget">—</strong>
+      </div>
+    </div>
+
+    <div id="teachingHeader" class="teaching-page hidden">
+      <div class="teaching-mode-title">教學模式</div>
+      <div class="teaching-name-card">
+        <div class="teaching-name-row">
+          <strong id="teachingNameTop">等待辨識…</strong>
+          <button id="speakTeachingBtnTop" class="speak-btn" type="button" aria-label="播放物品名稱" title="播放物品名稱" disabled>🔊</button>
+        </div>
+      </div>
+      <div class="teaching-camera-card">
+              </div>
+    </div>
+
+    <div id="imageStage" class="stage hidden">
+      <video id="imageVideo" autoplay muted playsinline></video>
+      <canvas id="imageCanvas" width="224" height="224" hidden></canvas>
+      <div class="guide"><span>請將物品放入框內</span></div>
+      <div class="overlay"><div id="imageOverlay" class="overlay-main">等待相機畫面…</div></div>
+    </div>
+
+    <div id="poseStage" class="stage hidden">
+      <canvas id="poseCanvas"></canvas>
+      <div class="guide"><span>請讓全身進入框內</span></div>
+      <div class="overlay"><div id="poseOverlay" class="overlay-main">等待姿勢畫面…</div></div>
+    </div>
+
+    <div id="audioStage" class="audio-stage hidden">
+      <div>
+        <div class="audio-icon">🎤</div>
+        <h2>請發出指定聲音</h2>
+        <div id="audioOverlay" class="audio-level">等待麥克風…</div>
+      </div>
+    </div>
+
+    <div id="teachingResult" class="teaching-result hidden">
+      <small>鏡頭目前辨識到</small>
+      <div class="teaching-name-row">
+        <strong id="teachingName">等待辨識…</strong>
+        <button id="speakTeachingBtn" class="speak-btn" type="button" aria-label="播放物品名稱" title="播放物品名稱" disabled>🔊</button>
+      </div>
+      <span id="teachingConfidence">信心值：0%</span>
+    </div>
+
+    <div id="holdSection" class="hold">
+      <div class="hold-head"><span>連續辨識進度</span><span id="holdText">0 / 10</span></div>
+      <div class="hold-bar"><div id="holdFill" class="hold-fill"></div></div>
+    </div>
+
+    <div id="predictionList" class="prediction"></div>
+
+    <div class="row">
+      <button id="switchBtn" class="secondary hidden">切換鏡頭</button>
+      <button id="pauseBtn" class="secondary">暫停辨識</button>
+    </div>
+
+    <div id="recognitionStatus" class="status">等待辨識。</div>
+    <div id="itemList"></div>
+  </section>
+
+  <section id="completeCard" class="card hidden complete">
+    <div class="icon">🎉</div>
+    <h2>任務完成！</h2>
+    <p id="completeMessage"></p>
+  </section>
+</main>
+
+<script>
+const firebaseConfig={
+  apiKey:"AIzaSyBbpIezLbQd2-e-3Z4pSdBLIFc_UlTPUy8",
+  authDomain:"project-6540500202923576846.firebaseapp.com",
+  projectId:"project-6540500202923576846",
+  storageBucket:"project-6540500202923576846.firebasestorage.app",
+  messagingSenderId:"516602165604",
+  appId:"1:516602165604:web:b60f69ee56a4d49c416271"
+};
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth();
+const db=firebase.firestore();
+
+let taskId="",task=null,projectType="",metadata=null,model=null;
+let resultRef=null,currentIndex=0,completed=[],attempts=0,holdCount=0,finished=false,paused=false;
+let imageStream=null,imageRaf=null,facingMode="environment",imagePredicting=false;
+let poseWebcam=null,poseCtx=null,poseRaf=null,posePredicting=false,poseVideoStream=null,poseVideo=null;
+let audioListening=false;
+let predictionRows={};
+
+// 省電設定：保留模型原本 224×224 輸入品質，只降低重複推論頻率。
+const IMAGE_INFERENCE_INTERVAL=125;   // 一般圖片約 8 次/秒
+const TEACHING_INFERENCE_INTERVAL=180; // 教學模式約 5.5 次/秒
+const POSE_INFERENCE_INTERVAL=160;    // 姿勢約 6 次/秒
+let lastImageInferenceTime=0;
+let lastPoseInferenceTime=0;
+let pageAutoPaused=false;
+let lastImageOverlayText="";
+let lastPoseOverlayText="";
+let lastTeachingClass="";
+let lastTeachingPercent=-1;
+let selectedStudentNumber="";
+let currentTeachingLabel="";
+
+const $=id=>document.getElementById(id);
+
+function setStatus(id,msg,type=""){
+  const el=$(id);el.textContent=msg;el.className="status"+(type?" "+type:"");el.classList.remove("hidden");
+}
+function norm(url){url=(url||"").trim();return url.endsWith("/")?url:url+"/"}
+function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+async function ensureAuth(){if(auth.currentUser)return auth.currentUser;return(await auth.signInAnonymously()).user}
+
+function speakTeachingLabel(){
+  const label=currentTeachingLabel.trim();
+
+  if(!label){
+    setStatus("recognitionStatus","目前尚未辨識到可播放的物品名稱。");
+    return;
+  }
+
+  if(!("speechSynthesis" in window)){
+    setStatus("recognitionStatus","此瀏覽器不支援語音播放。","error");
+    return;
+  }
+
+  window.speechSynthesis.cancel();
+
+  const utterance=new SpeechSynthesisUtterance(label);
+  utterance.lang="zh-TW";
+  utterance.rate=0.9;
+  utterance.pitch=1;
+  utterance.volume=1;
+
+  window.speechSynthesis.speak(utterance);
+}
+
+
+async function detectProjectType(modelURL){
+  const response=await fetch(modelURL+"metadata.json",{cache:"no-store"});
+  if(!response.ok)throw new Error("無法讀取 metadata.json");
+  const data=await response.json();
+  const text=JSON.stringify(data).toLowerCase();
+
+  if(text.includes("@teachablemachine/pose") || text.includes('"pose"')) return {type:"pose",metadata:data};
+  if(text.includes("@teachablemachine/audio") || text.includes('"audio"') || text.includes("speechcommands")) return {type:"audio",metadata:data};
+  if(text.includes("@teachablemachine/image") || text.includes('"image"')) return {type:"image",metadata:data};
+
+  // 舊版 metadata 常沒有明確 type，以欄位特徵判斷
+  if(data.wordLabels || data.backgroundNoise || data.sampleRate) return {type:"audio",metadata:data};
+  if(data.poseModel || data.poseLabels) return {type:"pose",metadata:data};
+  return {type:"image",metadata:data};
+}
+
+async function loadTask(){
+  taskId=$("taskIdInput").value.trim();
+  if(!taskId)return setStatus("loadStatus","請輸入任務代碼。","error");
+
+  $("loadBtn").disabled=true;
+  setStatus("loadStatus","正在讀取 Firebase 任務…");
+  try{
+    await ensureAuth();
+    const snap=await db.collection("tasks").doc(taskId).get();
+    if(!snap.exists)throw new Error("找不到此任務");
+    task={id:snap.id,...snap.data()};
+    if(task.status!=="active")throw new Error("任務目前未開放");
+    if(!task.modelURL)throw new Error("任務沒有模型網址");
+    if(!Array.isArray(task.targetClasses)||!task.targetClasses.length)throw new Error("任務沒有指定類別");
+
+    task.modelURL=norm(task.modelURL);
+    task.threshold=Number(task.threshold||0.85);
+    task.requiredConsecutiveFrames=Number(task.requiredConsecutiveFrames||10);
+    task.taskMode=task.taskMode||task.orderMode||"task";
+
+    const detected=await detectProjectType(task.modelURL);
+    projectType=detected.type;
+    metadata=detected.metadata;
+
+    const typeName={image:"圖片專案",audio:"音訊專案",pose:"姿勢專案"}[projectType];
+    $("taskTitle").textContent=task.title||"未命名任務";
+    $("taskMeta").textContent=task.taskMode==="teaching"
+      ? `專案類型：${typeName}｜教學模式：鏡頭對準物品即顯示名稱`
+      : `專案類型：${typeName}｜順序：${task.targetClasses.join(" → ")}`;
+    if(task.taskMode==="teaching"){
+      $("joinCard").classList.add("hidden");
+      setStatus("loadStatus","教學模式載入成功，正在開啟鏡頭…","success");
+      await startTeachingModeDirectly();
+    }else{
+      selectedStudentNumber="";
+      document.querySelectorAll(".number-btn").forEach(button=>{
+        button.classList.remove("selected");
+      });
+      $("selectedNumberText").textContent="尚未選擇編號";
+      $("startBtn").disabled=true;
+
+      $("joinCard").classList.remove("hidden");
+      setStatus("loadStatus","任務載入成功，已辨識為「"+typeName+"」。","success");
+    }
+  }catch(error){
+    console.error(error);
+    setStatus("loadStatus","任務載入失敗：\n"+(error.message||error),"error");
+  }finally{$("loadBtn").disabled=false}
+}
+
+
+
+function selectStudentNumber(number){
+  selectedStudentNumber=String(number);
+
+  document.querySelectorAll(".number-btn").forEach(button=>{
+    button.classList.toggle(
+      "selected",
+      button.dataset.studentNumber===selectedStudentNumber
+    );
+  });
+
+  $("selectedNumberText").textContent="已選擇學生編號："+selectedStudentNumber;
+  $("startBtn").disabled=false;
+  $("joinStatus").classList.add("hidden");
+}
+
+document.querySelectorAll(".number-btn").forEach(button=>{
+  button.addEventListener("click",()=>{
+    selectStudentNumber(button.dataset.studentNumber);
+  });
+});
+
+async function startTeachingModeDirectly(){
+  try{
+    $("loadBtn").disabled=true;
+
+    await loadSelectedModel();
+
+    const labels=getModelLabels();
+    if(!labels.length){
+      throw new Error("模型沒有可辨識的類別");
+    }
+
+    currentIndex=0;
+    completed=[];
+    attempts=0;
+    holdCount=0;
+    finished=false;
+    paused=false;
+    resultRef=null;
+
+    buildPredictionUI(labels);
+
+    $("loadCard").classList.add("hidden");
+    $("joinCard").classList.add("hidden");
+    $("taskCard").classList.remove("hidden");
+
+    $("normalTaskHeader").classList.add("hidden");
+    $("teachingHeader").classList.remove("hidden");
+    $("teachingResult").classList.add("hidden");
+    $("holdSection").classList.add("hidden");
+    $("itemList").classList.add("hidden");
+    $("predictionList").classList.add("hidden");
+
+    const cameraCard=document.querySelector(".teaching-camera-card");
+    if(cameraCard && $("imageStage").parentElement!==cameraCard){
+      cameraCard.appendChild($("imageStage"));
+    }
+
+    await startSelectedProject();
+  }catch(error){
+    console.error("直接進入教學模式失敗",error);
+    $("loadCard").classList.remove("hidden");
+    setStatus(
+      "loadStatus",
+      "教學模式啟動失敗：\n"+(error.message||error),
+      "error"
+    );
+  }finally{
+    $("loadBtn").disabled=false;
+  }
+}
+
+async function startTask(){
+  if(task&&task.taskMode==="teaching"){
+    await startTeachingModeDirectly();
+    return;
+  }
+
+  if(!selectedStudentNumber){
+    setStatus("joinStatus","請先選擇學生編號。","error");
+    return;
+  }
+
+  const studentName="學生 "+selectedStudentNumber;
+  const studentCode=selectedStudentNumber;
+
+  $("startBtn").disabled=true;
+  setStatus("joinStatus","正在載入 AI 模型並建立作答紀錄…");
+
+  try{
+    await loadSelectedModel();
+    const labels=getModelLabels();
+    const missing=task.targetClasses.filter(x=>!labels.includes(x));
+    if(missing.length)throw new Error("模型缺少類別："+missing.join("、"));
+
+    if(task.taskMode!=="teaching"){
+      resultRef=await db.collection("taskResults").add({
+        taskId,
+        teacherId:task.teacherId||"",
+        studentUid:auth.currentUser.uid,
+        studentName,studentCode,
+        projectType,
+        targetClasses:task.targetClasses,
+        completedClasses:[],
+        progress:0,
+        attempts:0,
+        status:"inProgress",
+        startedAt:firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }else{
+      resultRef=null;
+    }
+
+    currentIndex=0;completed=[];attempts=0;holdCount=0;finished=false;paused=false;
+    buildPredictionUI(labels);
+
+    if(task.taskMode==="teaching"){
+      $("normalTaskHeader").classList.add("hidden");
+      $("teachingHeader").classList.remove("hidden");
+      $("teachingResult").classList.add("hidden");
+      $("holdSection").classList.add("hidden");
+      $("itemList").classList.add("hidden");
+      $("predictionList").classList.add("hidden");
+
+      const cameraCard=document.querySelector(".teaching-camera-card");
+      if(cameraCard && $("imageStage").parentElement!==cameraCard){
+        cameraCard.appendChild($("imageStage"));
+      }
+    }else{
+      $("normalTaskHeader").classList.remove("hidden");
+      $("teachingHeader").classList.add("hidden");
+      $("predictionList").classList.remove("hidden");
+      $("teachingResult").classList.add("hidden");
+      $("holdSection").classList.remove("hidden");
+      $("itemList").classList.remove("hidden");
+      renderTask();
+    }
+
+    $("loadCard").classList.add("hidden");
+    $("joinCard").classList.add("hidden");
+    $("taskCard").classList.remove("hidden");
+
+    await startSelectedProject();
+  }catch(error){
+    console.error(error);
+    setStatus("joinStatus","開始任務失敗：\n"+(error.message||error),"error");
+    $("startBtn").disabled=false;
+  }
+}
+
+async function loadSelectedModel(){
+  if(task.taskMode==="teaching"&&projectType!=="image"){
+    throw new Error("目前教學模式僅支援 Teachable Machine 圖片專案。");
+  }
+
+  if(projectType==="image"){
+    model=await tmImage.load(task.modelURL+"model.json",task.modelURL+"metadata.json");
+  }else if(projectType==="pose"){
+    model=await tmPose.load(task.modelURL+"model.json",task.modelURL+"metadata.json");
+  }else if(projectType==="audio"){
+    model=await tmAudio.load(task.modelURL+"model.json",task.modelURL+"metadata.json");
+  }else{
+    throw new Error("不支援的專案類型");
+  }
+}
+function getModelLabels(){
+  if(model.getClassLabels)return model.getClassLabels();
+  if(model.wordLabels)return model.wordLabels();
+  if(model.getLabels)return model.getLabels();
+  const labels=metadata?.labels||metadata?.wordLabels||[];
+  return labels;
+}
+
+function buildPredictionUI(labels){
+  predictionRows={};
+  $("predictionList").innerHTML=labels.map((name,i)=>`
+    <div class="pred-row">
+      <div class="pred-name">${escapeHtml(name)}</div>
+      <div class="pred-bar"><div id="predFill_${i}" class="pred-fill"></div></div>
+      <div id="predValue_${i}" class="pred-value">0%</div>
+    </div>`).join("");
+  labels.forEach((name,i)=>predictionRows[name]={fill:$("predFill_"+i),value:$("predValue_"+i)});
+}
+
+async function startSelectedProject(){
+  hideAllStages();
+  $("pauseBtn").textContent="暫停辨識";
+
+  if(projectType==="image"){
+    $("imageStage").classList.remove("hidden");
+    $("switchBtn").classList.remove("hidden");
+    $("targetHint").textContent=task.taskMode==="teaching"?"自由辨識物品":"目前要找的物品";
+
+    try{
+      await startImage();
+    }catch(e){
+      console.error("相機啟動失敗",e);
+      $("imageOverlay").textContent="相機啟動失敗";
+      setStatus(
+        "recognitionStatus",
+        "無法開啟相機：\n"+(e.message||e)+"\n請確認瀏覽器相機權限，並使用 HTTPS 網址。",
+        "error"
+      );
+      throw e;
+    }
+  }else if(projectType==="pose"){
+    $("poseStage").classList.remove("hidden");
+    $("switchBtn").classList.remove("hidden");
+    $("targetHint").textContent="目前要完成的動作";
+    await startPose();
+  }else{
+    $("audioStage").classList.remove("hidden");
+    $("switchBtn").classList.add("hidden");
+    $("targetHint").textContent="目前要發出的聲音";
+    await startAudio();
+  }
+}
+
+function hideAllStages(){
+  $("imageStage").classList.add("hidden");
+  $("poseStage").classList.add("hidden");
+  $("audioStage").classList.add("hidden");
+}
+
+async function startImage(){
+  stopImage();
+
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    throw new Error("此瀏覽器不支援相機功能");
+  }
+
+  const video=$("imageVideo");
+  $("imageOverlay").textContent="正在開啟相機…";
+
+  const preferredConstraints={
+    video:{
+      facingMode:{ideal:facingMode},
+      width:{ideal:640},
+      height:{ideal:480},
+      frameRate:{ideal:15,max:20}
+    },
+    audio:false
+  };
+
+  try{
+    imageStream=await navigator.mediaDevices.getUserMedia(preferredConstraints);
+  }catch(firstError){
+    console.warn("指定鏡頭開啟失敗，改用預設鏡頭",firstError);
+
+    imageStream=await navigator.mediaDevices.getUserMedia({
+      video:true,
+      audio:false
+    });
+  }
+
+  video.srcObject=imageStream;
+
+  await new Promise((resolve,reject)=>{
+    if(video.readyState>=1&&video.videoWidth>0){
+      resolve();
+      return;
+    }
+
+    const timer=setTimeout(()=>{
+      reject(new Error("相機畫面載入逾時"));
+    },10000);
+
+    video.onloadedmetadata=()=>{
+      clearTimeout(timer);
+      resolve();
+    };
+  });
+
+  await video.play();
+
+  lastImageInferenceTime=0;
+  lastImageOverlayText="";
+  $("imageStage").classList.remove("hidden");
+  $("imageOverlay").textContent="等待相機畫面…";
+  setStatus(
+    "recognitionStatus",
+    task&&task.taskMode==="teaching"
+      ?"教學模式相機已啟動，請將物品放入框內。"
+      :"相機已啟動，請尋找指定物品。",
+    "success"
+  );
+
+  imageLoop();
+}
+function stopImage(cancel=true){
+  if(cancel&&imageRaf)cancelAnimationFrame(imageRaf);
+  imageRaf=null;
+
+  if(imageStream){
+    imageStream.getTracks().forEach(t=>t.stop());
+    imageStream=null;
+  }
+
+  const video=$("imageVideo");
+  if(video)video.srcObject=null;
+}
+async function imageLoop(timestamp=performance.now()){
+  if(finished||paused||!imageStream)return;
+
+  const interval=task&&task.taskMode==="teaching"
+    ? TEACHING_INFERENCE_INTERVAL
+    : IMAGE_INFERENCE_INTERVAL;
+
+  if(timestamp-lastImageInferenceTime<interval){
+    imageRaf=requestAnimationFrame(imageLoop);
+    return;
+  }
+
+  if(imagePredicting){
+    imageRaf=requestAnimationFrame(imageLoop);
+    return;
+  }
+
+  lastImageInferenceTime=timestamp;
+  imagePredicting=true;
+
+  try{
+    const video=$("imageVideo"),canvas=$("imageCanvas"),ctx=canvas.getContext("2d");
+
+    if(video.readyState>=2&&video.videoWidth){
+      const side=Math.min(video.videoWidth,video.videoHeight);
+
+      // 模型輸入仍維持原本 224×224，不降低單次推論品質。
+      ctx.drawImage(
+        video,
+        (video.videoWidth-side)/2,
+        (video.videoHeight-side)/2,
+        side,
+        side,
+        0,
+        0,
+        224,
+        224
+      );
+
+      const predictions=await model.predict(canvas);
+      processPredictions(predictions,canvas);
+
+      const top=[...predictions].sort((a,b)=>b.probability-a.probability)[0];
+
+      if(top){
+        const overlayText=
+          `目前辨識：${top.className}｜${Math.round(top.probability*100)}%`;
+
+        // 只有內容改變才更新 DOM，減少畫面重繪。
+        if(overlayText!==lastImageOverlayText){
+          $("imageOverlay").textContent=overlayText;
+          lastImageOverlayText=overlayText;
+        }
+      }
+    }
+  }catch(e){
+    setStatus("recognitionStatus","圖片辨識錯誤：\n"+e.message,"error");
+  }finally{
+    imagePredicting=false;
+
+    if(!finished&&!paused&&imageStream){
+      imageRaf=requestAnimationFrame(imageLoop);
+    }
+  }
+}
+
+async function startPose(){
+  // Pose 改用 getUserMedia 控制前後鏡頭，
+  // 再將影像提供給 Teachable Machine Pose 模型。
+  if(poseVideoStream){
+    poseVideoStream.getTracks().forEach(t=>t.stop());
+    poseVideoStream=null;
+  }
+
+  if(poseRaf){
+    cancelAnimationFrame(poseRaf);
+    poseRaf=null;
+  }
+
+  if(!poseVideo){
+    poseVideo=document.createElement("video");
+    poseVideo.autoplay=true;
+    poseVideo.muted=true;
+    poseVideo.playsInline=true;
+  }
+
+  poseVideoStream=await navigator.mediaDevices.getUserMedia({
+    video:{
+      facingMode:{ideal:facingMode},
+      width:{ideal:640},
+      height:{ideal:480},
+      frameRate:{ideal:15,max:20}
+    },
+    audio:false
+  });
+
+  poseVideo.srcObject=poseVideoStream;
+  await poseVideo.play();
+
+  const canvas=$("poseCanvas");
+  canvas.width=420;
+  canvas.height=420;
+  poseCtx=canvas.getContext("2d");
+
+  lastPoseInferenceTime=0;
+  lastPoseOverlayText="";
+  setStatus("recognitionStatus","姿勢相機已啟動，請讓全身進入框內。","success");
+  poseLoop();
+}
+
+async function poseLoop(timestamp=performance.now()){
+  if(finished||paused||!poseVideo||!poseVideoStream)return;
+
+  if(timestamp-lastPoseInferenceTime<POSE_INFERENCE_INTERVAL){
+    poseRaf=requestAnimationFrame(poseLoop);
+    return;
+  }
+
+  if(posePredicting){
+    poseRaf=requestAnimationFrame(poseLoop);
+    return;
+  }
+
+  lastPoseInferenceTime=timestamp;
+  posePredicting=true;
+
+  try{
+    const canvas=$("poseCanvas");
+    poseCtx.clearRect(0,0,canvas.width,canvas.height);
+
+    // 前鏡頭需要水平翻轉，避免 Pose 模型左右方向錯亂
+    if(facingMode==="user"){
+      poseCtx.save();
+      poseCtx.translate(canvas.width,0);
+      poseCtx.scale(-1,1);
+      poseCtx.drawImage(
+        poseVideo,
+        0,0,
+        canvas.width,
+        canvas.height
+      );
+      poseCtx.restore();
+    }else{
+      poseCtx.drawImage(
+        poseVideo,
+        0,0,
+        canvas.width,
+        canvas.height
+      );
+    }
+
+    const {pose,posenetOutput}=await model.estimatePose(canvas);
+    const predictions=await model.predict(posenetOutput);
+
+    drawPose(pose);
+
+    processPredictions(predictions,canvas);
+
+    const top=[...predictions].sort((a,b)=>b.probability-a.probability)[0];
+
+    if(top){
+      const overlayText=
+        `目前姿勢：${top.className}｜${Math.round(top.probability*100)}%`;
+
+      if(overlayText!==lastPoseOverlayText){
+        $("poseOverlay").textContent=overlayText;
+        lastPoseOverlayText=overlayText;
+      }
+    }
+
+  }catch(e){
+    setStatus("recognitionStatus","姿勢辨識錯誤：\n"+e.message,"error");
+  }
+
+  finally{
+    posePredicting=false;
+    if(!finished&&!paused&&poseVideo){
+      poseRaf=requestAnimationFrame(poseLoop);
+    }
+  }
+}
+
+function drawPose(pose){
+  if(!poseCtx || !poseVideo)return;
+
+  const canvas=$("poseCanvas");
+
+  poseCtx.clearRect(0,0,canvas.width,canvas.height);
+
+  // 顯示相機畫面
+  if(facingMode==="user"){
+    poseCtx.save();
+    poseCtx.translate(canvas.width,0);
+    poseCtx.scale(-1,1);
+    poseCtx.drawImage(
+      poseVideo,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+    poseCtx.restore();
+  }else{
+    poseCtx.drawImage(
+      poseVideo,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+  }
+
+  // 顯示 Teachable Machine Pose 骨架
+  if(pose){
+    tmPose.drawKeypoints(
+      pose.keypoints,
+      0.5,
+      poseCtx
+    );
+
+    tmPose.drawSkeleton(
+      pose.keypoints,
+      0.5,
+      poseCtx
+    );
+  }
+}
+
+async function startAudio(){
+  audioListening=true;
+  setStatus("recognitionStatus","麥克風已啟動，請發出指定聲音。","success");
+  await model.listen(result=>{
+    if(finished||paused||!audioListening)return;
+    const labels=getModelLabels();
+    const predictions=labels.map((className,i)=>({className,probability:result.scores[i]||0}));
+    processPredictions(predictions,null);
+    const top=[...predictions].sort((a,b)=>b.probability-a.probability)[0];
+    $("audioOverlay").textContent=`目前辨識：${top.className}｜${Math.round(top.probability*100)}%`;
+  },{
+    includeSpectrogram:true,
+    probabilityThreshold:0,
+    invokeCallbackOnNoiseAndUnknown:true,
+    overlapFactor:0.50
+  });
+}
+function stopAudio(){
+  audioListening=false;
+  if(model&&model.stopListening)model.stopListening();
+}
+
+function processPredictions(predictions,evidenceCanvas){
+  predictions.forEach(item=>{
+    const row=predictionRows[item.className];
+    if(row){
+      const pct=Math.round(item.probability*100);
+      row.fill.style.width=pct+"%";
+      row.value.textContent=pct+"%";
+    }
+  });
+
+  const sorted=[...predictions].sort((a,b)=>b.probability-a.probability);
+  const top=sorted[0],second=sorted[1]||{probability:0};
+
+  if(task.taskMode==="teaching"){
+    if(top){
+      currentTeachingLabel=top.className;
+      const teachingPercent=Math.round(top.probability*100);
+
+      if(
+        top.className!==lastTeachingClass ||
+        teachingPercent!==lastTeachingPercent
+      ){
+        $("teachingName").textContent=top.className;
+        $("teachingConfidence").textContent="信心值："+teachingPercent+"%";
+        $("speakTeachingBtn").disabled=false;
+
+        if($("teachingNameTop")){
+          $("teachingNameTop").textContent=top.className;
+        }
+        if($("speakTeachingBtnTop")){
+          $("speakTeachingBtnTop").disabled=false;
+        }
+
+        lastTeachingClass=top.className;
+        lastTeachingPercent=teachingPercent;
+      }
+      setStatus(
+        "recognitionStatus",
+        top.probability>=task.threshold
+          ? `辨識結果：${top.className}`
+          : `目前最接近：${top.className}，請再靠近或調整角度。`,
+        top.probability>=task.threshold?"success":""
+      );
+    }
+    return;
+  }
+
+  const target=task.targetClasses[currentIndex];
+
+  const success=
+    top.className===target &&
+    top.probability>=task.threshold &&
+    (top.probability-second.probability)>=0.10;
+
+  if(success)holdCount++;
+  else{
+    if(top.probability>=task.threshold&&top.className!==target)attempts++;
+    holdCount=0;
+  }
+
+  const required=task.requiredConsecutiveFrames;
+  $("holdText").textContent=`${holdCount} / ${required}`;
+  $("holdFill").style.width=Math.min(100,holdCount/required*100)+"%";
+
+  if(holdCount>=required){
+    holdCount=0;
+    completeCurrent(top.probability,evidenceCanvas);
+  }
+}
+
+async function completeCurrent(confidence,evidenceCanvas){
+  if(finished)return;
+  const item=task.targetClasses[currentIndex];
+
+  completed.push(item);
+  currentIndex++;
+  renderTask();
+
+  const evidence={
+    targetClass:item,
+    confidence,
+    projectType,
+    createdAt:firebase.firestore.FieldValue.serverTimestamp()
+  };
+
+  if(evidenceCanvas&&projectType!=="audio"){
+    evidence.photoDataURL=evidenceCanvas.toDataURL("image/jpeg",0.42);
+  }
+
+  try{
+    await resultRef.collection("evidence").add(evidence);
+    const progress=Math.round(completed.length/task.targetClasses.length*100);
+    await resultRef.update({
+      completedClasses:[...completed],
+      progress,
+      attempts,
+      status:currentIndex>=task.targetClasses.length?"completed":"inProgress",
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+      ...(currentIndex>=task.targetClasses.length?{completedAt:firebase.firestore.FieldValue.serverTimestamp()}:{})
+    });
+  }catch(e){
+    console.error("回傳紀錄失敗",e);
+    setStatus("recognitionStatus","辨識成功，但 Firebase 紀錄失敗：\n"+e.message,"error");
+  }
+
+  if(currentIndex>=task.targetClasses.length){
+    finishTask();
+  }else{
+    setStatus("recognitionStatus",`已完成「${item}」，請進行下一項。`,"success");
+  }
+}
+
+function renderTask(){
+  const total=task.targetClasses.length,done=completed.length;
+  $("progressText").textContent=`${done} / ${total}`;
+  $("progressFill").style.width=Math.round(done/total*100)+"%";
+  $("currentTarget").textContent=currentIndex<total?task.targetClasses[currentIndex]:"全部完成";
+  $("itemList").innerHTML=task.targetClasses.map((x,i)=>`
+    <div class="item ${i<done?"done":""}">
+      <span>${i<done?"✓":i===currentIndex?"➜":"○"} ${escapeHtml(x)}</span>
+      <span>${i<done?"完成":i===currentIndex?"進行中":"等待"}</span>
+    </div>`).join("");
+}
+
+function finishTask(){
+  finished=true;
+  stopAll();
+  $("taskCard").classList.add("hidden");
+  $("completeCard").classList.remove("hidden");
+  const typeName={image:"圖片",audio:"音訊",pose:"姿勢"}[projectType];
+  $("completeMessage").textContent=`已完成全部${typeName}任務，結果已回傳教師端。`;
+}
+
+function stopAll(){
+  stopImage();
+  if(poseRaf)cancelAnimationFrame(poseRaf);
+  poseRaf=null;
+  if(poseWebcam){try{poseWebcam.stop();}catch(e){} poseWebcam=null}
+  if(poseVideoStream){
+    poseVideoStream.getTracks().forEach(t=>t.stop());
+    poseVideoStream=null;
+  }
+  if(poseVideo)poseVideo.srcObject=null;
+  stopAudio();
+}
+
+async function togglePause(){
+  paused=!paused;
+  $("pauseBtn").textContent=paused?"繼續辨識":"暫停辨識";
+
+  if(paused){
+    stopAll();
+    setStatus("recognitionStatus","辨識與鏡頭已暫停。");
+  }else{
+    setStatus("recognitionStatus","正在重新啟動辨識…","success");
+
+    try{
+      await startSelectedProject();
+      setStatus("recognitionStatus","辨識已繼續。","success");
+    }catch(e){
+      paused=true;
+      $("pauseBtn").textContent="繼續辨識";
+      setStatus("recognitionStatus","無法重新啟動辨識：\n"+e.message,"error");
+    }
+  }
+}
+
+async function switchCamera(){
+  facingMode=facingMode==="environment"?"user":"environment";
+
+  if(projectType==="image"){
+    await startImage();
+    return;
+  }
+
+  if(projectType==="pose"){
+    await startPose();
+    return;
+  }
+}
+
+$("speakTeachingBtn").onclick=speakTeachingLabel;
+$("speakTeachingBtnTop").onclick=speakTeachingLabel;
+$("loadBtn").onclick=loadTask;
+$("startBtn").onclick=startTask;
+$("pauseBtn").onclick=togglePause;
+$("switchBtn").onclick=switchCamera;
+
+document.addEventListener("visibilitychange",async()=>{
+  if(document.hidden){
+    if(!finished&&task&&!paused){
+      pageAutoPaused=true;
+      stopAll();
+    }
+    return;
+  }
+
+  if(pageAutoPaused&&!finished&&task&&!paused){
+    pageAutoPaused=false;
+
+    try{
+      await startSelectedProject();
+    }catch(e){
+      setStatus(
+        "recognitionStatus",
+        "回到頁面後無法重新啟動相機：\n"+e.message,
+        "error"
+      );
+    }
+  }
+});
+
+window.addEventListener("pagehide",stopAll);
+window.addEventListener("beforeunload",stopAll);
+
+taskId=new URLSearchParams(location.search).get("task")||"";
+$("taskIdInput").value=taskId;
+if(taskId)loadTask();
+</script>
+</body>
+</html>

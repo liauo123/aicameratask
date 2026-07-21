@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>我的任務列表</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+:root{--b:#2563eb;--r:#dc2626;--bg:#eef2f7;--m:#64748b;--l:#dbe2ea}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);font-family:"Noto Sans TC",Arial;color:#172033}
+header{background:#fff;box-shadow:0 2px 10px #0002;padding:14px 18px;position:sticky;top:0;z-index:20}
+.head{max-width:1100px;margin:auto;display:flex;justify-content:space-between;align-items:center;gap:12px}
+h1{margin:0;color:var(--b);font-size:22px}
+main{max-width:1100px;margin:auto;padding:18px}
+.card{background:#fff;border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 3px 12px #0001}
+button,.navBtn{border-radius:10px;padding:11px 15px;font-weight:800;cursor:pointer;text-decoration:none}
+.s{background:#fff;color:var(--b);border:1px solid #b7ccff}
+.d{background:#fff1f2;color:var(--r);border:1px solid #fecdd3}
+.p{background:var(--b);color:#fff;border:0}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:140px}
+.status{padding:12px;border-radius:10px;background:#eff6ff;color:#1d4ed8;white-space:pre-wrap;margin-top:10px}
+.err{background:#fef2f2;color:#b91c1c}.hidden{display:none!important}
+.task{border:1px solid var(--l);border-radius:12px;padding:14px;margin:10px 0}
+.top{display:flex;justify-content:space-between;gap:10px}
+.title{font-size:18px;font-weight:900}
+.meta,.small{font-size:13px;color:var(--m);line-height:1.6}
+.badge{padding:4px 8px;border-radius:999px;background:#dbeafe;color:#1d4ed8;font-size:12px;font-weight:800}
+.rr{display:grid;grid-template-columns:1.2fr .7fr .7fr .7fr;gap:8px;padding:8px;border-bottom:1px solid #eef2f7;font-size:14px}
+.modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:20px;z-index:99}
+.box{background:#fff;padding:20px;border-radius:16px;text-align:center;max-width:380px;width:100%}
+.url{word-break:break-all;background:#f8fafc;padding:10px;border-radius:8px;margin:10px 0}
+@media(max-width:600px){.rr{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+<header>
+  <div class="head">
+    <div><h1>我的任務列表</h1><div class="small">重新產生 QR、查看學生完成度、刪除任務</div></div>
+    <div id="userArea" class="hidden">
+      <a class="navBtn s" href="teacher.html">返回建立任務</a>
+      <button id="logoutBtn" class="s">登出</button>
+    </div>
+  </div>
+</header>
+<main>
+  <section id="authCard" class="card">
+    <h2>教師登入</h2>
+    <div class="row">
+      <input id="email" type="email" placeholder="教師 Email" style="padding:12px;border:1px solid #cbd5e1;border-radius:10px">
+      <input id="password" type="password" placeholder="密碼" style="padding:12px;border:1px solid #cbd5e1;border-radius:10px">
+    </div>
+    <button id="loginBtn" class="p" style="margin-top:10px">登入</button>
+    <div id="authStatus" class="status">請先登入。</div>
+  </section>
+
+  <section id="taskCard" class="card hidden">
+    <div class="top">
+      <div><h2>任務列表</h2><div class="small">教學模式與一般任務都會顯示在這裡</div></div>
+      <button id="refreshBtn" class="s">重新整理</button>
+    </div>
+    <div id="taskList"></div>
+  </section>
+</main>
+
+<div id="qrModal" class="modal hidden">
+  <div class="box">
+    <h3 id="qrTitle">任務 QR Code</h3>
+    <div id="qrCode"></div>
+    <div id="qrURL" class="url"></div>
+    <div class="row">
+      <button id="copyBtn" class="p">複製網址</button>
+      <button id="closeBtn" class="s">關閉</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const firebaseConfig={apiKey:"AIzaSyBbpIezLbQd2-e-3Z4pSdBLIFc_UlTPUy8",authDomain:"project-6540500202923576846.firebaseapp.com",projectId:"project-6540500202923576846",storageBucket:"project-6540500202923576846.firebasestorage.app",messagingSenderId:"516602165604",appId:"1:516602165604:web:b60f69ee56a4d49c416271"};
+firebase.initializeApp(firebaseConfig);
+const auth=firebase.auth(),db=firebase.firestore();
+let user=null,unsub=null;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function status(id,msg,type=""){const e=$(id);e.textContent=msg;e.className="status "+type}
+
+auth.onAuthStateChanged(u=>{
+  user=u;
+  if(u){
+    $("authCard").classList.add("hidden");
+    $("taskCard").classList.remove("hidden");
+    $("userArea").classList.remove("hidden");
+    listen();
+  }else{
+    $("authCard").classList.remove("hidden");
+    $("taskCard").classList.add("hidden");
+    $("userArea").classList.add("hidden");
+    if(unsub)unsub();
+  }
+});
+
+$("loginBtn").onclick=async()=>{
+  try{await auth.signInWithEmailAndPassword($("email").value.trim(),$("password").value)}
+  catch(e){status("authStatus","登入失敗：\n"+e.message,"err")}
+};
+$("logoutBtn").onclick=()=>auth.signOut();
+
+function studentURL(id){
+  const u=new URL("student.html",location.href);
+  u.searchParams.set("task",id);
+  return u.toString();
+}
+function showQR(id,title){
+  const url=studentURL(id);
+  $("qrTitle").textContent=title+"－QR Code";
+  $("qrURL").textContent=url;
+  $("qrCode").innerHTML="";
+  new QRCode($("qrCode"),{text:url,width:260,height:260,correctLevel:QRCode.CorrectLevel.M});
+  $("qrModal").classList.remove("hidden");
+}
+window.showQR=showQR;
+$("closeBtn").onclick=()=>$("qrModal").classList.add("hidden");
+$("copyBtn").onclick=()=>navigator.clipboard.writeText($("qrURL").textContent);
+
+function listen(){
+  if(unsub)unsub();
+  $("taskList").innerHTML='<div class="status">正在載入任務列表…</div>';
+  unsub=db.collection("tasks").where("teacherId","==",user.uid).onSnapshot(
+    async s=>{try{await render(s.docs)}catch(e){$("taskList").innerHTML='<div class="status err">'+esc(e.message||e)+'</div>'}},
+    e=>$("taskList").innerHTML='<div class="status err">'+esc(e.message||e)+'</div>'
+  );
+}
+
+async function refreshTasks(){
+  const btn=$("refreshBtn");
+  btn.disabled=true;btn.textContent="整理中…";
+  try{
+    const snap=await db.collection("tasks").where("teacherId","==",user.uid).get();
+    await render(snap.docs);
+  }catch(e){$("taskList").innerHTML='<div class="status err">'+esc(e.message||e)+'</div>'}
+  finally{btn.disabled=false;btn.textContent="重新整理"}
+}
+$("refreshBtn").onclick=refreshTasks;
+
+async function render(docs){
+  if(!docs.length){$("taskList").innerHTML='<div class="status">尚未建立任務。</div>';return}
+  const out=[];
+  for(const doc of docs){
+    const t=doc.data();
+    let resultDocs=[],resultError="";
+    try{
+      const rs=await db.collection("taskResults").where("teacherId","==",user.uid).where("taskId","==",doc.id).get();
+      resultDocs=rs.docs;
+    }catch(e){resultError=e.message||String(e)}
+
+    const rows=resultDocs.map(r=>{
+      const d=r.data();
+      return `<div class="rr"><span>${esc(d.studentName||"未命名")}</span><span>${d.progress||0}%</span><span>${d.status==="completed"?"完成":"進行中"}</span><span>${d.attempts||0}</span></div>`;
+    }).join("");
+
+    const resultSection=t.taskMode==="teaching"
+      ? '<div class="small" style="margin-top:12px">教學模式不記錄一般任務完成度。</div>'
+      : resultError
+        ? `<div class="status err">${esc(resultError)}</div>`
+        : `<div style="margin-top:12px"><b>學生完成度（${resultDocs.length} 人）</b><div class="rr"><b>學生</b><b>進度</b><b>狀態</b><b>誤判</b></div>${rows||'<div class="small" style="padding:10px">尚無學生紀錄</div>'}</div>`;
+
+    const mode=t.taskMode==="teaching"?"教學模式":"一般任務";
+    out.push(`<div class="task"><div class="top"><div><div class="title">${esc(t.title||"未命名任務")}</div><div class="meta">類型：${mode}<br>物品：${(t.targetClasses||[]).map(esc).join(" → ")}</div></div><span class="badge">${t.status||"active"}</span></div><div class="row" style="margin-top:12px"><button class="s" onclick="showQR('${doc.id}','${esc(t.title||"任務")}')">重新產生 QR</button><button class="d" onclick="delTask('${doc.id}')">刪除任務</button></div>${resultSection}</div>`);
+  }
+  $("taskList").innerHTML=out.join("");
+}
+window.delTask=async id=>{if(confirm("確定刪除此任務？"))await db.collection("tasks").doc(id).delete()};
+</script>
+</body>
+</html>
