@@ -147,11 +147,20 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
 }
 .teaching-result span{display:block;color:#334155;margin-top:5px}
 
-.teaching-page{margin-top:14px}
-.teaching-mode-title{font-size:1.5rem;font-weight:900;color:#172033;margin-bottom:12px}
+.teaching-page{margin-top:0}
+.teaching-mode-title{display:none!important}
+#recognitionStatus{display:none!important}
 .teaching-name-card{background:#fff;border:2px solid #cbd5e1;border-radius:16px;padding:14px;text-align:center;margin-bottom:14px}
 .teaching-name-row{display:flex;align-items:center;justify-content:center;gap:10px}
 .teaching-name-card strong{color:#1d4ed8;font-size:32px;line-height:1.2}
+@keyframes teachingSuccessFlash{
+  0%,100%{background:#fff;border-color:#cbd5e1;box-shadow:none;transform:scale(1)}
+  25%,75%{background:#dcfce7;border-color:#22c55e;box-shadow:0 0 0 5px rgba(34,197,94,.18);transform:scale(1.015)}
+  50%{background:#fff;border-color:#cbd5e1;box-shadow:none;transform:scale(1)}
+}
+.teaching-name-card.success-flash{
+  animation:teachingSuccessFlash .8s ease-in-out 1;
+}
 .teaching-camera-card{background:#fff;border:2px solid #cbd5e1;border-radius:18px;padding:12px}
 .teaching-camera-card .stage{aspect-ratio:3/4;border-radius:14px}
 .teaching-camera-card .guide{inset:10%}
@@ -306,6 +315,7 @@ let lastImageOverlayText="";
 let lastPoseOverlayText="";
 let lastTeachingClass="";
 let lastTeachingPercent=-1;
+let lastFlashedTeachingClass="";
 let imageStableClass="";
 let imageStableCount=0;
 let poseStableClass="";
@@ -317,6 +327,19 @@ const $=id=>document.getElementById(id);
 
 function setStatus(id,msg,type=""){
   const el=$(id);el.textContent=msg;el.className="status"+(type?" "+type:"");el.classList.remove("hidden");
+}
+
+function flashTeachingNameCard(){
+  const card=document.querySelector(".teaching-name-card");
+  if(!card)return;
+
+  card.classList.remove("success-flash");
+  void card.offsetWidth;
+  card.classList.add("success-flash");
+
+  setTimeout(()=>{
+    card.classList.remove("success-flash");
+  },850);
 }
 function norm(url){url=(url||"").trim();return url.endsWith("/")?url:url+"/"}
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
@@ -768,7 +791,19 @@ async function imageLoop(){
 
       if(top){
         const percent=Math.round(top.probability*100);
-        const overlayText=`目前辨識：${top.className}｜${percent}%`;
+        const second=sorted[1]||{probability:0};
+        const teachingConfirmed=
+          !task ||
+          task.taskMode!=="teaching" ||
+          (
+            top.probability>=task.threshold &&
+            (top.probability-second.probability)>=0.10
+          );
+
+        const overlayText=
+          teachingConfirmed
+            ? `目前辨識：${top.className}｜${percent}%`
+            : "正在辨識…";
 
         if(overlayText!==lastImageOverlayText){
           $("imageOverlay").textContent=overlayText;
@@ -993,34 +1028,61 @@ function processPredictions(predictions,evidenceCanvas){
 
   if(task.taskMode==="teaching"){
     if(top){
-      currentTeachingLabel=top.className;
       const teachingPercent=Math.round(top.probability*100);
+      const isConfirmed=
+        top.probability>=task.threshold &&
+        (top.probability-second.probability)>=0.10;
 
-      if(
-        top.className!==lastTeachingClass ||
-        teachingPercent!==lastTeachingPercent
-      ){
-        $("teachingName").textContent=top.className;
-        $("teachingConfidence").textContent="信心值："+teachingPercent+"%";
-        $("speakTeachingBtn").disabled=false;
+      if(isConfirmed){
+        currentTeachingLabel=top.className;
+
+        if(
+          top.className!==lastTeachingClass ||
+          teachingPercent!==lastTeachingPercent
+        ){
+          $("teachingName").textContent=top.className;
+          $("teachingConfidence").textContent="信心值："+teachingPercent+"%";
+          $("speakTeachingBtn").disabled=false;
+
+          if($("teachingNameTop")){
+            $("teachingNameTop").textContent=top.className;
+          }
+          if($("speakTeachingBtnTop")){
+            $("speakTeachingBtnTop").disabled=false;
+          }
+
+          lastTeachingClass=top.className;
+          lastTeachingPercent=teachingPercent;
+        }
+
+        if(top.className!==lastFlashedTeachingClass){
+          flashTeachingNameCard();
+          lastFlashedTeachingClass=top.className;
+        }
+
+        setStatus(
+          "recognitionStatus",
+          `辨識結果：${top.className}`,
+          "success"
+        );
+      }else{
+        currentTeachingLabel="";
+        $("teachingName").textContent="";
+        $("teachingConfidence").textContent="";
+        $("speakTeachingBtn").disabled=true;
 
         if($("teachingNameTop")){
-          $("teachingNameTop").textContent=top.className;
+          $("teachingNameTop").textContent="";
         }
         if($("speakTeachingBtnTop")){
-          $("speakTeachingBtnTop").disabled=false;
+          $("speakTeachingBtnTop").disabled=true;
         }
 
-        lastTeachingClass=top.className;
-        lastTeachingPercent=teachingPercent;
+        lastTeachingClass="";
+        lastTeachingPercent=-1;
+        lastFlashedTeachingClass="";
+        setStatus("recognitionStatus","正在確認辨識結果。");
       }
-      setStatus(
-        "recognitionStatus",
-        top.probability>=task.threshold
-          ? `辨識結果：${top.className}`
-          : `目前最接近：${top.className}，請再靠近或調整角度。`,
-        top.probability>=task.threshold?"success":""
-      );
     }
     return;
   }
