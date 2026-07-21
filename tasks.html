@@ -167,22 +167,19 @@ async function render(docs){
 
     const rows=resultDocs.map(r=>{
       const d=r.data();
-      const targets=Array.isArray(t.targetClasses)?t.targetClasses:[];
-      const completedItems=Array.isArray(d.completedClasses)?d.completedClasses:[];
-      const completedCount=Math.min(completedItems.length,targets.length);
-      const unfinishedItems=d.status==="completed"
-        ? []
-        : targets.slice(completedCount);
-      const unfinishedText=unfinishedItems.map(esc).join("、");
+      const incorrectItems=Array.isArray(d.incorrectClasses)
+        ? [...new Set(d.incorrectClasses.filter(Boolean))]
+        : [];
+      const incorrectText=incorrectItems.map(esc).join("、");
 
-      return `<div class="rr"><span>${esc(d.studentName||"未命名")}</span><span>${d.progress||0}%</span><span>${d.status==="completed"?"完成":"進行中"}</span><span>${unfinishedText}</span></div>`;
+      return `<div class="rr"><span>${esc(d.studentName||"未命名")}</span><span>${d.progress||0}%</span><span>${d.status==="completed"?"完成":"進行中"}</span><span>${incorrectText}</span></div>`;
     }).join("");
 
     const resultSection=t.taskMode==="teaching"
       ? '<div class="small" style="margin-top:12px">教學模式不記錄一般任務完成度。</div>'
       : resultError
         ? `<div class="status err">${esc(resultError)}</div>`
-        : `<div style="margin-top:12px"><b>學生完成度（${resultDocs.length} 人）</b><div class="rr"><b>學生</b><b>進度</b><b>狀態</b><b>未完成</b></div>${rows||'<div class="small" style="padding:10px">尚無學生紀錄</div>'}</div>`;
+        : `<div style="margin-top:12px"><b>學生完成度（${resultDocs.length} 人）</b><div class="rr"><b>學生</b><b>進度</b><b>狀態</b><b>辨識錯誤</b></div>${rows||'<div class="small" style="padding:10px">尚無學生紀錄</div>'}</div>`;
 
     out.push(`<div class="task"><div class="top"><div><div class="title">${esc(t.title||"未命名任務")}</div><div class="meta">物品：${(t.targetClasses||[]).map(esc).join(" → ")}</div></div></div><div class="row" style="margin-top:12px"><button class="s" onclick="showQR('${doc.id}','${esc(t.title||"任務")}')">重新產生 QR</button><button class="d" onclick="delTask('${doc.id}')">刪除任務</button></div>${resultSection}</div>`);
   }
