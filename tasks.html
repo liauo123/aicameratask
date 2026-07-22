@@ -20,6 +20,7 @@ main{max-width:1100px;margin:auto;padding:18px}
 button,.navBtn{border-radius:10px;padding:11px 15px;font-weight:800;cursor:pointer;text-decoration:none}
 .s{background:#fff;color:var(--b);border:1px solid #b7ccff}
 .d{background:#fff1f2;color:var(--r);border:1px solid #fecdd3}
+.w{background:#fff7ed;color:#c2410c;border:1px solid #fdba74}
 .p{background:var(--b);color:#fff;border:0}
 .row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:140px}
 .status{padding:12px;border-radius:10px;background:#eff6ff;color:#1d4ed8;white-space:pre-wrap;margin-top:10px}
@@ -75,6 +76,7 @@ button,.navBtn{border-radius:10px;padding:11px 15px;font-weight:800;cursor:point
 <div><h2>教學、評量與遊戲列表</h2></div>
       <button id="refreshBtn" class="s">重新整理</button>
     </div>
+    <div class="small">可先匯出學生結果，再只清除辨識照片；「完整刪除」會一併清除學生紀錄、照片與遊戲資料。</div>
     <div id="taskList"></div>
   </section>
 </main>
@@ -199,7 +201,7 @@ async function render(docs){
       </div>
       <div class="row" style="margin-top:12px">
         <button class="s" onclick="showQR('${doc.id}','${esc(t.title||"教學模式")}')">重新產生 QR</button>
-        <button class="d" onclick="delTask('${doc.id}')">刪除任務</button>
+        <button class="d" onclick="delTask('${doc.id}')">完整刪除</button>
       </div>
     </div>`;
   };
@@ -217,10 +219,12 @@ async function render(docs){
       </div>
       <div class="row" style="margin-top:12px">
         <button class="s" onclick="showQR('${doc.id}','${esc(t.title||"遊戲")}')">顯示遊戲 QR</button>
+        <button class="s" onclick="exportTaskCSV('${doc.id}')">匯出結果 CSV</button>
+        <button class="w" onclick="clearTaskPhotos('${doc.id}')">只清除照片</button>
         <button class="p" onclick="startGame('${doc.id}')">全員開始</button>
         <button class="s" onclick="finishGame('${doc.id}')">結束遊戲</button>
         <button class="s" onclick="resetGame('${doc.id}')">重新開放</button>
-        <button class="d" onclick="delTask('${doc.id}')">刪除遊戲</button>
+        <button class="d" onclick="delTask('${doc.id}')">完整刪除</button>
       </div>
       <div style="margin-top:14px"><b>學生等待室與即時排名</b></div>
       <div id="gamePlayers_${doc.id}" class="small" style="padding-top:8px">正在載入學生…</div>
@@ -275,7 +279,9 @@ async function render(docs){
       </div>
       <div class="row" style="margin-top:12px">
         <button class="s" onclick="showQR('${doc.id}','${esc(t.title||"任務")}')">重新產生 QR</button>
-        <button class="d" onclick="delTask('${doc.id}')">刪除任務</button>
+        <button class="s" onclick="exportTaskCSV('${doc.id}')">匯出結果 CSV</button>
+        <button class="w" onclick="clearTaskPhotos('${doc.id}')">只清除照片</button>
+        <button class="d" onclick="delTask('${doc.id}')">完整刪除</button>
       </div>
       ${resultSection}
     </div>`;
@@ -396,10 +402,111 @@ window.resetGame=async taskId=>{
   });
 };
 
+async function getTaskResultDocs(taskId){
+  const snap=await db.collection("taskResults")
+    .where("teacherId","==",user.uid)
+    .where("taskId","==",taskId)
+    .get();
+  return snap.docs;
+}
+
+async function deleteDocsInBatches(docs,size=400){
+  for(let start=0;start<docs.length;start+=size){
+    const batch=db.batch();
+    docs.slice(start,start+size).forEach(doc=>batch.delete(doc.ref));
+    await batch.commit();
+  }
+}
+
+async function deleteEvidenceForResult(resultDoc){
+  let deleted=0;
+  while(true){
+    const snap=await resultDoc.ref.collection("evidence").limit(400).get();
+    if(snap.empty)break;
+    await deleteDocsInBatches(snap.docs);
+    deleted+=snap.size;
+    if(snap.size<400)break;
+  }
+  return deleted;
+}
+
+async function clearEvidenceForTask(taskId){
+  const resultDocs=await getTaskResultDocs(taskId);
+  let photoCount=0;
+  for(const resultDoc of resultDocs){
+    photoCount+=await deleteEvidenceForResult(resultDoc);
+  }
+  return {resultDocs,photoCount};
+}
+
+window.clearTaskPhotos=async taskId=>{
+  if(!confirm("只清除辨識照片？\n\n學生編號、完成度、錯誤項目與遊戲名次會保留，照片刪除後無法復原。"))return;
+  try{
+    const {photoCount}=await clearEvidenceForTask(taskId);
+    alert(photoCount
+      ? `已清除 ${photoCount} 張辨識照片，學生文字結果仍保留。`
+      : "這個任務目前沒有需要清除的辨識照片。");
+  }catch(e){
+    alert("清除照片失敗：\n"+(e.message||e));
+  }
+};
+
+function csvValue(value){
+  const text=String(value??"").replace(/\r?\n/g," ");
+  return `"${text.replace(/"/g,'""')}"`;
+}
+
+function timestampText(value){
+  if(!value)return "";
+  try{
+    const date=typeof value.toDate==="function"?value.toDate():new Date(value);
+    return date.toLocaleString("zh-TW",{hour12:false});
+  }catch(e){return ""}
+}
+
+window.exportTaskCSV=async taskId=>{
+  try{
+    const [taskSnap,resultDocs]=await Promise.all([
+      db.collection("tasks").doc(taskId).get(),
+      getTaskResultDocs(taskId)
+    ]);
+    if(!resultDocs.length){alert("此任務目前沒有學生結果可以匯出。");return}
+    const title=taskSnap.exists?(taskSnap.data().title||"任務結果"):"任務結果";
+    const sorted=[...resultDocs].sort((a,b)=>Number(a.data().studentCode||999)-Number(b.data().studentCode||999));
+    const header=["任務名稱","學生編號","學生名稱","完成進度","狀態","錯誤次數","辨識錯誤項目","遊戲名次","開始時間","完成時間"];
+    const rows=sorted.map(doc=>{
+      const data=doc.data();
+      const incorrect=Array.isArray(data.incorrectClasses)?[...new Set(data.incorrectClasses.filter(Boolean))].join("、"):"";
+      return [
+        title,data.studentCode||"",data.studentName||"",`${Number(data.progress||0)}%`,
+        data.status==="completed"?"完成":"進行中",Number(data.attempts||0),incorrect,
+        data.gameRank?`第 ${data.gameRank} 名`:"",timestampText(data.startedAt),timestampText(data.completedAt)
+      ].map(csvValue).join(",");
+    });
+    const csv="\uFEFF"+[header.map(csvValue).join(","),...rows].join("\r\n");
+    const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+    const url=URL.createObjectURL(blob);
+    const link=document.createElement("a");
+    link.href=url;
+    link.download=(title.replace(/[\\/:*?"<>|]/g,"_")||"任務結果")+".csv";
+    document.body.appendChild(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }catch(e){
+    alert("匯出結果失敗：\n"+(e.message||e));
+  }
+};
+
 window.delTask=async id=>{
-  if(!confirm("確定刪除此任務？"))return;
-  await clearGamePlayers(id);
-  await db.collection("tasks").doc(id).delete();
+  if(!confirm("確定完整刪除此任務？\n\n將一併刪除：\n・學生作答紀錄\n・所有辨識照片\n・遊戲學生名單與排名\n・任務本身\n\n刪除後無法復原，建議先匯出 CSV。"))return;
+  try{
+    const {resultDocs,photoCount}=await clearEvidenceForTask(id);
+    await deleteDocsInBatches(resultDocs);
+    await clearGamePlayers(id);
+    await db.collection("tasks").doc(id).delete();
+    alert(`完整刪除成功。\n已刪除 ${resultDocs.length} 筆學生紀錄與 ${photoCount} 張辨識照片。`);
+  }catch(e){
+    alert("完整刪除失敗：\n"+(e.message||e)+"\n\n請重新整理後再試一次。");
+  }
 };
 </script>
 </body>
