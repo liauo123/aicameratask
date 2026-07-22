@@ -363,9 +363,15 @@ html,body{
       <div class="progress-label"><b>任務進度</b><span id="progressText">0 / 0</span></div>
       <div class="progress"><div id="progressFill"></div></div>
 
-      <div class="target">
+      <div id="normalTargetCard" class="target">
         <small id="targetHint">目前指定內容</small>
         <strong id="currentTarget">—</strong>
+      </div>
+
+      <div id="advancedPromptCard" class="target hidden">
+        <small>請聽語音說明，找出正確物品</small>
+        <strong>🔊 語音題目</strong>
+        <button id="repeatAdvancedPromptBtn" class="primary full" type="button">重複聽說明</button>
       </div>
     </div>
 
@@ -375,6 +381,7 @@ html,body{
         <div class="teaching-name-row">
           <strong id="teachingNameTop">等待辨識…</strong>
           <button id="speakTeachingBtnTop" class="speak-btn" type="button" aria-label="播放物品名稱" title="播放物品名稱" disabled>🔊</button>
+          <button id="speakDescriptionBtnTop" class="speak-btn" type="button" aria-label="播放物品說明" title="播放物品說明" disabled>說明</button>
         </div>
       </div>
       <div class="teaching-camera-card">
@@ -407,6 +414,7 @@ html,body{
       <div class="teaching-name-row">
         <strong id="teachingName">等待辨識…</strong>
         <button id="speakTeachingBtn" class="speak-btn" type="button" aria-label="播放物品名稱" title="播放物品名稱" disabled>🔊</button>
+        <button id="speakDescriptionBtn" class="speak-btn" type="button" aria-label="播放物品說明" title="播放物品說明" disabled>說明</button>
       </div>
       <span id="teachingConfidence">信心值：0%</span>
     </div>
@@ -478,6 +486,8 @@ let taskSuccessAnimating=false;
 let photoRecognizing=false;
 let selectedStudentNumber="";
 let currentTeachingLabel="";
+let currentTeachingDescription="";
+let currentAdvancedDescription="";
 
 const $=id=>document.getElementById(id);
 
@@ -594,6 +604,48 @@ function isTeachingMode(){
   return !!(task&&task.taskMode==="teaching");
 }
 
+function isAdvancedMode(){
+  return !!(task&&task.taskMode==="advanced");
+}
+
+function speakAdvancedPrompt(){
+  const description=currentAdvancedDescription.trim();
+
+  if(!description){
+    setStatus("recognitionStatus","目前沒有可播放的語音題目。","error");
+    return;
+  }
+
+  if(!("speechSynthesis" in window)){
+    setStatus("recognitionStatus","此瀏覽器不支援語音播放。","error");
+    return;
+  }
+
+  window.speechSynthesis.cancel();
+
+  const utterance=new SpeechSynthesisUtterance(description);
+  utterance.lang="zh-TW";
+  utterance.rate=0.85;
+  utterance.pitch=1;
+  utterance.volume=1;
+  window.speechSynthesis.speak(utterance);
+}
+
+function prepareAdvancedPrompt(autoSpeak=true){
+  if(!isAdvancedMode()||currentIndex>=task.targetClasses.length)return;
+
+  const target=task.targetClasses[currentIndex];
+  currentAdvancedDescription=String(task.classDescriptions?.[target]||"").trim();
+
+  $("normalTargetCard").classList.add("hidden");
+  $("advancedPromptCard").classList.remove("hidden");
+  $("repeatAdvancedPromptBtn").disabled=!currentAdvancedDescription;
+
+  if(autoSpeak&&currentAdvancedDescription){
+    setTimeout(()=>speakAdvancedPrompt(),250);
+  }
+}
+
 function speakTeachingLabel(){
   const label=currentTeachingLabel.trim();
 
@@ -612,6 +664,30 @@ function speakTeachingLabel(){
   const utterance=new SpeechSynthesisUtterance(label);
   utterance.lang="zh-TW";
   utterance.rate=0.9;
+  utterance.pitch=1;
+  utterance.volume=1;
+
+  window.speechSynthesis.speak(utterance);
+}
+
+function speakTeachingDescription(){
+  const description=currentTeachingDescription.trim();
+
+  if(!description){
+    setStatus("recognitionStatus","這個物品尚未設定說明文字。");
+    return;
+  }
+
+  if(!("speechSynthesis" in window)){
+    setStatus("recognitionStatus","此瀏覽器不支援語音播放。","error");
+    return;
+  }
+
+  window.speechSynthesis.cancel();
+
+  const utterance=new SpeechSynthesisUtterance(description);
+  utterance.lang="zh-TW";
+  utterance.rate=0.85;
   utterance.pitch=1;
   utterance.volume=1;
 
@@ -654,6 +730,9 @@ async function loadTask(){
     task.threshold=Number(task.threshold||0.85);
     task.requiredConsecutiveFrames=Number(task.requiredConsecutiveFrames||10);
     task.taskMode=task.taskMode||task.orderMode||"task";
+    task.classDescriptions=task.classDescriptions&&typeof task.classDescriptions==="object"
+      ? task.classDescriptions
+      : {};
 
     const detected=await detectProjectType(task.modelURL);
     projectType=detected.type;
@@ -662,8 +741,10 @@ async function loadTask(){
     const typeName={image:"圖片專案",audio:"音訊專案",pose:"姿勢專案"}[projectType];
     $("taskTitle").textContent=task.title||"未命名任務";
     $("taskMeta").textContent=task.taskMode==="teaching"
-      ? `專案類型：${typeName}｜教學模式：鏡頭對準物品即顯示名稱`
-      : `專案類型：${typeName}｜順序：${task.targetClasses.join(" → ")}`;
+      ? `專案類型：${typeName}｜教學模式：拍照後顯示名稱與說明`
+      : task.taskMode==="advanced"
+        ? `專案類型：${typeName}｜進階評量：依語音說明找出正確物品`
+        : `專案類型：${typeName}｜順序：${task.targetClasses.join(" → ")}`;
     if(task.taskMode==="teaching"){
       $("joinCard").classList.add("hidden");
       setStatus("loadStatus","教學模式載入成功，正在開啟鏡頭…","success");
@@ -824,6 +905,15 @@ async function startTask(){
       $("teachingResult").classList.add("hidden");
       $("holdSection").classList.add("hidden");
       $("itemList").classList.add("hidden");
+
+      if(isAdvancedMode()){
+        $("normalTargetCard").classList.add("hidden");
+        $("advancedPromptCard").classList.remove("hidden");
+      }else{
+        $("normalTargetCard").classList.remove("hidden");
+        $("advancedPromptCard").classList.add("hidden");
+      }
+
       renderTask();
     }
 
@@ -840,8 +930,8 @@ async function startTask(){
 }
 
 async function loadSelectedModel(){
-  if(task.taskMode==="teaching"&&projectType!=="image"){
-    throw new Error("目前教學模式僅支援 Teachable Machine 圖片專案。");
+  if((task.taskMode==="teaching"||task.taskMode==="advanced")&&projectType!=="image"){
+    throw new Error("目前教學模式與進階評量僅支援 Teachable Machine 圖片專案。");
   }
 
   if(projectType==="image"){
@@ -988,7 +1078,17 @@ async function startImage(){
   }else{
     $("imageOverlay").textContent="請將物品放入框內，再按「拍照辨識」";
     lastImageOverlayText=$("imageOverlay").textContent;
-    setStatus("recognitionStatus","相機已啟動，請按「拍照辨識」。","success");
+    setStatus(
+      "recognitionStatus",
+      isAdvancedMode()
+        ?"相機已啟動，請聽語音說明後拍照辨識。"
+        :"相機已啟動，請按「拍照辨識」。",
+      "success"
+    );
+
+    if(isAdvancedMode()){
+      prepareAdvancedPrompt(true);
+    }
   }
 }
 async function captureAndRecognize(){
@@ -1039,11 +1139,13 @@ async function captureAndRecognize(){
 
       if(confirmed){
         currentTeachingLabel=top.className;
+        currentTeachingDescription=String(task.classDescriptions?.[top.className]||"").trim();
         const percent=Math.round(top.probability*100);
 
         $("teachingName").textContent=top.className;
         $("teachingConfidence").textContent="信心值："+percent+"%";
         $("speakTeachingBtn").disabled=false;
+        $("speakDescriptionBtn").disabled=!currentTeachingDescription;
 
         if($("teachingNameTop")){
           $("teachingNameTop").textContent=top.className;
@@ -1051,21 +1153,29 @@ async function captureAndRecognize(){
         if($("speakTeachingBtnTop")){
           $("speakTeachingBtnTop").disabled=false;
         }
+        if($("speakDescriptionBtnTop")){
+          $("speakDescriptionBtnTop").disabled=!currentTeachingDescription;
+        }
 
         $("imageOverlay").textContent=`辨識結果：${top.className}｜${percent}%`;
         lastImageOverlayText=$("imageOverlay").textContent;
         flashTeachingNameCard();
       }else{
         currentTeachingLabel="";
+        currentTeachingDescription="";
         $("teachingName").textContent="";
         $("teachingConfidence").textContent="";
         $("speakTeachingBtn").disabled=true;
+        $("speakDescriptionBtn").disabled=true;
 
         if($("teachingNameTop")){
           $("teachingNameTop").textContent="";
         }
         if($("speakTeachingBtnTop")){
           $("speakTeachingBtnTop").disabled=true;
+        }
+        if($("speakDescriptionBtnTop")){
+          $("speakDescriptionBtnTop").disabled=true;
         }
 
         $("imageOverlay").textContent="無法確定辨識，請重新拍照";
@@ -1121,7 +1231,13 @@ async function captureAndRecognize(){
 
       $("imageOverlay").textContent="辨識錯誤，請重新拍照";
       lastImageOverlayText=$("imageOverlay").textContent;
-      setStatus("recognitionStatus","辨識錯誤，請將指定物品放入框內後重新拍照。","error");
+      setStatus(
+        "recognitionStatus",
+        isAdvancedMode()
+          ?"辨識錯誤，請再聽一次語音說明後重新拍照。"
+          :"辨識錯誤，請將指定物品放入框內後重新拍照。",
+        "error"
+      );
 
       setTimeout(()=>{
         if(!finished){
@@ -1452,6 +1568,7 @@ function processPredictions(predictions,evidenceCanvas){
 
       if(isConfirmed){
         currentTeachingLabel=top.className;
+        currentTeachingDescription=String(task.classDescriptions?.[top.className]||"").trim();
 
         if(
           top.className!==lastTeachingClass ||
@@ -1460,12 +1577,16 @@ function processPredictions(predictions,evidenceCanvas){
           $("teachingName").textContent=top.className;
           $("teachingConfidence").textContent="信心值："+teachingPercent+"%";
           $("speakTeachingBtn").disabled=false;
+          $("speakDescriptionBtn").disabled=!currentTeachingDescription;
 
           if($("teachingNameTop")){
             $("teachingNameTop").textContent=top.className;
           }
           if($("speakTeachingBtnTop")){
             $("speakTeachingBtnTop").disabled=false;
+          }
+          if($("speakDescriptionBtnTop")){
+            $("speakDescriptionBtnTop").disabled=!currentTeachingDescription;
           }
 
           lastTeachingClass=top.className;
@@ -1589,7 +1710,12 @@ async function completeCurrent(confidence,evidenceCanvas){
   if(currentIndex>=task.targetClasses.length){
     finishTask();
   }else{
-    setStatus("recognitionStatus",`已完成「${item}」，請進行下一項。`,"success");
+    if(isAdvancedMode()){
+      setStatus("recognitionStatus","答對了，請聽下一題語音說明。","success");
+      prepareAdvancedPrompt(true);
+    }else{
+      setStatus("recognitionStatus",`已完成「${item}」，請進行下一項。`,"success");
+    }
   }
 }
 
@@ -1597,7 +1723,9 @@ function renderTask(){
   const total=task.targetClasses.length,done=completed.length;
   $("progressText").textContent=`${done} / ${total}`;
   $("progressFill").style.width=Math.round(done/total*100)+"%";
-  $("currentTarget").textContent=currentIndex<total?task.targetClasses[currentIndex]:"全部完成";
+  $("currentTarget").textContent=isAdvancedMode()
+    ? (currentIndex<total?"請聽語音題目":"全部完成")
+    : (currentIndex<total?task.targetClasses[currentIndex]:"全部完成");
   $("itemList").innerHTML=task.targetClasses.map((x,i)=>`
     <div class="item ${i<done?"done":""}">
       <span>${i<done?"✓":i===currentIndex?"➜":"○"} ${escapeHtml(x)}</span>
@@ -1612,7 +1740,9 @@ function finishTask(){
   $("completeCard").classList.remove("hidden");
   $("completeActions").classList.toggle("hidden",isTeachingMode());
   const typeName={image:"圖片",audio:"音訊",pose:"姿勢"}[projectType];
-  $("completeMessage").textContent=`已完成全部${typeName}任務，結果已回傳教師端。`;
+  $("completeMessage").textContent=isAdvancedMode()
+    ? "已完成全部進階評量，結果已回傳教師端。"
+    : `已完成全部${typeName}任務，結果已回傳教師端。`;
 }
 
 async function repeatTask(){
@@ -1708,6 +1838,9 @@ async function switchCamera(){
 
 $("speakTeachingBtn").onclick=speakTeachingLabel;
 $("speakTeachingBtnTop").onclick=speakTeachingLabel;
+$("speakDescriptionBtn").onclick=speakTeachingDescription;
+$("speakDescriptionBtnTop").onclick=speakTeachingDescription;
+$("repeatAdvancedPromptBtn").onclick=speakAdvancedPrompt;
 $("loadBtn").onclick=loadTask;
 $("startBtn").onclick=startTask;
 $("switchBtn").onclick=switchCamera;
