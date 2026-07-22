@@ -111,6 +111,26 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
 .overlay.task-success-flash{
   animation:taskResultFlash .8s ease-in-out 1;
 }
+.capture-feedback{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;pointer-events:none;visibility:hidden;opacity:0;color:#fff;text-align:center;text-shadow:0 3px 12px rgba(0,0,0,.45)}
+.capture-feedback-icon{font-size:clamp(90px,24vw,170px);font-weight:1000;line-height:1}.capture-feedback-text{font-size:clamp(34px,10vw,68px);font-weight:1000;letter-spacing:.08em}
+.capture-feedback.success{visibility:visible;animation:successScreenFlash 1s ease-out 1}
+.capture-feedback.failure{visibility:visible;animation:failureScreenFlash 1s ease-out 1}
+@keyframes successScreenFlash{
+  0%{opacity:0;background:rgba(22,163,74,0)}
+  12%{opacity:1;background:rgba(22,163,74,.88)}
+  30%{opacity:.25;background:rgba(34,197,94,.28)}
+  48%{opacity:1;background:rgba(22,163,74,.9)}
+  72%{opacity:.9;background:rgba(22,163,74,.75)}
+  100%{opacity:0;background:rgba(22,163,74,0)}
+}
+@keyframes failureScreenFlash{
+  0%{opacity:0;background:rgba(220,38,38,0)}
+  12%{opacity:1;background:rgba(220,38,38,.9)}
+  30%{opacity:.25;background:rgba(239,68,68,.3)}
+  48%{opacity:1;background:rgba(185,28,28,.92)}
+  72%{opacity:.9;background:rgba(220,38,38,.78)}
+  100%{opacity:0;background:rgba(220,38,38,0)}
+}
 .prediction{margin-top:14px;display:grid;gap:9px}
 .pred-row{display:grid;grid-template-columns:minmax(82px,130px) 1fr 50px;align-items:center;gap:9px}
 .pred-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:700}
@@ -462,6 +482,11 @@ html,body{
   </section>
 </main>
 
+<div id="captureFeedback" class="capture-feedback" role="status" aria-live="assertive">
+  <div id="captureFeedbackIcon" class="capture-feedback-icon"></div>
+  <div id="captureFeedbackText" class="capture-feedback-text"></div>
+</div>
+
 <script>
 const firebaseConfig={
   apiKey:"AIzaSyBbpIezLbQd2-e-3Z4pSdBLIFc_UlTPUy8",
@@ -504,6 +529,7 @@ let selectedStudentNumber="";
 let currentTeachingLabel="";
 let currentTeachingDescription="";
 let currentAdvancedDescription="";
+let captureFeedbackTimer=null;
 let gamePlayerRef=null,gamePlayerStatus="",gameTaskUnsub=null,gamePlayerUnsub=null,gameSeatsUnsub=null;
 let gameStartedLocally=false,gameModelPreparing=false,gameModelPromise=null,gameRank=0,gameTargetsShuffled=false;
 
@@ -539,6 +565,21 @@ function flashTaskResultBox(){
   },850);
 }
 
+function showCaptureFeedback(type,text){
+  const feedback=$("captureFeedback");
+  if(!feedback)return;
+  if(captureFeedbackTimer)clearTimeout(captureFeedbackTimer);
+  feedback.classList.remove("success","failure");
+  $("captureFeedbackIcon").textContent=type==="success"?"✓":"✕";
+  $("captureFeedbackText").textContent=text;
+  void feedback.offsetWidth;
+  feedback.classList.add(type);
+  captureFeedbackTimer=setTimeout(()=>{
+    feedback.classList.remove("success","failure");
+    captureFeedbackTimer=null;
+  },1050);
+}
+
 function playTaskSuccessSound(){
   if(isTeachingMode())return;
 
@@ -552,26 +593,33 @@ function playTaskSuccessSound(){
     gain.connect(ctx.destination);
 
     gain.gain.setValueAtTime(0.0001,now);
-    gain.gain.exponentialRampToValueAtTime(0.18,now+0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001,now+0.42);
+    gain.gain.exponentialRampToValueAtTime(0.28,now+0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001,now+0.7);
 
     const first=ctx.createOscillator();
     first.type="sine";
-    first.frequency.setValueAtTime(660,now);
+    first.frequency.setValueAtTime(523.25,now);
     first.connect(gain);
     first.start(now);
-    first.stop(now+0.18);
+    first.stop(now+0.2);
 
     const second=ctx.createOscillator();
     second.type="sine";
-    second.frequency.setValueAtTime(880,now+0.18);
+    second.frequency.setValueAtTime(659.25,now+0.2);
     second.connect(gain);
-    second.start(now+0.18);
+    second.start(now+0.2);
     second.stop(now+0.42);
+
+    const third=ctx.createOscillator();
+    third.type="sine";
+    third.frequency.setValueAtTime(783.99,now+0.42);
+    third.connect(gain);
+    third.start(now+0.42);
+    third.stop(now+0.7);
 
     setTimeout(()=>{
       try{ctx.close()}catch(e){}
-    },600);
+    },850);
   }catch(e){
     console.warn("成功音效播放失敗",e);
   }
@@ -590,26 +638,27 @@ function playTaskErrorSound(){
     gain.connect(ctx.destination);
 
     gain.gain.setValueAtTime(0.0001,now);
-    gain.gain.exponentialRampToValueAtTime(0.16,now+0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001,now+0.36);
+    gain.gain.exponentialRampToValueAtTime(0.25,now+0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001,now+0.62);
 
     const first=ctx.createOscillator();
-    first.type="sine";
-    first.frequency.setValueAtTime(330,now);
+    first.type="sawtooth";
+    first.frequency.setValueAtTime(280,now);
+    first.frequency.exponentialRampToValueAtTime(190,now+0.26);
     first.connect(gain);
     first.start(now);
-    first.stop(now+0.16);
+    first.stop(now+0.28);
 
     const second=ctx.createOscillator();
-    second.type="sine";
-    second.frequency.setValueAtTime(220,now+0.16);
+    second.type="square";
+    second.frequency.setValueAtTime(170,now+0.3);
     second.connect(gain);
-    second.start(now+0.16);
-    second.stop(now+0.36);
+    second.start(now+0.3);
+    second.stop(now+0.62);
 
     setTimeout(()=>{
       try{ctx.close()}catch(e){}
-    },550);
+    },780);
   }catch(e){
     console.warn("錯誤音效播放失敗",e);
   }
@@ -1446,6 +1495,7 @@ async function captureAndRecognize(){
       $("imageOverlay").textContent=successText;
       lastImageOverlayText=successText;
       flashTaskResultBox();
+      showCaptureFeedback("success","辨識成功");
       playTaskSuccessSound();
 
       setTimeout(async()=>{
@@ -1461,6 +1511,7 @@ async function captureAndRecognize(){
       },850);
     }else{
       attempts++;
+      showCaptureFeedback("failure","辨識失敗");
       playTaskErrorSound();
 
       if(resultRef&&target){
@@ -1495,6 +1546,7 @@ async function captureAndRecognize(){
       },850);
     }
   }catch(e){
+    showCaptureFeedback("failure","辨識失敗");
     playTaskErrorSound();
     $("imageOverlay").textContent="拍照辨識失敗，請再試一次";
     lastImageOverlayText=$("imageOverlay").textContent;
@@ -1897,6 +1949,7 @@ function processPredictions(predictions,evidenceCanvas){
       $("imageOverlay").textContent=successText;
       lastImageOverlayText=successText;
       flashTaskResultBox();
+      showCaptureFeedback("success","辨識成功");
       playTaskSuccessSound();
 
       setTimeout(async()=>{
