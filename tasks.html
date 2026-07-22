@@ -28,11 +28,15 @@ button,.navBtn{border-radius:10px;padding:11px 15px;font-weight:800;cursor:point
 .modeSection{padding:16px;border-radius:16px;margin-top:18px}
 .modeSection.teaching{background:#eff6ff;border:1px solid #bfdbfe}
 .modeSection.evaluation{background:#f8fafc;border:1px solid #dbe4ee}
+.modeSection.game{background:#faf5ff;border:1px solid #c4b5fd}
 .modeTitle{margin:0 0 12px;padding-bottom:10px;border-bottom:2px solid}
 .modeSection.teaching .modeTitle{color:#1d4ed8;border-color:#93c5fd}
 .modeSection.evaluation .modeTitle{color:#334155;border-color:#cbd5e1}
+.modeSection.game .modeTitle{color:#6d28d9;border-color:#c4b5fd}
 .task.teachingTask{border-color:#bfdbfe;background:#ffffff}
 .task.evaluationTask{border-color:#cbd5e1;background:#ffffff}
+.task.gameTask{border-color:#c4b5fd;background:#fff}.gameState{display:inline-block;padding:5px 10px;border-radius:999px;background:#ede9fe;color:#6d28d9;font-size:12px;font-weight:900;margin-top:6px}
+.playerRow{display:grid;grid-template-columns:.7fr 1fr 1fr auto;gap:8px;align-items:center;padding:9px;border-bottom:1px solid #ede9fe;font-size:14px}.playerRow:first-child{font-weight:900;background:#faf5ff;border-radius:10px}.playerActions{display:flex;gap:6px}.playerActions button{min-width:auto;padding:7px 10px}.rank1{background:#fef3c7}.rank2{background:#f1f5f9}.rank3{background:#ffedd5}
 .task+.task{margin-top:16px}
 .top{display:flex;justify-content:space-between;gap:10px}
 .title{font-size:18px;font-weight:900}
@@ -42,7 +46,7 @@ button,.navBtn{border-radius:10px;padding:11px 15px;font-weight:800;cursor:point
 .modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:20px;z-index:99}
 .box{background:#fff;padding:20px;border-radius:16px;text-align:center;max-width:380px;width:100%}
 .url{word-break:break-all;background:#f8fafc;padding:10px;border-radius:8px;margin:10px 0}
-@media(max-width:600px){.rr{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.rr{grid-template-columns:1fr 1fr}.playerRow{grid-template-columns:.6fr 1fr 1fr}.playerActions{grid-column:1/-1}.playerActions button{flex:1}}
 </style>
 </head>
 <body>
@@ -68,7 +72,7 @@ button,.navBtn{border-radius:10px;padding:11px 15px;font-weight:800;cursor:point
 
   <section id="taskCard" class="card hidden">
     <div class="top">
-<div><h2>教學與評量列表</h2></div>
+<div><h2>教學、評量與遊戲列表</h2></div>
       <button id="refreshBtn" class="s">重新整理</button>
     </div>
     <div id="taskList"></div>
@@ -91,7 +95,7 @@ button,.navBtn{border-radius:10px;padding:11px 15px;font-weight:800;cursor:point
 const firebaseConfig={apiKey:"AIzaSyBbpIezLbQd2-e-3Z4pSdBLIFc_UlTPUy8",authDomain:"project-6540500202923576846.firebaseapp.com",projectId:"project-6540500202923576846",storageBucket:"project-6540500202923576846.firebasestorage.app",messagingSenderId:"516602165604",appId:"1:516602165604:web:b60f69ee56a4d49c416271"};
 firebase.initializeApp(firebaseConfig);
 const auth=firebase.auth(),db=firebase.firestore();
-let user=null,unsub=null;
+let user=null,unsub=null,playerUnsubs=[];
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function status(id,msg,type=""){const e=$(id);e.textContent=msg;e.className="status "+type}
@@ -108,6 +112,7 @@ auth.onAuthStateChanged(u=>{
     $("taskCard").classList.add("hidden");
     $("userArea").classList.add("hidden");
     if(unsub)unsub();
+    playerUnsubs.forEach(fn=>fn());playerUnsubs=[];
   }
 });
 
@@ -164,9 +169,10 @@ async function render(docs){
 
   const newestFirst=[...docs].sort((a,b)=>getTime(b)-getTime(a));
   const teachingDocs=newestFirst.filter(doc=>doc.data().taskMode==="teaching");
-  const evaluationDocs=newestFirst.filter(doc=>doc.data().taskMode!=="teaching");
+  const gameDocs=newestFirst.filter(doc=>doc.data().taskMode==="game");
+  const evaluationDocs=newestFirst.filter(doc=>!["teaching","game"].includes(doc.data().taskMode));
 
-  if(!teachingDocs.length&&!evaluationDocs.length){
+  if(!teachingDocs.length&&!gameDocs.length&&!evaluationDocs.length){
     $("taskList").innerHTML='<div class="status">尚未建立任務。</div>';
     return;
   }
@@ -195,6 +201,29 @@ async function render(docs){
         <button class="s" onclick="showQR('${doc.id}','${esc(t.title||"教學模式")}')">重新產生 QR</button>
         <button class="d" onclick="delTask('${doc.id}')">刪除任務</button>
       </div>
+    </div>`;
+  };
+
+  const renderGameTask=doc=>{
+    const t=doc.data();
+    const stateText={lobby:"等待學生加入",active:"遊戲進行中",finished:"遊戲已結束"}[t.gameStatus]||"等待學生加入";
+    return `<div class="task gameTask">
+      <div class="top">
+        <div>
+          <div class="title">🎮 ${esc(t.title||"未命名遊戲")}</div>
+          <div class="meta">尋找順序：${(t.targetClasses||[]).map(esc).join(" → ")}</div>
+          <span class="gameState" id="gameState_${doc.id}">${stateText}</span>
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="s" onclick="showQR('${doc.id}','${esc(t.title||"遊戲")}')">顯示遊戲 QR</button>
+        <button class="p" onclick="startGame('${doc.id}')">全員開始</button>
+        <button class="s" onclick="finishGame('${doc.id}')">結束遊戲</button>
+        <button class="s" onclick="resetGame('${doc.id}')">重新開放</button>
+        <button class="d" onclick="delTask('${doc.id}')">刪除遊戲</button>
+      </div>
+      <div style="margin-top:14px"><b>學生等待室與即時排名</b></div>
+      <div id="gamePlayers_${doc.id}" class="small" style="padding-top:8px">正在載入學生…</div>
     </div>`;
   };
 
@@ -260,6 +289,12 @@ async function render(docs){
     sections.push('</section>');
   }
 
+  if(gameDocs.length){
+    sections.push('<section class="modeSection game"><h2 class="modeTitle">多人遊戲模式</h2>');
+    sections.push(gameDocs.map(renderGameTask).join(""));
+    sections.push('</section>');
+  }
+
   if(evaluationDocs.length){
     sections.push('<section class="modeSection evaluation"><h2 class="modeTitle">評量模式資訊</h2>');
     const evaluationHtml=[];
@@ -270,9 +305,102 @@ async function render(docs){
     sections.push('</section>');
   }
 
+  playerUnsubs.forEach(fn=>fn());playerUnsubs=[];
   $("taskList").innerHTML=sections.join("");
+  gameDocs.forEach(doc=>listenGamePlayers(doc.id));
 }
-window.delTask=async id=>{if(confirm("確定刪除此任務？"))await db.collection("tasks").doc(id).delete()};
+
+function gameStatusText(status){
+  return {pending:"等待同意",approved:"已同意",playing:"尋找中",completed:"已完成",rejected:"未通過"}[status]||status||"等待";
+}
+
+function listenGamePlayers(taskId){
+  const unsubPlayers=db.collection("tasks").doc(taskId).collection("gamePlayers").onSnapshot(snap=>{
+    const box=$("gamePlayers_"+taskId);if(!box)return;
+    const players=snap.docs.map(doc=>({id:doc.id,...doc.data()}));
+    players.sort((a,b)=>{
+      if(a.rank&&b.rank)return a.rank-b.rank;
+      if(a.rank)return -1;if(b.rank)return 1;
+      return Number(a.studentNumber||a.id)-Number(b.studentNumber||b.id);
+    });
+    if(!players.length){box.innerHTML='<div class="status">尚無學生加入。</div>';return}
+    box.innerHTML=`<div class="playerRow"><span>號碼</span><span>狀態</span><span>名次</span><span>教師操作</span></div>`+players.map(p=>{
+      const rank=p.rank?`第 ${p.rank} 名`:"—";
+      const actions=p.status==="pending"
+        ? `<div class="playerActions"><button class="p" onclick="approvePlayer('${taskId}','${p.id}')">同意</button><button class="d" onclick="rejectPlayer('${taskId}','${p.id}')">不同意</button></div>`
+        : '<span class="small">—</span>';
+      return `<div class="playerRow ${p.rank&&p.rank<=3?'rank'+p.rank:''}"><b>${esc(p.studentNumber||p.id)}</b><span>${gameStatusText(p.status)}</span><span>${rank}</span>${actions}</div>`;
+    }).join("");
+  },e=>{const box=$("gamePlayers_"+taskId);if(box)box.innerHTML='<div class="status err">'+esc(e.message||e)+'</div>'});
+  playerUnsubs.push(unsubPlayers);
+}
+
+window.approvePlayer=async(taskId,playerId)=>{
+  const taskRef=db.collection("tasks").doc(taskId);
+  const playerRef=taskRef.collection("gamePlayers").doc(playerId);
+  try{
+    await db.runTransaction(async tx=>{
+      const taskSnap=await tx.get(taskRef);
+      if(!taskSnap.exists||taskSnap.data().gameStatus!=="lobby")throw new Error("遊戲已開始，不能再同意新學生");
+      tx.update(playerRef,{status:"approved",approvedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    });
+  }catch(e){alert(e.message||e)}
+};
+
+window.rejectPlayer=async(taskId,playerId)=>{
+  await db.collection("tasks").doc(taskId).collection("gamePlayers").doc(playerId).update({
+    status:"rejected",rejectedAt:firebase.firestore.FieldValue.serverTimestamp()
+  });
+};
+
+window.startGame=async taskId=>{
+  const taskRef=db.collection("tasks").doc(taskId);
+  const approved=await taskRef.collection("gamePlayers").where("status","==","approved").get();
+  if(approved.empty){alert("請先同意至少一位學生加入遊戲。");return}
+  if(!confirm(`確定讓 ${approved.size} 位學生同時開始尋找物品？`))return;
+  await taskRef.collection("gameControl").doc("ranking").set({count:0});
+  await taskRef.update({
+    gameStatus:"active",
+    gameFinishCount:0,
+    gameStartedAt:firebase.firestore.FieldValue.serverTimestamp()
+  });
+};
+
+window.finishGame=async taskId=>{
+  if(!confirm("確定結束這場遊戲？"))return;
+  await db.collection("tasks").doc(taskId).update({
+    gameStatus:"finished",
+    gameEndedAt:firebase.firestore.FieldValue.serverTimestamp()
+  });
+};
+
+async function clearGamePlayers(taskId){
+  const collection=db.collection("tasks").doc(taskId).collection("gamePlayers");
+  while(true){
+    const snap=await collection.limit(400).get();
+    if(snap.empty)break;
+    const batch=db.batch();snap.docs.forEach(doc=>batch.delete(doc.ref));await batch.commit();
+    if(snap.size<400)break;
+  }
+  await db.collection("tasks").doc(taskId).collection("gameControl").doc("ranking").delete().catch(()=>{});
+}
+
+window.resetGame=async taskId=>{
+  if(!confirm("重新開放會清除這場遊戲的等待名單與排名，確定繼續？"))return;
+  await clearGamePlayers(taskId);
+  await db.collection("tasks").doc(taskId).collection("gameControl").doc("ranking").set({count:0});
+  await db.collection("tasks").doc(taskId).update({
+    gameStatus:"lobby",gameFinishCount:0,
+    gameStartedAt:firebase.firestore.FieldValue.delete(),
+    gameEndedAt:firebase.firestore.FieldValue.delete()
+  });
+};
+
+window.delTask=async id=>{
+  if(!confirm("確定刪除此任務？"))return;
+  await clearGamePlayers(id);
+  await db.collection("tasks").doc(id).delete();
+};
 </script>
 </body>
 </html>
