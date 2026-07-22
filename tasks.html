@@ -24,7 +24,16 @@ button,.navBtn{border-radius:10px;padding:11px 15px;font-weight:800;cursor:point
 .row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:140px}
 .status{padding:12px;border-radius:10px;background:#eff6ff;color:#1d4ed8;white-space:pre-wrap;margin-top:10px}
 .err{background:#fef2f2;color:#b91c1c}.hidden{display:none!important}
-.task{border:1px solid var(--l);border-radius:12px;padding:14px;margin:10px 0}
+.task{border:1px solid var(--l);border-radius:14px;padding:16px;margin:14px 0;background:#fff;box-shadow:0 4px 12px rgba(15,23,42,.04)}
+.modeSection{padding:16px;border-radius:16px;margin-top:18px}
+.modeSection.teaching{background:#eff6ff;border:1px solid #bfdbfe}
+.modeSection.evaluation{background:#f8fafc;border:1px solid #dbe4ee}
+.modeTitle{margin:0 0 12px;padding-bottom:10px;border-bottom:2px solid}
+.modeSection.teaching .modeTitle{color:#1d4ed8;border-color:#93c5fd}
+.modeSection.evaluation .modeTitle{color:#334155;border-color:#cbd5e1}
+.task.teachingTask{border-color:#bfdbfe;background:#ffffff}
+.task.evaluationTask{border-color:#cbd5e1;background:#ffffff}
+.task+.task{margin-top:16px}
 .top{display:flex;justify-content:space-between;gap:10px}
 .title{font-size:18px;font-weight:900}
 .meta,.small{font-size:13px;color:var(--m);line-height:1.6}
@@ -59,7 +68,7 @@ button,.navBtn{border-radius:10px;padding:11px 15px;font-weight:800;cursor:point
 
   <section id="taskCard" class="card hidden">
     <div class="top">
-<div><h2>評量列表</h2></div>
+<div><h2>教學與評量列表</h2></div>
       <button id="refreshBtn" class="s">重新整理</button>
     </div>
     <div id="taskList"></div>
@@ -146,24 +155,62 @@ async function refreshTasks(){
 $("refreshBtn").onclick=refreshTasks;
 
 async function render(docs){
-  const evaluationDocs=docs.filter(doc=>{
-    const data=doc.data();
-    return data.taskMode!=="teaching";
-  });
+  const getTime=doc=>{
+    const value=doc.data().createdAt;
+    if(value&&typeof value.toMillis==="function")return value.toMillis();
+    if(value&&typeof value.seconds==="number")return value.seconds*1000;
+    return 0;
+  };
 
-  if(!evaluationDocs.length){
-    $("taskList").innerHTML='<div class="status">尚未建立評量任務。</div>';
+  const newestFirst=[...docs].sort((a,b)=>getTime(b)-getTime(a));
+  const teachingDocs=newestFirst.filter(doc=>doc.data().taskMode==="teaching");
+  const evaluationDocs=newestFirst.filter(doc=>doc.data().taskMode!=="teaching");
+
+  if(!teachingDocs.length&&!evaluationDocs.length){
+    $("taskList").innerHTML='<div class="status">尚未建立任務。</div>';
     return;
   }
 
-  const out=[];
-  for(const doc of evaluationDocs){
+  const renderTeachingTask=doc=>{
+    const t=doc.data();
+    const descriptions=t.classDescriptions&&typeof t.classDescriptions==="object"
+      ? t.classDescriptions
+      : {};
+
+    const itemInfo=(t.targetClasses||[]).map(name=>{
+      const description=String(descriptions[name]||"").trim();
+      return description
+        ? `${esc(name)}：${esc(description)}`
+        : esc(name);
+    }).join("<br>");
+
+    return `<div class="task teachingTask">
+      <div class="top">
+        <div>
+          <div class="title">${esc(t.title||"未命名教學模式")}</div>
+          <div class="meta">物品與說明：<br>${itemInfo||"尚無物品資料"}</div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="s" onclick="showQR('${doc.id}','${esc(t.title||"教學模式")}')">重新產生 QR</button>
+        <button class="d" onclick="delTask('${doc.id}')">刪除任務</button>
+      </div>
+    </div>`;
+  };
+
+  const renderEvaluationTask=async doc=>{
     const t=doc.data();
     let resultDocs=[],resultError="";
+
     try{
-      const rs=await db.collection("taskResults").where("teacherId","==",user.uid).where("taskId","==",doc.id).get();
+      const rs=await db.collection("taskResults")
+        .where("teacherId","==",user.uid)
+        .where("taskId","==",doc.id)
+        .get();
       resultDocs=rs.docs;
-    }catch(e){resultError=e.message||String(e)}
+    }catch(e){
+      resultError=e.message||String(e);
+    }
 
     const rows=resultDocs.map(r=>{
       const d=r.data();
@@ -172,18 +219,58 @@ async function render(docs){
         : [];
       const incorrectText=incorrectItems.map(esc).join("、");
 
-      return `<div class="rr"><span>${esc(d.studentName||"未命名")}</span><span>${d.progress||0}%</span><span>${d.status==="completed"?"完成":"進行中"}</span><span>${incorrectText}</span></div>`;
+      return `<div class="rr">
+        <span>${esc(d.studentName||"未命名")}</span>
+        <span>${d.progress||0}%</span>
+        <span>${d.status==="completed"?"完成":"進行中"}</span>
+        <span>${incorrectText}</span>
+      </div>`;
     }).join("");
 
-    const resultSection=t.taskMode==="teaching"
-      ? '<div class="small" style="margin-top:12px">教學模式不記錄一般任務完成度。</div>'
-      : resultError
-        ? `<div class="status err">${esc(resultError)}</div>`
-        : `<div style="margin-top:12px"><b>學生完成度（${resultDocs.length} 人）</b><div class="rr"><b>學生</b><b>進度</b><b>狀態</b><b>辨識錯誤</b></div>${rows||'<div class="small" style="padding:10px">尚無學生紀錄</div>'}</div>`;
+    const resultSection=resultError
+      ? `<div class="status err">${esc(resultError)}</div>`
+      : `<div style="margin-top:12px">
+          <b>學生完成度（${resultDocs.length} 人）</b>
+          <div class="rr">
+            <b>學生</b><b>進度</b><b>狀態</b><b>辨識錯誤</b>
+          </div>
+          ${rows||'<div class="small" style="padding:10px">尚無學生紀錄</div>'}
+        </div>`;
 
-    out.push(`<div class="task"><div class="top"><div><div class="title">${esc(t.title||"未命名任務")}</div><div class="meta">物品：${(t.targetClasses||[]).map(esc).join(" → ")}</div></div></div><div class="row" style="margin-top:12px"><button class="s" onclick="showQR('${doc.id}','${esc(t.title||"任務")}')">重新產生 QR</button><button class="d" onclick="delTask('${doc.id}')">刪除任務</button></div>${resultSection}</div>`);
+    return `<div class="task evaluationTask">
+      <div class="top">
+        <div>
+          <div class="title">${esc(t.title||"未命名任務")}</div>
+          <div class="meta">物品：${(t.targetClasses||[]).map(esc).join(" → ")}</div>
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <button class="s" onclick="showQR('${doc.id}','${esc(t.title||"任務")}')">重新產生 QR</button>
+        <button class="d" onclick="delTask('${doc.id}')">刪除任務</button>
+      </div>
+      ${resultSection}
+    </div>`;
+  };
+
+  const sections=[];
+
+  if(teachingDocs.length){
+    sections.push('<section class="modeSection teaching"><h2 class="modeTitle">教學模式資訊</h2>');
+    sections.push(teachingDocs.map(renderTeachingTask).join(""));
+    sections.push('</section>');
   }
-  $("taskList").innerHTML=out.join("");
+
+  if(evaluationDocs.length){
+    sections.push('<section class="modeSection evaluation"><h2 class="modeTitle">評量模式資訊</h2>');
+    const evaluationHtml=[];
+    for(const doc of evaluationDocs){
+      evaluationHtml.push(await renderEvaluationTask(doc));
+    }
+    sections.push(evaluationHtml.join(""));
+    sections.push('</section>');
+  }
+
+  $("taskList").innerHTML=sections.join("");
 }
 window.delTask=async id=>{if(confirm("確定刪除此任務？"))await db.collection("tasks").doc(id).delete()};
 </script>
