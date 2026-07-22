@@ -365,7 +365,10 @@ html,body{
 
       <div id="normalTargetCard" class="target">
         <small id="targetHint">目前指定內容</small>
-        <strong id="currentTarget">—</strong>
+        <div class="teaching-name-row">
+          <strong id="currentTarget">—</strong>
+          <button id="speakEvaluationTargetBtn" class="speak-btn" type="button" aria-label="播放物品名稱" title="播放物品名稱" disabled>🔊</button>
+        </div>
       </div>
 
       <div id="advancedPromptCard" class="target hidden">
@@ -644,6 +647,34 @@ function prepareAdvancedPrompt(autoSpeak=true){
   if(autoSpeak&&currentAdvancedDescription){
     setTimeout(()=>speakAdvancedPrompt(),250);
   }
+}
+
+function speakEvaluationTarget(){
+  if(isTeachingMode()||isAdvancedMode()||currentIndex>=task.targetClasses.length){
+    return;
+  }
+
+  const label=String(task.targetClasses[currentIndex]||"").trim();
+
+  if(!label){
+    setStatus("recognitionStatus","目前沒有可播放的物品名稱。","error");
+    return;
+  }
+
+  if(!("speechSynthesis" in window)){
+    setStatus("recognitionStatus","此瀏覽器不支援語音播放。","error");
+    return;
+  }
+
+  window.speechSynthesis.cancel();
+
+  const utterance=new SpeechSynthesisUtterance(label);
+  utterance.lang="zh-TW";
+  utterance.rate=0.9;
+  utterance.pitch=1;
+  utterance.volume=1;
+
+  window.speechSynthesis.speak(utterance);
 }
 
 function speakTeachingLabel(){
@@ -1726,6 +1757,11 @@ function renderTask(){
   $("currentTarget").textContent=isAdvancedMode()
     ? (currentIndex<total?"請聽語音題目":"全部完成")
     : (currentIndex<total?task.targetClasses[currentIndex]:"全部完成");
+
+  $("speakEvaluationTargetBtn").disabled=
+    isTeachingMode()||
+    isAdvancedMode()||
+    currentIndex>=total;
   $("itemList").innerHTML=task.targetClasses.map((x,i)=>`
     <div class="item ${i<done?"done":""}">
       <span>${i<done?"✓":i===currentIndex?"➜":"○"} ${escapeHtml(x)}</span>
@@ -1841,6 +1877,7 @@ $("speakTeachingBtnTop").onclick=speakTeachingLabel;
 $("speakDescriptionBtn").onclick=speakTeachingDescription;
 $("speakDescriptionBtnTop").onclick=speakTeachingDescription;
 $("repeatAdvancedPromptBtn").onclick=speakAdvancedPrompt;
+$("speakEvaluationTargetBtn").onclick=speakEvaluationTarget;
 $("loadBtn").onclick=loadTask;
 $("startBtn").onclick=startTask;
 $("switchBtn").onclick=switchCamera;
