@@ -76,6 +76,10 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
   text-align:center;
   font-weight:800;
 }
+.game-waiting{text-align:center;background:linear-gradient(135deg,#faf5ff,#eef2ff);border:2px solid #c4b5fd}
+.game-waiting .waiting-icon{font-size:64px;animation:waitingPulse 1.4s ease-in-out infinite}.game-waiting h2{color:#6d28d9;margin:8px 0}.game-number{font-size:30px;font-weight:900;color:#6d28d9;margin:10px 0}.game-note{color:#64748b;line-height:1.7}
+@keyframes waitingPulse{0%,100%{transform:scale(1);opacity:.75}50%{transform:scale(1.12);opacity:1}}
+.rank-display{font-size:clamp(34px,11vw,64px);font-weight:1000;color:#6d28d9;margin:12px 0;padding:14px;border-radius:18px;background:linear-gradient(135deg,#fef3c7,#faf5ff)}
 @media(max-width:430px){
   .number-grid{grid-template-columns:repeat(3,1fr)}
 }
@@ -358,6 +362,14 @@ html,body{
     <div id="joinStatus" class="status hidden"></div>
   </section>
 
+  <section id="gameWaitingCard" class="card game-waiting hidden">
+    <div class="waiting-icon">🎮</div>
+    <h2 id="gameWaitingTitle">等待教師同意</h2>
+    <div id="gameWaitingNumber" class="game-number"></div>
+    <p id="gameWaitingMessage" class="game-note">請留在此頁面。教師同意並按下開始後，題目會自動出現。</p>
+    <div id="gameWaitingStatus" class="status">加入申請已送出。</div>
+  </section>
+
   <section id="taskCard" class="card hidden">
     <div id="normalTaskHeader">
       <div class="progress-label"><b>任務進度</b><span id="progressText">0 / 0</span></div>
@@ -439,8 +451,9 @@ html,body{
   </section>
 
   <section id="completeCard" class="card hidden complete">
-    <div class="icon">🎉</div>
-    <h2>任務完成！</h2>
+    <div id="completeIcon" class="icon">🎉</div>
+    <h2 id="completeTitle">任務完成！</h2>
+    <div id="rankDisplay" class="rank-display hidden"></div>
     <p id="completeMessage"></p>
     <div id="completeActions" class="row">
       <button id="againBtn" class="primary">再一次</button>
@@ -491,6 +504,8 @@ let selectedStudentNumber="";
 let currentTeachingLabel="";
 let currentTeachingDescription="";
 let currentAdvancedDescription="";
+let gamePlayerRef=null,gamePlayerStatus="",gameTaskUnsub=null,gamePlayerUnsub=null,gameSeatsUnsub=null;
+let gameStartedLocally=false,gameModelPreparing=false,gameModelPromise=null,gameRank=0,gameTargetsShuffled=false;
 
 const $=id=>document.getElementById(id);
 
@@ -609,6 +624,41 @@ function isTeachingMode(){
 
 function isAdvancedMode(){
   return !!(task&&task.taskMode==="advanced");
+}
+
+function isGameMode(){
+  return !!(task&&task.taskMode==="game");
+}
+
+function gameSeededRandom(seedText){
+  let seed=2166136261;
+  for(let i=0;i<seedText.length;i++){
+    seed^=seedText.charCodeAt(i);
+    seed=Math.imul(seed,16777619);
+  }
+  return ()=>{
+    seed+=0x6D2B79F5;
+    let value=seed;
+    value=Math.imul(value^(value>>>15),value|1);
+    value^=value+Math.imul(value^(value>>>7),value|61);
+    return ((value^(value>>>14))>>>0)/4294967296;
+  };
+}
+
+function shuffleGameTargetsForStudent(){
+  if(!isGameMode()||gameTargetsShuffled||!Array.isArray(task.targetClasses))return;
+  const items=[...task.targetClasses];
+  const startedAt=task.gameStartedAt;
+  const startToken=startedAt&&typeof startedAt.toMillis==="function"
+    ? startedAt.toMillis()
+    : (startedAt?.seconds||"");
+  const random=gameSeededRandom(`${taskId}|${selectedStudentNumber}|${startToken}`);
+  for(let i=items.length-1;i>0;i--){
+    const j=Math.floor(random()*(i+1));
+    [items[i],items[j]]=[items[j],items[i]];
+  }
+  task.targetClasses=items;
+  gameTargetsShuffled=true;
 }
 
 function speakAdvancedPrompt(){
@@ -761,6 +811,7 @@ async function loadTask(){
     task.threshold=Number(task.threshold||0.85);
     task.requiredConsecutiveFrames=Number(task.requiredConsecutiveFrames||10);
     task.taskMode=task.taskMode||task.orderMode||"task";
+    gameTargetsShuffled=false;
     task.classDescriptions=task.classDescriptions&&typeof task.classDescriptions==="object"
       ? task.classDescriptions
       : {};
@@ -775,21 +826,32 @@ async function loadTask(){
       ? `專案類型：${typeName}｜教學模式：拍照後顯示名稱與說明`
       : task.taskMode==="advanced"
         ? `專案類型：${typeName}｜進階評量：依語音說明找出正確物品`
-        : `專案類型：${typeName}｜順序：${task.targetClasses.join(" → ")}`;
+        : task.taskMode==="game"
+          ? `多人尋物遊戲｜教師開始後，每位學生會收到不同的隨機物品順序`
+          : `專案類型：${typeName}｜順序：${task.targetClasses.join(" → ")}`;
     if(task.taskMode==="teaching"){
       $("joinCard").classList.add("hidden");
       setStatus("loadStatus","教學模式載入成功，正在開啟鏡頭…","success");
       await startTeachingModeDirectly();
     }else{
+      if(isGameMode()&&task.gameStatus!=="lobby"){
+        throw new Error(task.gameStatus==="active"?"遊戲已經開始，無法再加入":"這場遊戲已經結束");
+      }
       selectedStudentNumber="";
       document.querySelectorAll(".number-btn").forEach(button=>{
         button.classList.remove("selected");
       });
       $("selectedNumberText").textContent="尚未選擇編號";
       $("startBtn").disabled=true;
+      $("startBtn").textContent=isGameMode()?"送出加入申請":"開始任務";
 
       $("joinCard").classList.remove("hidden");
-      setStatus("loadStatus","任務載入成功，已辨識為「"+typeName+"」。","success");
+      if(isGameMode()){
+        listenGameSeats();
+        setStatus("loadStatus","遊戲載入成功，請選擇學生編號後送出加入申請。","success");
+      }else{
+        setStatus("loadStatus","任務載入成功，已辨識為「"+typeName+"」。","success");
+      }
     }
   }catch(error){
     console.error(error);
@@ -819,6 +881,135 @@ document.querySelectorAll(".number-btn").forEach(button=>{
     selectStudentNumber(button.dataset.studentNumber);
   });
 });
+
+function stopGameListeners(){
+  if(gameTaskUnsub)gameTaskUnsub();if(gamePlayerUnsub)gamePlayerUnsub();if(gameSeatsUnsub)gameSeatsUnsub();
+  gameTaskUnsub=null;gamePlayerUnsub=null;gameSeatsUnsub=null;
+}
+
+function listenGameSeats(){
+  if(gameSeatsUnsub)gameSeatsUnsub();
+  gameSeatsUnsub=db.collection("tasks").doc(taskId).collection("gamePlayers").onSnapshot(snap=>{
+    const occupied=new Set();
+    snap.docs.forEach(doc=>{
+      const data=doc.data();
+      if(["pending","approved","playing","completed"].includes(data.status))occupied.add(String(data.studentNumber||doc.id));
+    });
+    document.querySelectorAll(".number-btn").forEach(button=>{
+      const taken=occupied.has(button.dataset.studentNumber);
+      button.disabled=taken;
+      button.style.opacity=taken?".38":"1";
+      button.title=taken?"此號碼已被其他學生選取":"";
+      if(taken&&button.dataset.studentNumber===selectedStudentNumber){
+        selectedStudentNumber="";button.classList.remove("selected");
+        $("selectedNumberText").textContent="此號碼已被選取，請重新選擇";
+        $("startBtn").disabled=true;
+      }
+    });
+  });
+}
+
+async function requestGameJoin(){
+  if(!selectedStudentNumber)return setStatus("joinStatus","請先選擇學生編號。","error");
+  $("startBtn").disabled=true;
+  setStatus("joinStatus","正在送出加入申請…");
+  try{
+    const currentUser=await ensureAuth();
+    const taskRef=db.collection("tasks").doc(taskId);
+    const playerRef=taskRef.collection("gamePlayers").doc(selectedStudentNumber);
+    await db.runTransaction(async tx=>{
+      const [taskSnap,playerSnap]=await Promise.all([tx.get(taskRef),tx.get(playerRef)]);
+      if(!taskSnap.exists||taskSnap.data().gameStatus!=="lobby")throw new Error("遊戲已開始或已結束，無法加入");
+      if(playerSnap.exists&&["pending","approved","playing","completed"].includes(playerSnap.data().status)){
+        throw new Error("此學生編號已被選取，請改選其他號碼");
+      }
+      tx.set(playerRef,{
+        studentNumber:selectedStudentNumber,
+        studentName:"學生 "+selectedStudentNumber,
+        studentUid:currentUser.uid,
+        status:"pending",
+        rank:null,
+        joinedAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+    });
+    gamePlayerRef=playerRef;gamePlayerStatus="pending";gameRank=0;
+    if(gameSeatsUnsub){gameSeatsUnsub();gameSeatsUnsub=null}
+    $("joinCard").classList.add("hidden");
+    $("gameWaitingCard").classList.remove("hidden");
+    $("gameWaitingNumber").textContent="學生編號 "+selectedStudentNumber;
+    setStatus("gameWaitingStatus","等待教師確認加入…");
+    listenForGameStart();
+  }catch(e){
+    setStatus("joinStatus","加入遊戲失敗：\n"+(e.message||e),"error");
+    $("startBtn").disabled=false;
+  }
+}
+
+async function prepareGameModel(){
+  if(model)return;
+  if(gameModelPromise)return gameModelPromise;
+  gameModelPreparing=true;
+  setStatus("gameWaitingStatus","教師已同意！正在準備 AI 模型，請等待遊戲開始。","success");
+  gameModelPromise=(async()=>{
+    await loadSelectedModel();
+    const labels=getModelLabels();
+    const missing=task.targetClasses.filter(x=>!labels.includes(x));
+    if(missing.length)throw new Error("模型缺少類別："+missing.join("、"));
+    buildPredictionUI(labels);
+    setStatus("gameWaitingStatus","準備完成！等待教師按下「全員開始」。","success");
+  })();
+  try{await gameModelPromise}
+  catch(e){model=null;setStatus("gameWaitingStatus","AI 模型準備失敗：\n"+(e.message||e),"error");throw e}
+  finally{gameModelPreparing=false;gameModelPromise=null}
+}
+
+function listenForGameStart(){
+  if(gamePlayerUnsub)gamePlayerUnsub();
+  if(gameTaskUnsub)gameTaskUnsub();
+  gamePlayerUnsub=gamePlayerRef.onSnapshot(snap=>{
+    if(!snap.exists)return;
+    const data=snap.data();gamePlayerStatus=data.status||"";gameRank=Number(data.rank||0);
+    if(finished&&gameRank){
+      $("rankDisplay").classList.remove("hidden");
+      $("rankDisplay").textContent=`第 ${gameRank} 名`;
+      $("completeIcon").textContent=gameRank===1?"🏆":gameRank===2?"🥈":gameRank===3?"🥉":"🎉";
+      $("completeTitle").textContent=gameRank===1?"恭喜獲得第一名！":"尋物遊戲完成！";
+    }
+    if(data.status==="approved"){
+      $("gameWaitingTitle").textContent="已通過教師同意";
+      $("gameWaitingMessage").textContent="請留在此頁面，教師開始後會自動進入尋物畫面。";
+      prepareGameModel().catch(()=>{});
+    }else if(data.status==="rejected"){
+      $("gameWaitingTitle").textContent="教師未同意加入";
+      $("gameWaitingMessage").textContent="請重新載入遊戲並選擇其他學生編號。";
+      setStatus("gameWaitingStatus","加入申請未通過。","error");
+    }
+    tryStartGame();
+  });
+  gameTaskUnsub=db.collection("tasks").doc(taskId).onSnapshot(snap=>{
+    if(!snap.exists)return;
+    task={...task,...snap.data()};
+    if(task.gameStatus==="finished"&&!finished){
+      if(gameStartedLocally){stopAll();finishTask()}else{
+        $("gameWaitingTitle").textContent="遊戲已結束";
+        setStatus("gameWaitingStatus","教師已結束這場遊戲。","error");
+      }
+      return;
+    }
+    tryStartGame();
+  });
+}
+
+async function tryStartGame(){
+  if(!isGameMode()||gameStartedLocally||task.gameStatus!=="active"||!["approved","playing"].includes(gamePlayerStatus))return;
+  gameStartedLocally=true;
+  $("gameWaitingTitle").textContent="遊戲開始！";
+  setStatus("gameWaitingStatus","正在開啟相機，請準備尋找物品！","success");
+  try{
+    if(gameModelPromise)await gameModelPromise;
+    await startTask();
+  }catch(e){gameStartedLocally=false}
+}
 
 async function startTeachingModeDirectly(){
   try{
@@ -882,6 +1073,13 @@ async function startTask(){
     return;
   }
 
+  if(isGameMode()&&!["approved","playing"].includes(gamePlayerStatus)){
+    setStatus("gameWaitingStatus","尚未取得教師同意，請繼續等待。","error");
+    return;
+  }
+
+  if(isGameMode())shuffleGameTargetsForStudent();
+
   const studentName="學生 "+selectedStudentNumber;
   const studentCode=selectedStudentNumber;
 
@@ -889,7 +1087,7 @@ async function startTask(){
   setStatus("joinStatus","正在載入 AI 模型並建立作答紀錄…");
 
   try{
-    await loadSelectedModel();
+    if(!model)await loadSelectedModel();
     const labels=getModelLabels();
     const missing=task.targetClasses.filter(x=>!labels.includes(x));
     if(missing.length)throw new Error("模型缺少類別："+missing.join("、"));
@@ -907,11 +1105,21 @@ async function startTask(){
         progress:0,
         attempts:0,
         status:"inProgress",
+        taskMode:task.taskMode||"task",
+        gamePlayerId:isGameMode()?selectedStudentNumber:"",
         startedAt:firebase.firestore.FieldValue.serverTimestamp(),
         updatedAt:firebase.firestore.FieldValue.serverTimestamp()
       });
     }else{
       resultRef=null;
+    }
+
+    if(isGameMode()&&gamePlayerRef){
+      await gamePlayerRef.update({
+        status:"playing",
+        startedAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+      gamePlayerStatus="playing";
     }
 
     currentIndex=0;completed=[];attempts=0;holdCount=0;finished=false;paused=false;taskSuccessAnimating=false;
@@ -950,19 +1158,26 @@ async function startTask(){
 
     $("loadCard").classList.add("hidden");
     $("joinCard").classList.add("hidden");
+    $("gameWaitingCard").classList.add("hidden");
     $("taskCard").classList.remove("hidden");
 
     await startSelectedProject();
   }catch(error){
     console.error(error);
-    setStatus("joinStatus","開始任務失敗：\n"+(error.message||error),"error");
+    if(isGameMode()){
+      gameStartedLocally=false;
+      $("gameWaitingCard").classList.remove("hidden");
+      setStatus("gameWaitingStatus","開始遊戲失敗：\n"+(error.message||error),"error");
+    }else{
+      setStatus("joinStatus","開始任務失敗：\n"+(error.message||error),"error");
+    }
     $("startBtn").disabled=false;
   }
 }
 
 async function loadSelectedModel(){
-  if((task.taskMode==="teaching"||task.taskMode==="advanced")&&projectType!=="image"){
-    throw new Error("目前教學模式與進階評量僅支援 Teachable Machine 圖片專案。");
+  if((["teaching","advanced","game"].includes(task.taskMode))&&projectType!=="image"){
+    throw new Error("目前教學模式、進階評量與多人遊戲僅支援 Teachable Machine 圖片專案。");
   }
 
   if(projectType==="image"){
@@ -1701,6 +1916,36 @@ function processPredictions(predictions,evidenceCanvas){
   }
 }
 
+async function claimGameRank(){
+  if(!isGameMode()||!gamePlayerRef)return 0;
+  const counterRef=db.collection("tasks").doc(taskId).collection("gameControl").doc("ranking");
+  try{
+    const rank=await db.runTransaction(async tx=>{
+      const counterSnap=await tx.get(counterRef);
+      const playerSnap=await tx.get(gamePlayerRef);
+      if(!playerSnap.exists)throw new Error("找不到遊戲排名資料");
+      const oldRank=Number(playerSnap.data().rank||0);
+      if(oldRank)return oldRank;
+      const nextRank=Number(counterSnap.exists?counterSnap.data().count||0:0)+1;
+      tx.set(counterRef,{count:nextRank});
+      tx.update(gamePlayerRef,{
+        status:"completed",rank:nextRank,
+        completedAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+      return nextRank;
+    });
+    gameRank=rank;
+    if(resultRef)await resultRef.update({gameRank:rank});
+    return rank;
+  }catch(e){
+    console.error("遊戲名次寫入失敗",e);
+    try{
+      await gamePlayerRef.update({status:"completed",completedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    }catch(ignore){}
+    return 0;
+  }
+}
+
 async function completeCurrent(confidence,evidenceCanvas){
   if(finished)return;
   const item=task.targetClasses[currentIndex];
@@ -1739,6 +1984,7 @@ async function completeCurrent(confidence,evidenceCanvas){
   }
 
   if(currentIndex>=task.targetClasses.length){
+    if(isGameMode())await claimGameRank();
     finishTask();
   }else{
     if(isAdvancedMode()){
@@ -1773,12 +2019,24 @@ function finishTask(){
   finished=true;
   stopAll();
   $("taskCard").classList.add("hidden");
+  $("gameWaitingCard").classList.add("hidden");
   $("completeCard").classList.remove("hidden");
-  $("completeActions").classList.toggle("hidden",isTeachingMode());
+  $("completeActions").classList.toggle("hidden",isTeachingMode()||isGameMode());
   const typeName={image:"圖片",audio:"音訊",pose:"姿勢"}[projectType];
-  $("completeMessage").textContent=isAdvancedMode()
-    ? "已完成全部進階評量，結果已回傳教師端。"
-    : `已完成全部${typeName}任務，結果已回傳教師端。`;
+  if(isGameMode()){
+    $("completeIcon").textContent=gameRank===1?"🏆":gameRank===2?"🥈":gameRank===3?"🥉":"🎉";
+    $("completeTitle").textContent=gameRank===1?"恭喜獲得第一名！":"尋物遊戲完成！";
+    $("rankDisplay").classList.remove("hidden");
+    $("rankDisplay").textContent=gameRank?`第 ${gameRank} 名`:"名次同步中";
+    $("completeMessage").textContent="你已完成所有指定物品，名次也會同步顯示在教師端。";
+  }else{
+    $("completeIcon").textContent="🎉";
+    $("completeTitle").textContent="任務完成！";
+    $("rankDisplay").classList.add("hidden");
+    $("completeMessage").textContent=isAdvancedMode()
+      ? "已完成全部進階評量，結果已回傳教師端。"
+      : `已完成全部${typeName}任務，結果已回傳教師端。`;
+  }
 }
 
 async function repeatTask(){
@@ -1879,7 +2137,7 @@ $("speakDescriptionBtnTop").onclick=speakTeachingDescription;
 $("repeatAdvancedPromptBtn").onclick=speakAdvancedPrompt;
 $("speakEvaluationTargetBtn").onclick=speakEvaluationTarget;
 $("loadBtn").onclick=loadTask;
-$("startBtn").onclick=startTask;
+$("startBtn").onclick=()=>isGameMode()?requestGameJoin():startTask();
 $("switchBtn").onclick=switchCamera;
 $("captureBtn").onclick=captureAndRecognize;
 $("againBtn").onclick=repeatTask;
@@ -1909,9 +2167,9 @@ document.addEventListener("visibilitychange",async()=>{
   }
 });
 
-window.addEventListener("pagehide",stopAll);
+window.addEventListener("pagehide",()=>{stopAll();stopGameListeners()});
 window.addEventListener("freeze",stopAll);
-window.addEventListener("beforeunload",stopAll);
+window.addEventListener("beforeunload",()=>{stopAll();stopGameListeners()});
 
 taskId=new URLSearchParams(location.search).get("task")||"";
 $("taskIdInput").value=taskId;
