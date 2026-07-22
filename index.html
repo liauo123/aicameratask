@@ -17,6 +17,8 @@
   .classDescription{flex-basis:100%;margin-left:30px}
 }.task{border:1px solid var(--l);border-radius:12px;padding:14px;margin:10px 0}.top{display:flex;justify-content:space-between;gap:10px}.title{font-size:18px;font-weight:900}.meta,.small{font-size:13px;color:var(--m);line-height:1.6}.badge{padding:4px 8px;border-radius:999px;background:#dbeafe;color:#1d4ed8;font-size:12px;font-weight:800}.rr{display:grid;grid-template-columns:1.2fr .7fr .7fr .7fr;gap:8px;padding:8px;border-bottom:1px solid #eef2f7;font-size:14px}.modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:20px;z-index:99}.box{background:#fff;padding:20px;border-radius:16px;text-align:center;max-width:380px;width:100%}.url{word-break:break-all;background:#f8fafc;padding:10px;border-radius:8px;margin:10px 0}
 .teachMode{margin:0}.navBtn{display:inline-block;text-decoration:none;border-radius:10px;padding:11px 15px;font-weight:800;background:#fff;color:var(--b);border:1px solid #b7ccff}.modelCard{min-height:650px}
+.gameMode{border:2px solid #c4b5fd;background:linear-gradient(135deg,#faf5ff,#eef2ff)}
+.gameMode h2{color:#6d28d9}.gameHint{font-size:13px;line-height:1.7;color:#5b21b6;margin:-4px 0 10px}
 
 </style>
 </head>
@@ -63,6 +65,14 @@
         <button id="createAdvancedBtn" class="p" style="width:100%" disabled>產生進階評量 QR</button>
         <div id="advancedStatus" class="status">等待建立進階評量。</div>
       </section>
+
+      <section id="gameModeCard" class="card gameMode hidden">
+        <h2>多人尋物遊戲模式</h2>
+        <div class="gameHint">學生掃描 QR、選擇號碼並等待教師同意；教師統一開始後，依拍照辨識完成順序即時排名。</div>
+        <input id="gameTitle" placeholder="遊戲名稱或題目名稱">
+        <button id="createGameBtn" class="p" style="width:100%" disabled>建立遊戲並產生 QR</button>
+        <div id="gameStatus" class="status">等待建立多人遊戲。</div>
+      </section>
     </div>
   </div>
 </div>
@@ -75,7 +85,7 @@ const $=id=>document.getElementById(id);const esc=s=>String(s).replace(/[&<>"']/
 auth.onAuthStateChanged(u=>{user=u;if(u){$("authCard").classList.add("hidden");$("app").classList.remove("hidden");$("userArea").classList.remove("hidden");$("userEmail").textContent=u.email||"教師"}else{$("authCard").classList.remove("hidden");$("app").classList.add("hidden");$("userArea").classList.add("hidden")}});
 $("loginBtn").onclick=async()=>{try{await auth.signInWithEmailAndPassword($("email").value.trim(),$("password").value)}catch(e){status("authStatus","登入失敗：\n"+e.message,"err")}};
 $("logoutBtn").onclick=()=>auth.signOut();
-$("loadModelBtn").onclick=async()=>{$("createTaskCard").classList.add("hidden");$("advancedModeCard").classList.add("hidden");modelURL=$("modelURL").value.trim();if(!modelURL)return status("modelStatus","請輸入模型網址。","err");if(!modelURL.endsWith("/"))modelURL+="/";status("modelStatus","正在載入模型…");try{model=await tmImage.load(modelURL+"model.json",modelURL+"metadata.json");labels=model.getClassLabels();$("classes").innerHTML=labels.map((x,i)=>`<div class="classBox" draggable="true" data-label="${esc(x)}"><span class="dragHandle">☰</span><label class="classLabel"><input type="checkbox" value="${esc(x)}" id="c${i}"> ${esc(x)}</label><input class="classDescription" type="text" placeholder="輸入「${esc(x)}」的說明文字" aria-label="${esc(x)}的說明"></div>`).join("");initClassDragSort();$("createBtn").disabled=false;$("createAdvancedBtn").disabled=false;$("teachMode").classList.remove("hidden");$("advancedModeCard").classList.remove("hidden");$("createTaskCard").classList.remove("hidden");status("modelStatus","模型載入成功，共 "+labels.length+" 類。","ok")}catch(e){status("modelStatus","模型載入失敗：\n"+e.message,"err")}};
+$("loadModelBtn").onclick=async()=>{$("createTaskCard").classList.add("hidden");$("advancedModeCard").classList.add("hidden");$("gameModeCard").classList.add("hidden");modelURL=$("modelURL").value.trim();if(!modelURL)return status("modelStatus","請輸入模型網址。","err");if(!modelURL.endsWith("/"))modelURL+="/";status("modelStatus","正在載入模型…");try{model=await tmImage.load(modelURL+"model.json",modelURL+"metadata.json");labels=model.getClassLabels();$("classes").innerHTML=labels.map((x,i)=>`<div class="classBox" draggable="true" data-label="${esc(x)}"><span class="dragHandle">☰</span><label class="classLabel"><input type="checkbox" value="${esc(x)}" id="c${i}"> ${esc(x)}</label><input class="classDescription" type="text" placeholder="輸入「${esc(x)}」的說明文字" aria-label="${esc(x)}的說明"></div>`).join("");initClassDragSort();$("createBtn").disabled=false;$("createAdvancedBtn").disabled=false;$("createGameBtn").disabled=false;$("teachMode").classList.remove("hidden");$("advancedModeCard").classList.remove("hidden");$("createTaskCard").classList.remove("hidden");$("gameModeCard").classList.remove("hidden");status("modelStatus","模型載入成功，共 "+labels.length+" 類。","ok")}catch(e){status("modelStatus","模型載入失敗：\n"+e.message,"err")}};
 
 
 function initClassDragSort(){const container=$("classes");let dragged=null;container.querySelectorAll(".classBox").forEach(item=>{item.addEventListener("dragstart",e=>{dragged=item;item.classList.add("dragging");e.dataTransfer.effectAllowed="move"});item.addEventListener("dragend",()=>{item.classList.remove("dragging");container.querySelectorAll(".classBox").forEach(x=>x.classList.remove("drag-over"));dragged=null;updateLabelsFromDOM()});item.addEventListener("dragover",e=>{e.preventDefault();if(item!==dragged)item.classList.add("drag-over")});item.addEventListener("dragleave",()=>item.classList.remove("drag-over"));item.addEventListener("drop",e=>{e.preventDefault();item.classList.remove("drag-over");if(!dragged||dragged===item)return;const r=item.getBoundingClientRect();container.insertBefore(dragged,e.clientY<r.top+r.height/2?item:item.nextSibling);updateLabelsFromDOM()})})}
@@ -212,6 +222,47 @@ async function createAdvancedEvaluationQR(){
 }
 
 $("createAdvancedBtn").onclick=createAdvancedEvaluationQR;
+
+async function createGameModeQR(){
+  updateLabelsFromDOM();
+  const title=$("gameTitle").value.trim();
+  const targets=getSelectedClassesInCurrentOrder();
+  if(!title)return status("gameStatus","請輸入遊戲名稱或題目名稱。","err");
+  if(!targets.length)return status("gameStatus","請至少勾選一項要尋找的物品。","err");
+  if(!user)return status("gameStatus","請先登入教師帳號。","err");
+
+  $("createGameBtn").disabled=true;
+  status("gameStatus","正在建立多人遊戲等待室…");
+  try{
+    const ref=await db.collection("tasks").add({
+      teacherId:user.uid,
+      teacherEmail:user.email||"",
+      title,
+      modelURL,
+      targetClasses:targets,
+      classDescriptions:getClassDescriptions(true),
+      threshold:0.85,
+      requiredConsecutiveFrames:1,
+      orderMode:"fixed",
+      taskMode:"game",
+      gameStatus:"lobby",
+      gameFinishCount:0,
+      maxPlayers:15,
+      status:"active",
+      version:"2.3-game",
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    await ref.collection("gameControl").doc("ranking").set({count:0});
+    status("gameStatus","遊戲建立成功！\n學生掃描 QR 後，請到「我的任務」同意學生並開始遊戲。\nTask ID："+ref.id,"ok");
+    showQR(ref.id,title);
+  }catch(e){
+    status("gameStatus","建立遊戲失敗：\n"+(e.message||e),"err");
+  }finally{
+    $("createGameBtn").disabled=false;
+  }
+}
+
+$("createGameBtn").onclick=createGameModeQR;
 
 $("createBtn").onclick=async()=>{const title=$("taskTitle").value.trim(),targets=getSelectedClassesInCurrentOrder();if(!title)return status("createStatus","請輸入任務名稱。","err");if(!targets.length)return status("createStatus","請至少選擇一項物品。","err");try{const ref=await db.collection("tasks").add({teacherId:user.uid,teacherEmail:user.email||"",title,modelURL,targetClasses:targets,classDescriptions:getClassDescriptions(true),threshold:0.85,requiredConsecutiveFrames:10,orderMode:"fixed",status:"active",version:"2.0",createdAt:firebase.firestore.FieldValue.serverTimestamp()});status("createStatus","任務建立成功！\nTask ID："+ref.id,"ok");showQR(ref.id,title)}catch(e){status("createStatus","建立任務失敗：\n"+e.message,"err")}};
 function studentURL(id){const base=new URL("student.html",location.href).toString(),u=new URL(base,location.href);u.searchParams.set("task",id);return u.toString()}function showQR(id,title){const url=studentURL(id);$("qrTitle").textContent=title+"－QR Code";$("qrURL").textContent=url;$("qrCode").innerHTML="";new QRCode($("qrCode"),{text:url,width:260,height:260,correctLevel:QRCode.CorrectLevel.M});$("qrModal").classList.remove("hidden")}window.showQR=showQR;$("closeBtn").onclick=()=>$("qrModal").classList.add("hidden");$("copyBtn").onclick=()=>navigator.clipboard.writeText($("qrURL").textContent);
