@@ -10,7 +10,12 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
-:root{--b:#2563eb;--g:#16a34a;--r:#dc2626;--bg:#eef2f7;--m:#64748b;--l:#dbe2ea}*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:"Noto Sans TC",Arial;color:#172033}header{background:#fff;box-shadow:0 2px 10px #0002;padding:14px 18px;position:sticky;top:0;z-index:20}.head{max-width:1100px;margin:auto;display:flex;justify-content:space-between;align-items:center}h1{margin:0;color:var(--b);font-size:22px}main{max-width:1100px;margin:auto;padding:18px}.card{background:#fff;border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 3px 12px #0001}.workspace{display:grid;gap:16px}.rightStack{display:grid;gap:16px;align-content:start}@media(min-width:900px){.workspace{grid-template-columns:minmax(0,1.35fr) minmax(360px,.85fr)}}input{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font-size:16px;margin:6px 0}button{border:0;border-radius:10px;padding:11px 15px;font-weight:800;cursor:pointer}.p{background:var(--b);color:#fff}.s{background:#fff;color:var(--b);border:1px solid #b7ccff}.d{background:#fff1f2;color:var(--r);border:1px solid #fecdd3}.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:140px}.status{padding:12px;border-radius:10px;background:#eff6ff;color:#1d4ed8;white-space:pre-wrap;margin-top:10px}.ok{background:#ecfdf5;color:#166534}.err{background:#fef2f2;color:#b91c1c}.hidden{display:none!important}.classBox{display:flex;align-items:center;background:#f8fafc;padding:11px;border-radius:10px;margin:7px 0;cursor:grab;border:2px solid transparent;transition:.15s}.classBox:active{cursor:grabbing}.classBox.dragging{opacity:.45;border-color:#2563eb}.classBox.drag-over{border-color:#2563eb;background:#eff6ff}.dragHandle{font-size:20px;color:#64748b;user-select:none;margin-right:10px}.classLabel{display:flex;align-items:center;gap:10px;flex:1}.task{border:1px solid var(--l);border-radius:12px;padding:14px;margin:10px 0}.top{display:flex;justify-content:space-between;gap:10px}.title{font-size:18px;font-weight:900}.meta,.small{font-size:13px;color:var(--m);line-height:1.6}.badge{padding:4px 8px;border-radius:999px;background:#dbeafe;color:#1d4ed8;font-size:12px;font-weight:800}.rr{display:grid;grid-template-columns:1.2fr .7fr .7fr .7fr;gap:8px;padding:8px;border-bottom:1px solid #eef2f7;font-size:14px}.modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:20px;z-index:99}.box{background:#fff;padding:20px;border-radius:16px;text-align:center;max-width:380px;width:100%}.url{word-break:break-all;background:#f8fafc;padding:10px;border-radius:8px;margin:10px 0}
+:root{--b:#2563eb;--g:#16a34a;--r:#dc2626;--bg:#eef2f7;--m:#64748b;--l:#dbe2ea}*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:"Noto Sans TC",Arial;color:#172033}header{background:#fff;box-shadow:0 2px 10px #0002;padding:14px 18px;position:sticky;top:0;z-index:20}.head{max-width:1100px;margin:auto;display:flex;justify-content:space-between;align-items:center}h1{margin:0;color:var(--b);font-size:22px}main{max-width:1100px;margin:auto;padding:18px}.card{background:#fff;border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 3px 12px #0001}.workspace{display:grid;gap:16px}.rightStack{display:grid;gap:16px;align-content:start}@media(min-width:900px){.workspace{grid-template-columns:minmax(0,1.35fr) minmax(360px,.85fr)}}input{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font-size:16px;margin:6px 0}button{border:0;border-radius:10px;padding:11px 15px;font-weight:800;cursor:pointer}.p{background:var(--b);color:#fff}.s{background:#fff;color:var(--b);border:1px solid #b7ccff}.d{background:#fff1f2;color:var(--r);border:1px solid #fecdd3}.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:140px}.status{padding:12px;border-radius:10px;background:#eff6ff;color:#1d4ed8;white-space:pre-wrap;margin-top:10px}.ok{background:#ecfdf5;color:#166534}.err{background:#fef2f2;color:#b91c1c}.hidden{display:none!important}.classBox{display:flex;align-items:center;background:#f8fafc;padding:11px;border-radius:10px;margin:7px 0;cursor:grab;border:2px solid transparent;transition:.15s}.classBox:active{cursor:grabbing}.classBox.dragging{opacity:.45;border-color:#2563eb}.classBox.drag-over{border-color:#2563eb;background:#eff6ff}.dragHandle{font-size:20px;color:#64748b;user-select:none;margin-right:10px}.classLabel{display:flex;align-items:center;gap:10px;flex:0 0 auto;min-width:150px}
+.classDescription{flex:1;min-width:180px;margin:0}
+@media(max-width:650px){
+  .classBox{flex-wrap:wrap}
+  .classDescription{flex-basis:100%;margin-left:30px}
+}.task{border:1px solid var(--l);border-radius:12px;padding:14px;margin:10px 0}.top{display:flex;justify-content:space-between;gap:10px}.title{font-size:18px;font-weight:900}.meta,.small{font-size:13px;color:var(--m);line-height:1.6}.badge{padding:4px 8px;border-radius:999px;background:#dbeafe;color:#1d4ed8;font-size:12px;font-weight:800}.rr{display:grid;grid-template-columns:1.2fr .7fr .7fr .7fr;gap:8px;padding:8px;border-bottom:1px solid #eef2f7;font-size:14px}.modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:20px;z-index:99}.box{background:#fff;padding:20px;border-radius:16px;text-align:center;max-width:380px;width:100%}.url{word-break:break-all;background:#f8fafc;padding:10px;border-radius:8px;margin:10px 0}
 .teachMode{margin:0}.navBtn{display:inline-block;text-decoration:none;border-radius:10px;padding:11px 15px;font-weight:800;background:#fff;color:var(--b);border:1px solid #b7ccff}.modelCard{min-height:650px}
 
 </style>
@@ -40,16 +45,23 @@
     <div class="rightStack">
       <section id="teachMode" class="card teachMode hidden">
         <h2>教學模式</h2>
-        <div class="small">產生學生教學 QR，學生掃描後可用鏡頭自由辨識物品名稱。</div>
+        <input id="teachingTitle" placeholder="教學名稱">
         <button id="createTeachQRBtn" class="p" style="width:100%;margin-top:12px">產生學生教學 QR</button>
         <div id="teachQRStatus" class="status">尚未建立學生教學模式連結。</div>
       </section>
 
       <section id="createTaskCard" class="card hidden">
-        <h2>建立任務</h2>
+        <h2>評量模式</h2>
         <input id="taskTitle" placeholder="任務名稱">
         <button id="createBtn" class="p" style="width:100%" disabled>產生學生任務 QR</button>
         <div id="createStatus" class="status">等待建立任務。</div>
+      </section>
+
+      <section id="advancedModeCard" class="card hidden">
+        <h2>進階評量模式</h2>
+        <input id="advancedTitle" placeholder="進階評量名稱">
+        <button id="createAdvancedBtn" class="p" style="width:100%" disabled>產生進階評量 QR</button>
+        <div id="advancedStatus" class="status">等待建立進階評量。</div>
       </section>
     </div>
   </div>
@@ -63,15 +75,31 @@ const $=id=>document.getElementById(id);const esc=s=>String(s).replace(/[&<>"']/
 auth.onAuthStateChanged(u=>{user=u;if(u){$("authCard").classList.add("hidden");$("app").classList.remove("hidden");$("userArea").classList.remove("hidden");$("userEmail").textContent=u.email||"教師"}else{$("authCard").classList.remove("hidden");$("app").classList.add("hidden");$("userArea").classList.add("hidden")}});
 $("loginBtn").onclick=async()=>{try{await auth.signInWithEmailAndPassword($("email").value.trim(),$("password").value)}catch(e){status("authStatus","登入失敗：\n"+e.message,"err")}};
 $("logoutBtn").onclick=()=>auth.signOut();
-$("loadModelBtn").onclick=async()=>{$("createTaskCard").classList.add("hidden");modelURL=$("modelURL").value.trim();if(!modelURL)return status("modelStatus","請輸入模型網址。","err");if(!modelURL.endsWith("/"))modelURL+="/";status("modelStatus","正在載入模型…");try{model=await tmImage.load(modelURL+"model.json",modelURL+"metadata.json");labels=model.getClassLabels();$("classes").innerHTML=labels.map((x,i)=>`<div class="classBox" draggable="true" data-label="${esc(x)}"><span class="dragHandle">☰</span><label class="classLabel"><input type="checkbox" value="${esc(x)}" id="c${i}"> ${esc(x)}</label></div>`).join("");initClassDragSort();$("createBtn").disabled=false;$("teachMode").classList.remove("hidden");$("createTaskCard").classList.remove("hidden");status("modelStatus","模型載入成功，共 "+labels.length+" 類。","ok")}catch(e){status("modelStatus","模型載入失敗：\n"+e.message,"err")}};
+$("loadModelBtn").onclick=async()=>{$("createTaskCard").classList.add("hidden");$("advancedModeCard").classList.add("hidden");modelURL=$("modelURL").value.trim();if(!modelURL)return status("modelStatus","請輸入模型網址。","err");if(!modelURL.endsWith("/"))modelURL+="/";status("modelStatus","正在載入模型…");try{model=await tmImage.load(modelURL+"model.json",modelURL+"metadata.json");labels=model.getClassLabels();$("classes").innerHTML=labels.map((x,i)=>`<div class="classBox" draggable="true" data-label="${esc(x)}"><span class="dragHandle">☰</span><label class="classLabel"><input type="checkbox" value="${esc(x)}" id="c${i}"> ${esc(x)}</label><input class="classDescription" type="text" placeholder="輸入「${esc(x)}」的說明文字" aria-label="${esc(x)}的說明"></div>`).join("");initClassDragSort();$("createBtn").disabled=false;$("createAdvancedBtn").disabled=false;$("teachMode").classList.remove("hidden");$("advancedModeCard").classList.remove("hidden");$("createTaskCard").classList.remove("hidden");status("modelStatus","模型載入成功，共 "+labels.length+" 類。","ok")}catch(e){status("modelStatus","模型載入失敗：\n"+e.message,"err")}};
 
 
 function initClassDragSort(){const container=$("classes");let dragged=null;container.querySelectorAll(".classBox").forEach(item=>{item.addEventListener("dragstart",e=>{dragged=item;item.classList.add("dragging");e.dataTransfer.effectAllowed="move"});item.addEventListener("dragend",()=>{item.classList.remove("dragging");container.querySelectorAll(".classBox").forEach(x=>x.classList.remove("drag-over"));dragged=null;updateLabelsFromDOM()});item.addEventListener("dragover",e=>{e.preventDefault();if(item!==dragged)item.classList.add("drag-over")});item.addEventListener("dragleave",()=>item.classList.remove("drag-over"));item.addEventListener("drop",e=>{e.preventDefault();item.classList.remove("drag-over");if(!dragged||dragged===item)return;const r=item.getBoundingClientRect();container.insertBefore(dragged,e.clientY<r.top+r.height/2?item:item.nextSibling);updateLabelsFromDOM()})})}
 function updateLabelsFromDOM(){labels=[...document.querySelectorAll("#classes .classBox")].map(item=>item.dataset.label)}
 function getSelectedClassesInCurrentOrder(){return [...document.querySelectorAll("#classes .classBox")].filter(item=>item.querySelector('input[type="checkbox"]')?.checked).map(item=>item.dataset.label)}
+function getClassDescriptions(selectedOnly=false){
+  const descriptions={};
+  document.querySelectorAll("#classes .classBox").forEach(item=>{
+    const checkbox=item.querySelector('input[type="checkbox"]');
+    if(selectedOnly&&!checkbox?.checked)return;
+    const label=item.dataset.label;
+    const description=item.querySelector(".classDescription")?.value.trim()||"";
+    descriptions[label]=description;
+  });
+  return descriptions;
+}
 
 async function createTeachingModeQR(){
   updateLabelsFromDOM();
+  const teachingTitle=$("teachingTitle").value.trim();
+  if(!teachingTitle){
+    status("teachQRStatus","請輸入教學名稱。","err");
+    return;
+  }
   if(!user){
     status("teachQRStatus","請先登入教師帳號。","err");
     return;
@@ -92,9 +120,10 @@ async function createTeachingModeQR(){
     const ref=await db.collection("tasks").add({
       teacherId:user.uid,
       teacherEmail:user.email||"",
-      title:"物品辨識教學模式",
+      title:teachingTitle,
       modelURL:modelURL,
       targetClasses:[...labels],
+      classDescriptions:getClassDescriptions(false),
       threshold:0.85,
       requiredConsecutiveFrames:10,
       orderMode:"teaching",
@@ -111,7 +140,7 @@ async function createTeachingModeQR(){
     $("teachQRStatus").textContent=
       "學生教學模式建立成功！\nTask ID："+ref.id+"\n學生開啟後，鏡頭對準物品會顯示名稱。";
 
-    showQR(ref.id,"物品辨識教學模式");
+    showQR(ref.id,teachingTitle);
   }catch(e){
     console.error("建立教學模式失敗",e);
     status("teachQRStatus","建立教學模式失敗：\n"+(e.message||e),"err");
@@ -122,7 +151,69 @@ async function createTeachingModeQR(){
 
 $("createTeachQRBtn").onclick=createTeachingModeQR;
 
-$("createBtn").onclick=async()=>{const title=$("taskTitle").value.trim(),targets=getSelectedClassesInCurrentOrder();if(!title)return status("createStatus","請輸入任務名稱。","err");if(!targets.length)return status("createStatus","請至少選擇一項物品。","err");try{const ref=await db.collection("tasks").add({teacherId:user.uid,teacherEmail:user.email||"",title,modelURL,targetClasses:targets,threshold:0.85,requiredConsecutiveFrames:10,orderMode:"fixed",status:"active",version:"2.0",createdAt:firebase.firestore.FieldValue.serverTimestamp()});status("createStatus","任務建立成功！\nTask ID："+ref.id,"ok");showQR(ref.id,title)}catch(e){status("createStatus","建立任務失敗：\n"+e.message,"err")}};
+
+async function createAdvancedEvaluationQR(){
+  updateLabelsFromDOM();
+
+  const title=$("advancedTitle").value.trim();
+  const targets=getSelectedClassesInCurrentOrder();
+
+  if(!title){
+    status("advancedStatus","請輸入進階評量名稱。","err");
+    return;
+  }
+  if(!targets.length){
+    status("advancedStatus","請至少勾選一項物品。","err");
+    return;
+  }
+
+  const descriptions=getClassDescriptions(true);
+  const missingDescriptions=targets.filter(name=>!String(descriptions[name]||"").trim());
+  if(missingDescriptions.length){
+    status(
+      "advancedStatus",
+      "進階評量必須設定每個物品的說明文字：\n"+missingDescriptions.join("、"),
+      "err"
+    );
+    return;
+  }
+
+  $("createAdvancedBtn").disabled=true;
+  status("advancedStatus","正在建立進階評量…");
+
+  try{
+    const ref=await db.collection("tasks").add({
+      teacherId:user.uid,
+      teacherEmail:user.email||"",
+      title,
+      modelURL,
+      targetClasses:targets,
+      classDescriptions:descriptions,
+      threshold:0.85,
+      requiredConsecutiveFrames:1,
+      orderMode:"fixed",
+      taskMode:"advanced",
+      status:"active",
+      version:"2.2-advanced",
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    status(
+      "advancedStatus",
+      "進階評量建立成功！\nTask ID："+ref.id,
+      "ok"
+    );
+    showQR(ref.id,title);
+  }catch(e){
+    status("advancedStatus","建立進階評量失敗：\n"+e.message,"err");
+  }finally{
+    $("createAdvancedBtn").disabled=false;
+  }
+}
+
+$("createAdvancedBtn").onclick=createAdvancedEvaluationQR;
+
+$("createBtn").onclick=async()=>{const title=$("taskTitle").value.trim(),targets=getSelectedClassesInCurrentOrder();if(!title)return status("createStatus","請輸入任務名稱。","err");if(!targets.length)return status("createStatus","請至少選擇一項物品。","err");try{const ref=await db.collection("tasks").add({teacherId:user.uid,teacherEmail:user.email||"",title,modelURL,targetClasses:targets,classDescriptions:getClassDescriptions(true),threshold:0.85,requiredConsecutiveFrames:10,orderMode:"fixed",status:"active",version:"2.0",createdAt:firebase.firestore.FieldValue.serverTimestamp()});status("createStatus","任務建立成功！\nTask ID："+ref.id,"ok");showQR(ref.id,title)}catch(e){status("createStatus","建立任務失敗：\n"+e.message,"err")}};
 function studentURL(id){const base=new URL("student.html",location.href).toString(),u=new URL(base,location.href);u.searchParams.set("task",id);return u.toString()}function showQR(id,title){const url=studentURL(id);$("qrTitle").textContent=title+"－QR Code";$("qrURL").textContent=url;$("qrCode").innerHTML="";new QRCode($("qrCode"),{text:url,width:260,height:260,correctLevel:QRCode.CorrectLevel.M});$("qrModal").classList.remove("hidden")}window.showQR=showQR;$("closeBtn").onclick=()=>$("qrModal").classList.add("hidden");$("copyBtn").onclick=()=>navigator.clipboard.writeText($("qrURL").textContent);
 
 </script>
