@@ -9,14 +9,14 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
-:root{--b:#2563eb;--r:#dc2626;--bg:#eef2f7;--m:#64748b;--l:#dbe2ea}
+:root{--b:#2563eb;--r:#dc2626;--bg:#eef2f7;--m:#64748b;--l:#dbe2ea;--surface:#f8fafc;--surface-border:#dbe4ee;--teaching-bg:#eff6ff;--teaching-border:#bfdbfe;--evaluation-bg:#f8fafc;--evaluation-border:#cbd5e1;--game-bg:#faf5ff;--game-border:#c4b5fd}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);font-family:"Noto Sans TC",Arial;color:#172033}
-header{background:#fff;box-shadow:0 2px 10px #0002;padding:14px 18px;position:sticky;top:0;z-index:20}
+header{background:var(--surface);box-shadow:0 2px 10px #0002;padding:14px 18px;position:sticky;top:0;z-index:20}
 .head{max-width:1100px;margin:auto;display:flex;justify-content:space-between;align-items:center;gap:12px}
 h1{margin:0;color:var(--b);font-size:22px}
 main{max-width:1100px;margin:auto;padding:18px}
-.card{background:#fff;border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 3px 12px #0001}
+.card{background:var(--surface);border:1px solid var(--surface-border);border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 3px 12px #0001}
 button,.navBtn{border-radius:10px;padding:11px 15px;font-weight:800;cursor:pointer;text-decoration:none}
 .s{background:#fff;color:var(--b);border:1px solid #b7ccff}
 .d{background:#fff1f2;color:var(--r);border:1px solid #fecdd3}
@@ -25,18 +25,18 @@ button,.navBtn{border-radius:10px;padding:11px 15px;font-weight:800;cursor:point
 .row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:140px}
 .status{padding:12px;border-radius:10px;background:#eff6ff;color:#1d4ed8;white-space:pre-wrap;margin-top:10px}
 .err{background:#fef2f2;color:#b91c1c}.hidden{display:none!important}
-.task{border:1px solid var(--l);border-radius:14px;padding:16px;margin:14px 0;background:#fff;box-shadow:0 4px 12px rgba(15,23,42,.04)}
+.task{border:1px solid var(--l);border-radius:14px;padding:16px;margin:14px 0;background:#eef2f7;box-shadow:0 4px 12px rgba(15,23,42,.04)}
 .modeSection{padding:16px;border-radius:16px;margin-top:18px}
-.modeSection.teaching{background:#eff6ff;border:1px solid #bfdbfe}
-.modeSection.evaluation{background:#f8fafc;border:1px solid #dbe4ee}
-.modeSection.game{background:#faf5ff;border:1px solid #c4b5fd}
+.modeSection.teaching{background:var(--teaching-bg);border:1px solid var(--teaching-border)}
+.modeSection.evaluation{background:var(--evaluation-bg);border:1px solid var(--evaluation-border)}
+.modeSection.game{background:var(--game-bg);border:1px solid var(--game-border)}
 .modeTitle{margin:0 0 12px;padding-bottom:10px;border-bottom:2px solid}
 .modeSection.teaching .modeTitle{color:#1d4ed8;border-color:#93c5fd}
 .modeSection.evaluation .modeTitle{color:#334155;border-color:#cbd5e1}
 .modeSection.game .modeTitle{color:#6d28d9;border-color:#c4b5fd}
-.task.teachingTask{border-color:#bfdbfe;background:#ffffff}
-.task.evaluationTask{border-color:#cbd5e1;background:#ffffff}
-.task.gameTask{border-color:#c4b5fd;background:#fff}.gameState{display:inline-block;padding:5px 10px;border-radius:999px;background:#ede9fe;color:#6d28d9;font-size:12px;font-weight:900;margin-top:6px}
+.task.teachingTask{border-color:var(--teaching-border);background:#dbeafe}
+.task.evaluationTask{border-color:var(--evaluation-border);background:#eef2f7}
+.task.gameTask{border-color:var(--game-border);background:#ede9fe}.gameState{display:inline-block;padding:5px 10px;border-radius:999px;background:#ddd6fe;color:#6d28d9;font-size:12px;font-weight:900;margin-top:6px}
 .playerRow{display:grid;grid-template-columns:.7fr 1fr 1fr auto;gap:8px;align-items:center;padding:9px;border-bottom:1px solid #ede9fe;font-size:14px}.playerRow:first-child{font-weight:900;background:#faf5ff;border-radius:10px}.playerActions{display:flex;gap:6px}.playerActions button{min-width:auto;padding:7px 10px}.rank1{background:#fef3c7}.rank2{background:#f1f5f9}.rank3{background:#ffedd5}
 .task+.task{margin-top:16px}
 .top{display:flex;justify-content:space-between;gap:10px}
@@ -45,8 +45,8 @@ button,.navBtn{border-radius:10px;padding:11px 15px;font-weight:800;cursor:point
 .badge{padding:4px 8px;border-radius:999px;background:#dbeafe;color:#1d4ed8;font-size:12px;font-weight:800}
 .rr{display:grid;grid-template-columns:1.2fr .7fr .7fr .7fr;gap:8px;padding:8px;border-bottom:1px solid #eef2f7;font-size:14px}
 .modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:20px;z-index:99}
-.box{background:#fff;padding:20px;border-radius:16px;text-align:center;max-width:380px;width:100%}
-.url{word-break:break-all;background:#f8fafc;padding:10px;border-radius:8px;margin:10px 0}
+.box{background:var(--surface);border:1px solid var(--surface-border);padding:20px;border-radius:16px;text-align:center;max-width:380px;width:100%}
+.url{word-break:break-all;background:#eef2f7;padding:10px;border-radius:8px;margin:10px 0}
 @media(max-width:600px){.rr{grid-template-columns:1fr 1fr}.playerRow{grid-template-columns:.6fr 1fr 1fr}.playerActions{grid-column:1/-1}.playerActions button{flex:1}}
 </style>
 </head>
@@ -127,6 +127,7 @@ $("logoutBtn").onclick=()=>auth.signOut();
 function studentURL(id){
   const u=new URL("student.html",location.href);
   u.searchParams.set("task",id);
+  u.searchParams.set("v","2.4-camera-fix");
   return u.toString();
 }
 function showQR(id,title){
@@ -209,11 +210,18 @@ async function render(docs){
   const renderGameTask=doc=>{
     const t=doc.data();
     const stateText={lobby:"等待學生加入",active:"遊戲進行中",finished:"遊戲已結束"}[t.gameStatus]||"等待學生加入";
+    const audioItems=Array.isArray(t.audioRequiredClasses)
+      ? t.audioRequiredClasses.filter(name=>(t.targetClasses||[]).includes(name))
+      : [];
+    const audioInfo=audioItems.length
+      ? `<div class="meta">瀏覽器語音辨識（zh-TW）：${audioItems.map(esc).join("、")}</div>`
+      : "";
     return `<div class="task gameTask">
       <div class="top">
         <div>
           <div class="title">🎮 ${esc(t.title||"未命名遊戲")}</div>
           <div class="meta">尋找順序：${(t.targetClasses||[]).map(esc).join(" → ")}</div>
+          ${audioInfo}
           <span class="gameState" id="gameState_${doc.id}">${stateText}</span>
         </div>
       </div>
@@ -250,13 +258,19 @@ async function render(docs){
       const incorrectItems=Array.isArray(d.incorrectClasses)
         ? [...new Set(d.incorrectClasses.filter(Boolean))]
         : [];
-      const incorrectText=incorrectItems.map(esc).join("、");
+      const incorrectAudioItems=Array.isArray(d.incorrectAudioClasses)
+        ? [...new Set(d.incorrectAudioClasses.filter(Boolean))]
+        : [];
+      const incorrectText=[
+        incorrectItems.length?`照片：${incorrectItems.map(esc).join("、")}`:"",
+        incorrectAudioItems.length?`語音：${incorrectAudioItems.map(esc).join("、")}`:""
+      ].filter(Boolean).join("<br>");
 
       return `<div class="rr">
         <span>${esc(d.studentName||"未命名")}</span>
         <span>${d.progress||0}%</span>
         <span>${d.status==="completed"?"完成":"進行中"}</span>
-        <span>${incorrectText}</span>
+        <span>${incorrectText||"—"}</span>
       </div>`;
     }).join("");
 
@@ -270,11 +284,19 @@ async function render(docs){
           ${rows||'<div class="small" style="padding:10px">尚無學生紀錄</div>'}
         </div>`;
 
+    const audioItems=Array.isArray(t.audioRequiredClasses)
+      ? t.audioRequiredClasses.filter(name=>(t.targetClasses||[]).includes(name))
+      : [];
+    const audioInfo=audioItems.length
+      ? `<div class="meta">瀏覽器語音辨識（zh-TW）：${audioItems.map(esc).join("、")}</div>`
+      : "";
+
     return `<div class="task evaluationTask">
       <div class="top">
         <div>
           <div class="title">${esc(t.title||"未命名任務")}</div>
           <div class="meta">物品：${(t.targetClasses||[]).map(esc).join(" → ")}</div>
+          ${audioInfo}
         </div>
       </div>
       <div class="row" style="margin-top:12px">
