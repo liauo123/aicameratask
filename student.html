@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#2563eb">
-<title>AI 多專案學生任務 V2.1</title>
+<title>AI 多專案學生任務 V2.5｜連續拍照修正版</title>
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -16,6 +16,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.4.0/dist/speech-commands.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.28.2/dist/index.js"></script>
 
 <style>
 :root{
@@ -37,8 +38,11 @@ label{display:block;color:var(--muted);font-size:.92rem;margin:10px 0 7px}
 input{width:100%;min-height:48px;border:1px solid var(--border);border-radius:14px;padding:0 12px;background:#fff;color:var(--text)}
 button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer;font-weight:800}
 .primary{background:var(--primary);color:#fff}.primary:active{background:var(--primary-dark)}
+.voice-action{background:#7c3aed;color:#fff}.voice-action:active{background:#6d28d9}
 .secondary{background:#e8eef8;color:#24324b}.full{width:100%;margin-top:12px}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
+.recognition-actions{display:flex;justify-content:center;align-items:center}
+.recognition-actions button{width:min(100%,320px);flex:0 1 320px}
 
 .number-select-title{
   margin:8px 0 12px;
@@ -354,6 +358,7 @@ html,body{
 <main class="app">
   <section id="loadCard" class="card">
     <h2>載入任務</h2>
+    <div style="color:#64748b;font-size:.78rem;margin-top:-6px">學生端 V2.5｜連續拍照修正版</div>
     <label for="taskIdInput">任務代碼</label>
     <input id="taskIdInput" placeholder="掃描 QR Code 會自動帶入">
     <button id="loadBtn" class="primary full">載入任務</button>
@@ -468,10 +473,9 @@ html,body{
 
     <div id="predictionList" class="prediction"></div>
 
-    <div class="row">
+    <div class="row recognition-actions">
       <button id="captureBtn" class="primary hidden">拍照辨識</button>
-      <button id="voiceRecognizeBtn" class="primary hidden" type="button">開始語音辨識</button>
-      <button id="switchBtn" class="secondary hidden">切換鏡頭</button>
+      <button id="voiceRecognizeBtn" class="voice-action hidden" type="button">語音辨識</button>
     </div>
 
     <div id="audioVerification" class="audio-verification hidden">
@@ -518,9 +522,9 @@ const auth=firebase.auth();
 const db=firebase.firestore();
 
 let taskId="",task=null,projectType="",metadata=null,model=null;
-let optionalAudioModel=null,optionalAudioLabels=[],optionalAudioListening=false,optionalAudioTimer=null;
+let browserSpeechRecognition=null,optionalAudioListening=false,optionalAudioTimer=null;
 let resultRef=null,currentIndex=0,completed=[],attempts=0,holdCount=0,finished=false,paused=false;
-let imageStream=null,imageRaf=null,facingMode="environment",imagePredicting=false;
+let imageStream=null,imageRaf=null,imagePredicting=false;
 let poseWebcam=null,poseCtx=null,poseRaf=null,posePredicting=false,poseVideoStream=null,poseVideo=null;
 let audioListening=false;
 let predictionRows={};
@@ -551,7 +555,7 @@ let captureFeedbackTimer=null;
 let gamePlayerRef=null,gamePlayerStatus="",gameTaskUnsub=null,gamePlayerUnsub=null,gameSeatsUnsub=null;
 let gameStartedLocally=false,gameModelPreparing=false,gameModelPromise=null,gameRank=0,gameTargetsShuffled=false;
 let currentImagePassed=false,currentAudioPassed=true,currentImageConfidence=0,currentAudioConfidence=0;
-let currentImageEvidenceDataURL="",optionalAudioHoldCount=0,currentCompletionPending=false;
+let currentImageEvidenceDataURL="",currentCompletionPending=false;
 
 const $=id=>document.getElementById(id);
 
@@ -706,47 +710,76 @@ function currentTarget(){
 }
 
 function getEffectiveAudioRequiredClasses(){
-  if(!(isAdvancedMode()||isGameMode())||!task?.audioModelURL)return [];
+  if(!task||isTeachingMode())return [];
   const configured=Array.isArray(task.audioRequiredClasses)
     ? task.audioRequiredClasses.filter(name=>task.targetClasses.includes(name))
     : [];
-  return configured.length?configured:[...task.targetClasses];
+  return configured;
 }
 
 function isOptionalAudioRequired(){
   return getEffectiveAudioRequiredClasses().includes(currentTarget());
 }
 
+function restoreCaptureButtonForCurrentQuestion(){
+  const captureButton=$("captureBtn");
+  if(
+    !captureButton||
+    !task||
+    projectType!=="image"||
+    finished||
+    currentIndex>=task.targetClasses.length||
+    currentImagePassed
+  )return;
+  captureButton.disabled=false;
+  captureButton.classList.remove("hidden");
+}
+
 function resetCurrentVerification(){
   stopOptionalAudioRecognition(false);
+  photoRecognizing=false;
   currentImagePassed=false;
   currentAudioPassed=!isOptionalAudioRequired();
   currentImageConfidence=0;
   currentAudioConfidence=0;
   currentImageEvidenceDataURL="";
-  optionalAudioHoldCount=0;
   currentCompletionPending=false;
   if(isOptionalAudioRequired()){
     setVoiceResult("請按按鈕並說出物品名稱。");
   }
   updateVerificationUI();
+  restoreCaptureButtonForCurrentQuestion();
 }
 
 function updateVerificationUI(){
   const panel=$("audioVerification");
   const voiceButton=$("voiceRecognizeBtn");
+  const captureButton=$("captureBtn");
   if(!panel)return;
   const required=isOptionalAudioRequired()&&!finished;
   panel.classList.toggle("hidden",!required);
-  if(voiceButton)voiceButton.classList.toggle("hidden",!(required&&currentImagePassed));
-  if(!required)return;
+  if(voiceButton)voiceButton.classList.toggle("hidden",!(required&&currentImagePassed&&!currentAudioPassed));
+  if(
+    captureButton&&
+    task&&
+    projectType==="image"&&
+    !$("taskCard").classList.contains("hidden")
+  ){
+    captureButton.classList.toggle("hidden",required&&currentImagePassed);
+  }
+  if(captureButton){
+    captureButton.disabled=photoRecognizing||taskSuccessAnimating||currentImagePassed;
+  }
+  if(!required){
+    if(voiceButton)voiceButton.classList.add("hidden");
+    return;
+  }
 
   $("photoVerificationBadge").textContent=currentImagePassed?"📷 照片：已完成":"📷 照片：尚未完成";
   $("voiceVerificationBadge").textContent=currentAudioPassed?"🎤 語音：已完成":"🎤 語音：尚未完成";
   $("photoVerificationBadge").classList.toggle("done",currentImagePassed);
   $("voiceVerificationBadge").classList.toggle("done",currentAudioPassed);
-  $("voiceRecognizeBtn").disabled=optionalAudioListening||currentAudioPassed||!optionalAudioModel||taskSuccessAnimating;
-  $("captureBtn").disabled=photoRecognizing||taskSuccessAnimating||currentImagePassed;
+  $("voiceRecognizeBtn").disabled=optionalAudioListening||currentAudioPassed||taskSuccessAnimating;
 }
 
 function gameSeededRandom(seedText){
@@ -934,16 +967,11 @@ async function loadTask(){
     task.classDescriptions=task.classDescriptions&&typeof task.classDescriptions==="object"
       ? task.classDescriptions
       : {};
-    task.audioModelURL=typeof task.audioModelURL==="string"&&task.audioModelURL.trim()
-      ? norm(task.audioModelURL)
-      : "";
-    task.audioRequiredClasses=task.audioModelURL&&Array.isArray(task.audioRequiredClasses)
+    task.audioRequiredClasses=Array.isArray(task.audioRequiredClasses)
       ? task.audioRequiredClasses.filter(name=>task.targetClasses.includes(name))
       : [];
-    task.audioThreshold=Number(task.audioThreshold||0.85);
-    task.audioRequiredConsecutive=Math.max(1,Number(task.audioRequiredConsecutive||2));
-    optionalAudioModel=null;
-    optionalAudioLabels=[];
+    task.speechRecognitionMode="browser";
+    task.speechRecognitionLanguage="zh-TW";
     stopOptionalAudioRecognition(false);
 
     const detected=await detectProjectType(task.modelURL);
@@ -1081,7 +1109,7 @@ async function requestGameJoin(){
 
 async function prepareGameModel(){
   if(model){
-    await loadOptionalAudioModel();
+    validateBrowserSpeechRecognition();
     return;
   }
   if(gameModelPromise)return gameModelPromise;
@@ -1089,7 +1117,7 @@ async function prepareGameModel(){
   setStatus("gameWaitingStatus","教師已同意！正在準備 AI 模型，請等待遊戲開始。","success");
   gameModelPromise=(async()=>{
     await loadSelectedModel();
-    await loadOptionalAudioModel();
+    validateBrowserSpeechRecognition();
     const labels=getModelLabels();
     const missing=task.targetClasses.filter(x=>!labels.includes(x));
     if(missing.length)throw new Error("模型缺少類別："+missing.join("、"));
@@ -1226,7 +1254,7 @@ async function startTask(){
 
   try{
     if(!model)await loadSelectedModel();
-    await loadOptionalAudioModel();
+    validateBrowserSpeechRecognition();
     const labels=getModelLabels();
     const missing=task.targetClasses.filter(x=>!labels.includes(x));
     if(missing.length)throw new Error("模型缺少類別："+missing.join("、"));
@@ -1347,24 +1375,14 @@ async function createAudioRecognizer(url){
   return recognizer;
 }
 
-async function loadOptionalAudioModel(){
-  const required=getEffectiveAudioRequiredClasses();
-  if(!task?.audioModelURL||!required.length){
-    optionalAudioModel=null;
-    optionalAudioLabels=[];
-    return;
-  }
-  if(optionalAudioModel)return;
+function getBrowserSpeechRecognitionConstructor(){
+  return window.SpeechRecognition||window.webkitSpeechRecognition||null;
+}
 
-  optionalAudioModel=await createAudioRecognizer(task.audioModelURL);
-  optionalAudioLabels=optionalAudioModel.wordLabels
-    ? optionalAudioModel.wordLabels()
-    : [];
-  const missing=required.filter(name=>!optionalAudioLabels.includes(name));
-  if(missing.length){
-    optionalAudioModel=null;
-    optionalAudioLabels=[];
-    throw new Error("音訊模型缺少類別："+missing.join("、"));
+function validateBrowserSpeechRecognition(){
+  const required=getEffectiveAudioRequiredClasses();
+  if(required.length&&!getBrowserSpeechRecognitionConstructor()){
+    throw new Error("此瀏覽器不支援語音辨識，請使用最新版 Chrome 或 Safari 開啟學生端。");
   }
 }
 
@@ -1392,7 +1410,6 @@ async function startSelectedProject(){
 
   if(projectType==="image"){
     $("imageStage").classList.remove("hidden");
-    $("switchBtn").classList.remove("hidden");
     $("captureBtn").classList.remove("hidden");
     $("targetHint").textContent=task.taskMode==="teaching"?"自由辨識物品":"目前要找的物品";
 
@@ -1411,13 +1428,11 @@ async function startSelectedProject(){
   }else if(projectType==="pose"){
     $("captureBtn").classList.add("hidden");
     $("poseStage").classList.remove("hidden");
-    $("switchBtn").classList.remove("hidden");
     $("targetHint").textContent="目前要完成的動作";
     await startPose();
   }else{
     $("captureBtn").classList.add("hidden");
     $("audioStage").classList.remove("hidden");
-    $("switchBtn").classList.add("hidden");
     $("targetHint").textContent="目前要發出的聲音";
     await startAudio();
   }
@@ -1429,36 +1444,66 @@ function hideAllStages(){
   $("audioStage").classList.add("hidden");
 }
 
-async function startImage(){
-  stopImage();
+function describeCameraError(error){
+  const name=String(error?.name||"");
+  const message=String(error?.message||"");
+  if(name==="NotAllowedError"||name==="PermissionDeniedError"){
+    return "相機權限被拒絕。請開啟瀏覽器的「網站設定」，將相機設為允許，再重新整理頁面。";
+  }
+  if(name==="NotFoundError"||name==="DevicesNotFoundError"){
+    return "找不到可用的相機，請確認裝置具有相機且未被停用。";
+  }
+  if(name==="NotReadableError"||name==="TrackStartError"){
+    return "相機目前被其他 App 或瀏覽器分頁占用，請關閉其他相機程式後重試。";
+  }
+  if(name==="OverconstrainedError"||name==="ConstraintNotSatisfiedError"){
+    return "瀏覽器無法套用相機設定，請重新整理頁面後再試一次。";
+  }
+  if(name==="SecurityError"){
+    return "瀏覽器基於安全性阻擋相機，請確認使用 HTTPS 網址。";
+  }
+  if(name==="AbortError"){
+    return "相機啟動被中斷，請關閉其他相機程式並重新整理頁面。";
+  }
+  return `相機啟動失敗${name?`（${name}）`:""}${message?`：${message}`:""}。`;
+}
 
+async function openCompatibleCameraStream(){
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
-    throw new Error("此瀏覽器不支援相機功能");
+    throw new Error("此瀏覽器不支援相機功能，請使用最新版 Chrome 或 Safari。");
+  }
+  if(!window.isSecureContext&&!["localhost","127.0.0.1"].includes(location.hostname)){
+    throw new Error("相機只能在 HTTPS 安全網址使用。");
   }
 
-  const video=$("imageVideo");
-  $("imageOverlay").textContent="正在開啟相機…";
-
-  const preferredConstraints={
-    video:{
-      facingMode:{ideal:facingMode},
-      width:{ideal:640},
-      height:{ideal:480},
-      frameRate:{ideal:12,max:15}
-    },
-    audio:false
-  };
+  let preferredError=null;
+  try{
+    return await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{ideal:"environment"}},
+      audio:false
+    });
+  }catch(error){
+    preferredError=error;
+    console.warn("後鏡頭優先設定啟動失敗，改用基本相機設定",error);
+  }
 
   try{
-    imageStream=await navigator.mediaDevices.getUserMedia(preferredConstraints);
-  }catch(firstError){
-    console.warn("指定鏡頭開啟失敗，改用預設鏡頭",firstError);
-
-    imageStream=await navigator.mediaDevices.getUserMedia({
+    return await navigator.mediaDevices.getUserMedia({
       video:true,
       audio:false
     });
+  }catch(error){
+    console.error("基本相機設定也啟動失敗",error);
+    throw new Error(describeCameraError(error||preferredError));
   }
+}
+
+async function startImage(){
+  stopImage();
+
+  const video=$("imageVideo");
+  $("imageOverlay").textContent="正在開啟相機…";
+  imageStream=await openCompatibleCameraStream();
 
   video.srcObject=imageStream;
 
@@ -1824,15 +1869,7 @@ async function startPose(){
     poseVideo.playsInline=true;
   }
 
-  poseVideoStream=await navigator.mediaDevices.getUserMedia({
-    video:{
-      facingMode:{ideal:facingMode},
-      width:{ideal:640},
-      height:{ideal:480},
-      frameRate:{ideal:12,max:15}
-    },
-    audio:false
-  });
+  poseVideoStream=await openCompatibleCameraStream();
 
   poseVideo.srcObject=poseVideoStream;
   await poseVideo.play();
@@ -1865,15 +1902,7 @@ async function poseLoop(){
     const canvas=$("poseCanvas");
     poseCtx.clearRect(0,0,canvas.width,canvas.height);
 
-    if(facingMode==="user"){
-      poseCtx.save();
-      poseCtx.translate(canvas.width,0);
-      poseCtx.scale(-1,1);
-      poseCtx.drawImage(poseVideo,0,0,canvas.width,canvas.height);
-      poseCtx.restore();
-    }else{
-      poseCtx.drawImage(poseVideo,0,0,canvas.width,canvas.height);
-    }
+    poseCtx.drawImage(poseVideo,0,0,canvas.width,canvas.height);
 
     const {pose,posenetOutput}=await model.estimatePose(canvas);
     const predictions=await model.predict(posenetOutput);
@@ -1921,27 +1950,13 @@ function drawPose(pose){
   poseCtx.clearRect(0,0,canvas.width,canvas.height);
 
   // 顯示相機畫面
-  if(facingMode==="user"){
-    poseCtx.save();
-    poseCtx.translate(canvas.width,0);
-    poseCtx.scale(-1,1);
-    poseCtx.drawImage(
-      poseVideo,
-      0,
-      0,
-      canvas.width,
-      canvas.height
-    );
-    poseCtx.restore();
-  }else{
-    poseCtx.drawImage(
-      poseVideo,
-      0,
-      0,
-      canvas.width,
-      canvas.height
-    );
-  }
+  poseCtx.drawImage(
+    poseVideo,
+    0,
+    0,
+    canvas.width,
+    canvas.height
+  );
 
   // 顯示 Teachable Machine Pose 骨架
   if(pose){
@@ -1966,15 +1981,54 @@ function setVoiceResult(message,type=""){
   result.className="audio-result"+(type?" "+type:"");
 }
 
+function normalizeSpeechText(text){
+  return String(text||"")
+    .normalize("NFKC")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}]/gu,"");
+}
+
+function getPhoneticTokens(text){
+  if(!window.pinyinPro||typeof window.pinyinPro.pinyin!=="function")return [];
+  try{
+    return window.pinyinPro.pinyin(String(text||""),{
+      toneType:"num",
+      type:"array"
+    }).map(normalizeSpeechText).filter(Boolean);
+  }catch(e){
+    console.warn("拼音轉換失敗",e);
+    return [];
+  }
+}
+
+function containsTokenSequence(source,target){
+  if(!target.length||source.length<target.length)return false;
+  for(let i=0;i<=source.length-target.length;i++){
+    if(target.every((token,index)=>source[i+index]===token))return true;
+  }
+  return false;
+}
+
+function speechMatchesTarget(spoken,target){
+  const spokenText=normalizeSpeechText(spoken);
+  const targetText=normalizeSpeechText(target);
+  if(!spokenText||!targetText)return false;
+  if(spokenText===targetText||spokenText.includes(targetText))return true;
+  const spokenPhonetics=getPhoneticTokens(spoken);
+  const targetPhonetics=getPhoneticTokens(target);
+  return containsTokenSequence(spokenPhonetics,targetPhonetics);
+}
+
 function stopOptionalAudioRecognition(updateUI=true){
   optionalAudioListening=false;
-  optionalAudioHoldCount=0;
   if(optionalAudioTimer){
     clearTimeout(optionalAudioTimer);
     optionalAudioTimer=null;
   }
-  if(optionalAudioModel&&optionalAudioModel.stopListening){
-    try{optionalAudioModel.stopListening()}catch(e){}
+  if(browserSpeechRecognition){
+    const recognition=browserSpeechRecognition;
+    browserSpeechRecognition=null;
+    try{recognition.abort()}catch(e){}
   }
   if(updateUI)updateVerificationUI();
 }
@@ -1996,7 +2050,6 @@ async function recordOptionalAudioFailure(target){
 async function startOptionalAudioRecognition(){
   if(
     !isOptionalAudioRequired()||
-    !optionalAudioModel||
     optionalAudioListening||
     currentAudioPassed||
     taskSuccessAnimating||
@@ -2004,65 +2057,110 @@ async function startOptionalAudioRecognition(){
     paused
   )return;
 
+  const SpeechRecognition=getBrowserSpeechRecognitionConstructor();
+  if(!SpeechRecognition){
+    setVoiceResult("此瀏覽器不支援語音辨識，請使用最新版 Chrome 或 Safari。","error");
+    showCaptureFeedback("failure","不支援語音");
+    playTaskErrorSound();
+    return;
+  }
+
   if("speechSynthesis" in window)window.speechSynthesis.cancel();
   const target=currentTarget();
+  const recognition=new SpeechRecognition();
+  browserSpeechRecognition=recognition;
   optionalAudioListening=true;
-  optionalAudioHoldCount=0;
+  let settled=false;
+  let lastHeard="";
+
+  recognition.lang="zh-TW";
+  recognition.continuous=false;
+  recognition.interimResults=false;
+  recognition.maxAlternatives=5;
+
   updateVerificationUI();
   setVoiceResult(`正在聆聽，請說出「${target}」…`);
 
-  try{
-    await optionalAudioModel.listen(result=>{
-      if(!optionalAudioListening||finished||paused||currentTarget()!==target)return;
-      const predictions=optionalAudioLabels.map((className,index)=>({
-        className,
-        probability:Number(result.scores[index]||0)
-      })).sort((a,b)=>b.probability-a.probability);
-      const top=predictions[0]||{className:"",probability:0};
-      const second=predictions[1]||{probability:0};
-      const percent=Math.round(top.probability*100);
-      setVoiceResult(`目前辨識：${top.className||"—"}｜${percent}%`);
-
-      const correct=
-        top.className===target&&
-        top.probability>=task.audioThreshold&&
-        (top.probability-second.probability)>=0.10;
-      optionalAudioHoldCount=correct?optionalAudioHoldCount+1:0;
-
-      if(optionalAudioHoldCount>=task.audioRequiredConsecutive){
-        currentAudioPassed=true;
-        currentAudioConfidence=top.probability;
-        stopOptionalAudioRecognition(false);
-        setVoiceResult(`語音辨識成功：${target}｜${percent}%`,"success");
-        updateVerificationUI();
-        showCaptureFeedback("success","語音成功");
-        playTaskSuccessSound();
-        setTimeout(()=>tryCompleteCurrentVerification(),700);
-      }
-    },{
-      includeSpectrogram:true,
-      probabilityThreshold:0,
-      invokeCallbackOnNoiseAndUnknown:true,
-      overlapFactor:0.50
-    });
-
-    if(optionalAudioListening){
-      optionalAudioTimer=setTimeout(async()=>{
-        if(!optionalAudioListening||currentAudioPassed)return;
-        stopOptionalAudioRecognition(false);
-        setVoiceResult("語音辨識失敗，請按按鈕重新嘗試。","error");
-        updateVerificationUI();
-        showCaptureFeedback("failure","語音失敗");
-        playTaskErrorSound();
-        await recordOptionalAudioFailure(target);
-      },6000);
-    }
-  }catch(e){
+  const failRecognition=async message=>{
+    if(settled)return;
+    settled=true;
     stopOptionalAudioRecognition(false);
-    setVoiceResult("無法啟動語音辨識："+(e.message||e),"error");
+    setVoiceResult(message,"error");
     updateVerificationUI();
     showCaptureFeedback("failure","語音失敗");
     playTaskErrorSound();
+    await recordOptionalAudioFailure(target);
+  };
+
+  recognition.onresult=event=>{
+    if(settled||!optionalAudioListening||finished||paused||currentTarget()!==target)return;
+    const alternatives=[];
+    for(let resultIndex=event.resultIndex;resultIndex<event.results.length;resultIndex++){
+      const result=event.results[resultIndex];
+      for(let alternativeIndex=0;alternativeIndex<result.length;alternativeIndex++){
+        const alternative=result[alternativeIndex];
+        alternatives.push({
+          transcript:String(alternative.transcript||"").trim(),
+          confidence:Number(alternative.confidence||0)
+        });
+      }
+    }
+    lastHeard=alternatives[0]?.transcript||"";
+    const matched=alternatives.find(item=>speechMatchesTarget(item.transcript,target));
+    if(!matched){
+      setVoiceResult(`辨識到「${lastHeard||"—"}」，正在確認…`);
+      return;
+    }
+
+    settled=true;
+    currentAudioPassed=true;
+    currentAudioConfidence=1;
+    stopOptionalAudioRecognition(false);
+    const sameText=normalizeSpeechText(matched.transcript)===normalizeSpeechText(target);
+    setVoiceResult(
+      sameText
+        ? `語音辨識成功：${matched.transcript}`
+        : `語音辨識成功：${matched.transcript}（與「${target}」同音）`,
+      "success"
+    );
+    updateVerificationUI();
+    showCaptureFeedback("success","語音成功");
+    playTaskSuccessSound();
+    setTimeout(()=>tryCompleteCurrentVerification(),700);
+  };
+
+  recognition.onerror=event=>{
+    if(settled)return;
+    const message={
+      "not-allowed":"麥克風權限被拒絕，請允許網站使用麥克風後重試。",
+      "service-not-allowed":"瀏覽器未允許語音辨識服務。",
+      "audio-capture":"找不到可用的麥克風。",
+      "network":"語音辨識服務連線失敗，請確認網路。",
+      "no-speech":"沒有聽到語音，請靠近麥克風再試一次。"
+    }[event.error]||"語音辨識失敗，請重新嘗試。";
+    failRecognition(message);
+  };
+
+  recognition.onend=()=>{
+    if(!settled&&optionalAudioListening){
+      failRecognition(
+        lastHeard
+          ? `辨識到「${lastHeard}」，與「${target}」發音不同，請重新嘗試。`
+          :"沒有辨識到語音，請重新嘗試。"
+      );
+    }
+  };
+
+  optionalAudioTimer=setTimeout(()=>{
+    if(!settled&&optionalAudioListening){
+      failRecognition("語音辨識逾時，請按按鈕重新嘗試。");
+    }
+  },8000);
+
+  try{
+    recognition.start();
+  }catch(e){
+    failRecognition("無法啟動語音辨識："+(e.message||e));
   }
 }
 
@@ -2340,6 +2438,7 @@ function renderTask(){
       <span>${i<done?"完成":i===currentIndex?"進行中":"等待"}</span>
     </div>`).join("");
   updateVerificationUI();
+  restoreCaptureButtonForCurrentQuestion();
 }
 
 function finishTask(){
@@ -2444,20 +2543,6 @@ async function togglePause(){
   }
 }
 
-async function switchCamera(){
-  facingMode=facingMode==="environment"?"user":"environment";
-
-  if(projectType==="image"){
-    await startImage();
-    return;
-  }
-
-  if(projectType==="pose"){
-    await startPose();
-    return;
-  }
-}
-
 $("speakTeachingBtn").onclick=speakTeachingLabel;
 $("speakTeachingBtnTop").onclick=speakTeachingLabel;
 $("speakDescriptionBtn").onclick=speakTeachingDescription;
@@ -2466,7 +2551,6 @@ $("repeatAdvancedPromptBtn").onclick=speakAdvancedPrompt;
 $("speakEvaluationTargetBtn").onclick=speakEvaluationTarget;
 $("loadBtn").onclick=loadTask;
 $("startBtn").onclick=()=>isGameMode()?requestGameJoin():startTask();
-$("switchBtn").onclick=switchCamera;
 $("captureBtn").onclick=captureAndRecognize;
 $("voiceRecognizeBtn").onclick=startOptionalAudioRecognition;
 $("againBtn").onclick=repeatTask;
