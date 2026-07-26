@@ -66,11 +66,10 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
   <div class="head">
     <div class="brand">
       <div class="brandMark">AI</div>
-      <div><h1>教師平台</h1><div class="small">教學與評量列表</div></div>
+      <div><h1>教師平台</h1><div class="small">教學評量遊戲列表</div></div>
     </div>
     <div id="userArea" class="hidden">
-      <a class="navBtn s" href="teacher.html">返回教師平台</a>
-      <button id="logoutBtn" class="s">登出</button>
+      <button id="logoutBtn" class="s">關閉</button>
     </div>
   </div>
 </header>
@@ -136,7 +135,7 @@ $("loginBtn").onclick=async()=>{
   try{await auth.signInWithEmailAndPassword($("email").value.trim(),$("password").value)}
   catch(e){status("authStatus","登入失敗：\n"+e.message,"err")}
 };
-$("logoutBtn").onclick=()=>auth.signOut();
+$("logoutBtn").onclick=()=>window.close();
 
 function studentURL(id){
   const u=new URL("student.html",location.href);
