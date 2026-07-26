@@ -3,59 +3,73 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>我的任務列表</title>
+<title>教師平台｜教學與評量列表</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
-:root{--b:#2563eb;--r:#dc2626;--bg:#eef2f7;--m:#64748b;--l:#dbe2ea;--surface:#f8fafc;--surface-border:#dbe4ee;--teaching-bg:#eff6ff;--teaching-border:#bfdbfe;--evaluation-bg:#f8fafc;--evaluation-border:#cbd5e1;--game-bg:#faf5ff;--game-border:#c4b5fd}
+:root{--b:#2563eb;--r:#dc2626;--m:#64748b;--surface:#fff;--surface-border:#dbe4ee;--teaching-bg:#eff6ff;--teaching-border:#93c5fd;--evaluation-bg:#f3f4ff;--evaluation-border:#a5b4fc;--advanced-bg:#effcf9;--advanced-border:#5eead4;--game-bg:#faf5ff;--game-border:#c4b5fd}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);font-family:"Noto Sans TC",Arial;color:#172033}
-header{background:var(--surface);box-shadow:0 2px 10px #0002;padding:14px 18px;position:sticky;top:0;z-index:20}
-.head{max-width:1100px;margin:auto;display:flex;justify-content:space-between;align-items:center;gap:12px}
-h1{margin:0;color:var(--b);font-size:22px}
-main{max-width:1100px;margin:auto;padding:18px}
-.card{background:var(--surface);border:1px solid var(--surface-border);border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 3px 12px #0001}
-button,.navBtn{border-radius:10px;padding:11px 15px;font-weight:800;cursor:pointer;text-decoration:none}
+body{margin:0;background:linear-gradient(180deg,#f6f9fd 0,#edf3f9 100%);font-family:"Noto Sans TC","Microsoft JhengHei",Arial,sans-serif;color:#172033;min-height:100vh}
+header{background:rgba(255,255,255,.96);border-bottom:1px solid #dbe5f0;box-shadow:0 4px 18px rgba(15,23,42,.07);padding:13px 20px;position:sticky;top:0;z-index:20;backdrop-filter:blur(10px)}
+.head{max-width:1180px;margin:auto;display:flex;justify-content:space-between;align-items:center;gap:18px}
+.brand{display:flex;align-items:center;gap:12px}.brandMark{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(135deg,#2563eb,#4f46e5);color:#fff;font-size:21px;font-weight:900;box-shadow:0 7px 18px rgba(37,99,235,.24)}
+h1{margin:0;color:#17376b;font-size:22px;letter-spacing:.04em}
+main{max-width:1180px;margin:auto;padding:22px 18px 40px}
+.card{background:var(--surface);border:1px solid var(--surface-border);border-radius:18px;padding:22px;margin-bottom:16px;box-shadow:0 8px 24px rgba(15,23,42,.065)}
+button,.navBtn{border-radius:11px;padding:11px 15px;font-weight:800;cursor:pointer;text-decoration:none;transition:transform .15s,box-shadow .15s,filter .15s}
+button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
 .s{background:#fff;color:var(--b);border:1px solid #b7ccff}
 .d{background:#fff1f2;color:var(--r);border:1px solid #fecdd3}
 .w{background:#fff7ed;color:#c2410c;border:1px solid #fdba74}
-.p{background:var(--b);color:#fff;border:0}
+.p{background:linear-gradient(135deg,#2563eb,#345de8);color:#fff;border:0;box-shadow:0 5px 13px rgba(37,99,235,.18)}
 .row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:140px}
-.status{padding:12px;border-radius:10px;background:#eff6ff;color:#1d4ed8;white-space:pre-wrap;margin-top:10px}
+.status{padding:12px;border-radius:11px;background:#eff6ff;color:#1d4ed8;white-space:pre-wrap;margin-top:10px}
 .err{background:#fef2f2;color:#b91c1c}.hidden{display:none!important}
-.task{border:1px solid var(--l);border-radius:14px;padding:16px;margin:14px 0;background:#eef2f7;box-shadow:0 4px 12px rgba(15,23,42,.04)}
-.modeSection{padding:16px;border-radius:16px;margin-top:18px}
+.listHeader{align-items:center;margin-bottom:4px}.listHeader h2{margin:0;color:#17376b}.listHint{margin:8px 0 4px;padding:10px 12px;border-radius:10px;background:#f8fafc;border:1px solid #e5eaf0}
+.task{border:1px solid #dbe4ee;border-radius:14px;padding:17px;margin:13px 0;background:rgba(255,255,255,.76);box-shadow:0 5px 14px rgba(15,23,42,.055)}
+.modeSection{position:relative;overflow:hidden;padding:18px;border-radius:17px;margin-top:18px}
+.modeSection::after{content:"";position:absolute;width:120px;height:120px;border-radius:50%;right:-56px;top:-58px;background:currentColor;opacity:.045;pointer-events:none}
 .modeSection.teaching{background:var(--teaching-bg);border:1px solid var(--teaching-border)}
 .modeSection.evaluation{background:var(--evaluation-bg);border:1px solid var(--evaluation-border)}
+.modeSection.advanced{background:var(--advanced-bg);border:1px solid var(--advanced-border)}
 .modeSection.game{background:var(--game-bg);border:1px solid var(--game-border)}
 .modeTitle{margin:0 0 12px;padding-bottom:10px;border-bottom:2px solid}
 .modeSection.teaching .modeTitle{color:#1d4ed8;border-color:#93c5fd}
-.modeSection.evaluation .modeTitle{color:#334155;border-color:#cbd5e1}
+.modeSection.evaluation .modeTitle{color:#3730a3;border-color:#a5b4fc}
+.modeSection.advanced .modeTitle{color:#0f766e;border-color:#5eead4}
 .modeSection.game .modeTitle{color:#6d28d9;border-color:#c4b5fd}
-.task.teachingTask{border-color:var(--teaching-border);background:#dbeafe}
-.task.evaluationTask{border-color:var(--evaluation-border);background:#eef2f7}
-.task.gameTask{border-color:var(--game-border);background:#ede9fe}.gameState{display:inline-block;padding:5px 10px;border-radius:999px;background:#ddd6fe;color:#6d28d9;font-size:12px;font-weight:900;margin-top:6px}
+.task.teachingTask{border-left:5px solid #3b82f6}.task.evaluationTask{border-left:5px solid #6366f1}.task.advancedTask{border-left:5px solid #14b8a6}.task.gameTask{border-left:5px solid #8b5cf6}
+.modeBadge{display:inline-flex;align-items:center;padding:4px 9px;border-radius:999px;font-size:12px;font-weight:900;margin-bottom:7px}.teachingTask .modeBadge{background:#dbeafe;color:#1d4ed8}.evaluationTask .modeBadge{background:#e0e7ff;color:#3730a3}.advancedTask .modeBadge{background:#ccfbf1;color:#0f766e}.gameTask .modeBadge{background:#ede9fe;color:#6d28d9}
+.gameState{display:inline-block;padding:5px 10px;border-radius:999px;background:#ddd6fe;color:#6d28d9;font-size:12px;font-weight:900;margin-top:6px}
 .playerRow{display:grid;grid-template-columns:.7fr 1fr 1fr auto;gap:8px;align-items:center;padding:9px;border-bottom:1px solid #ede9fe;font-size:14px}.playerRow:first-child{font-weight:900;background:#faf5ff;border-radius:10px}.playerActions{display:flex;gap:6px}.playerActions button{min-width:auto;padding:7px 10px}.rank1{background:#fef3c7}.rank2{background:#f1f5f9}.rank3{background:#ffedd5}
 .task+.task{margin-top:16px}
-.top{display:flex;justify-content:space-between;gap:10px}
+.top{display:flex;justify-content:space-between;gap:10px;position:relative;z-index:1}
 .title{font-size:18px;font-weight:900}
 .meta,.small{font-size:13px;color:var(--m);line-height:1.6}
 .badge{padding:4px 8px;border-radius:999px;background:#dbeafe;color:#1d4ed8;font-size:12px;font-weight:800}
-.rr{display:grid;grid-template-columns:1.2fr .7fr .7fr .7fr;gap:8px;padding:8px;border-bottom:1px solid #eef2f7;font-size:14px}
+.rr{display:grid;grid-template-columns:1.2fr .7fr .7fr 1.2fr;gap:8px;padding:9px;border-bottom:1px solid #e2e8f0;font-size:14px}
 .modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:20px;z-index:99}
-.box{background:var(--surface);border:1px solid var(--surface-border);padding:20px;border-radius:16px;text-align:center;max-width:380px;width:100%}
+.box{background:var(--surface);border:1px solid var(--surface-border);padding:22px;border-radius:18px;text-align:center;max-width:390px;width:100%;box-shadow:0 20px 55px rgba(15,23,42,.24)}
 .url{word-break:break-all;background:#eef2f7;padding:10px;border-radius:8px;margin:10px 0}
-@media(max-width:600px){.rr{grid-template-columns:1fr 1fr}.playerRow{grid-template-columns:.6fr 1fr 1fr}.playerActions{grid-column:1/-1}.playerActions button{flex:1}}
+@media(max-width:650px){
+  header{padding:11px 12px}.brandMark{width:38px;height:38px}.head{align-items:flex-start}
+  main{padding:14px 10px 28px}.card{padding:16px;border-radius:15px}
+  .modeSection{padding:13px;margin-top:13px}.rr{grid-template-columns:1fr 1fr}.playerRow{grid-template-columns:.6fr 1fr 1fr}.playerActions{grid-column:1/-1}.playerActions button{flex:1}
+  .listHeader{align-items:flex-start}.listHeader h2{font-size:20px}.navBtn,button{padding:10px 12px}
+}
 </style>
 </head>
 <body>
 <header>
   <div class="head">
-<div></div>
+    <div class="brand">
+      <div class="brandMark">AI</div>
+      <div><h1>教師平台</h1><div class="small">教學與評量列表</div></div>
+    </div>
     <div id="userArea" class="hidden">
-      <a class="navBtn s" href="teacher.html">返回建立任務</a>
+      <a class="navBtn s" href="teacher.html">返回教師平台</a>
       <button id="logoutBtn" class="s">登出</button>
     </div>
   </div>
@@ -72,11 +86,11 @@ button,.navBtn{border-radius:10px;padding:11px 15px;font-weight:800;cursor:point
   </section>
 
   <section id="taskCard" class="card hidden">
-    <div class="top">
-<div><h2>教學、評量與遊戲列表</h2></div>
+    <div class="top listHeader">
+      <div><h2>教學與評量列表</h2></div>
       <button id="refreshBtn" class="s">重新整理</button>
     </div>
-    <div class="small">可先匯出學生結果，再只清除辨識照片；「完整刪除」會一併清除學生紀錄、照片與遊戲資料。</div>
+    <div class="small listHint">教學、評量、進階評量與多人遊戲以不同顏色區分。可先匯出學生結果，再只清除辨識照片；「完整刪除」會一併清除學生紀錄、照片與遊戲資料。</div>
     <div id="taskList"></div>
   </section>
 </main>
@@ -173,9 +187,10 @@ async function render(docs){
   const newestFirst=[...docs].sort((a,b)=>getTime(b)-getTime(a));
   const teachingDocs=newestFirst.filter(doc=>doc.data().taskMode==="teaching");
   const gameDocs=newestFirst.filter(doc=>doc.data().taskMode==="game");
-  const evaluationDocs=newestFirst.filter(doc=>!["teaching","game"].includes(doc.data().taskMode));
+  const advancedDocs=newestFirst.filter(doc=>doc.data().taskMode==="advanced");
+  const evaluationDocs=newestFirst.filter(doc=>!["teaching","advanced","game"].includes(doc.data().taskMode));
 
-  if(!teachingDocs.length&&!gameDocs.length&&!evaluationDocs.length){
+  if(!teachingDocs.length&&!gameDocs.length&&!advancedDocs.length&&!evaluationDocs.length){
     $("taskList").innerHTML='<div class="status">尚未建立任務。</div>';
     return;
   }
@@ -196,6 +211,7 @@ async function render(docs){
     return `<div class="task teachingTask">
       <div class="top">
         <div>
+          <span class="modeBadge">教學模式</span>
           <div class="title">${esc(t.title||"未命名教學模式")}</div>
           <div class="meta">物品與說明：<br>${itemInfo||"尚無物品資料"}</div>
         </div>
@@ -219,7 +235,8 @@ async function render(docs){
     return `<div class="task gameTask">
       <div class="top">
         <div>
-          <div class="title">🎮 ${esc(t.title||"未命名遊戲")}</div>
+          <span class="modeBadge">多人遊戲模式</span>
+          <div class="title">${esc(t.title||"未命名遊戲")}</div>
           <div class="meta">尋找順序：${(t.targetClasses||[]).map(esc).join(" → ")}</div>
           ${audioInfo}
           <span class="gameState" id="gameState_${doc.id}">${stateText}</span>
@@ -241,6 +258,7 @@ async function render(docs){
 
   const renderEvaluationTask=async doc=>{
     const t=doc.data();
+    const isAdvanced=t.taskMode==="advanced";
     let resultDocs=[],resultError="";
 
     try{
@@ -291,16 +309,17 @@ async function render(docs){
       ? `<div class="meta">瀏覽器語音辨識（zh-TW）：${audioItems.map(esc).join("、")}</div>`
       : "";
 
-    return `<div class="task evaluationTask">
+    return `<div class="task ${isAdvanced?"advancedTask":"evaluationTask"}">
       <div class="top">
         <div>
-          <div class="title">${esc(t.title||"未命名任務")}</div>
+          <span class="modeBadge">${isAdvanced?"進階評量模式":"評量模式"}</span>
+          <div class="title">${esc(t.title||(isAdvanced?"未命名進階評量":"未命名評量"))}</div>
           <div class="meta">物品：${(t.targetClasses||[]).map(esc).join(" → ")}</div>
           ${audioInfo}
         </div>
       </div>
       <div class="row" style="margin-top:12px">
-        <button class="s" onclick="showQR('${doc.id}','${esc(t.title||"任務")}')">重新產生 QR</button>
+        <button class="s" onclick="showQR('${doc.id}','${esc(t.title||(isAdvanced?"進階評量":"評量"))}')">重新產生 QR</button>
         <button class="s" onclick="exportTaskCSV('${doc.id}')">匯出結果 CSV</button>
         <button class="w" onclick="clearTaskPhotos('${doc.id}')">只清除照片</button>
         <button class="d" onclick="delTask('${doc.id}')">完整刪除</button>
@@ -317,12 +336,6 @@ async function render(docs){
     sections.push('</section>');
   }
 
-  if(gameDocs.length){
-    sections.push('<section class="modeSection game"><h2 class="modeTitle">多人遊戲模式</h2>');
-    sections.push(gameDocs.map(renderGameTask).join(""));
-    sections.push('</section>');
-  }
-
   if(evaluationDocs.length){
     sections.push('<section class="modeSection evaluation"><h2 class="modeTitle">評量模式資訊</h2>');
     const evaluationHtml=[];
@@ -330,6 +343,22 @@ async function render(docs){
       evaluationHtml.push(await renderEvaluationTask(doc));
     }
     sections.push(evaluationHtml.join(""));
+    sections.push('</section>');
+  }
+
+  if(advancedDocs.length){
+    sections.push('<section class="modeSection advanced"><h2 class="modeTitle">進階評量模式資訊</h2>');
+    const advancedHtml=[];
+    for(const doc of advancedDocs){
+      advancedHtml.push(await renderEvaluationTask(doc));
+    }
+    sections.push(advancedHtml.join(""));
+    sections.push('</section>');
+  }
+
+  if(gameDocs.length){
+    sections.push('<section class="modeSection game"><h2 class="modeTitle">多人遊戲模式</h2>');
+    sections.push(gameDocs.map(renderGameTask).join(""));
     sections.push('</section>');
   }
 
