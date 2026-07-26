@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>AI 教師任務平台 V2.0</title>
+<title>教師平台</title>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
 <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -10,22 +10,72 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
-:root{--b:#2563eb;--g:#16a34a;--r:#dc2626;--bg:#eef2f7;--m:#64748b;--l:#dbe2ea;--surface:#f8fafc;--surface-border:#dbe4ee;--teaching-bg:#eff6ff;--teaching-border:#bfdbfe;--evaluation-bg:#f8fafc;--evaluation-border:#cbd5e1;--game-bg:#faf5ff;--game-border:#c4b5fd}*{box-sizing:border-box}body{margin:0;background:var(--bg);font-family:"Noto Sans TC",Arial;color:#172033}header{background:var(--surface);box-shadow:0 2px 10px #0002;padding:14px 18px;position:sticky;top:0;z-index:20}.head{max-width:1100px;margin:auto;display:flex;justify-content:space-between;align-items:center}h1{margin:0;color:var(--b);font-size:22px}main{max-width:1100px;margin:auto;padding:18px}.card{background:var(--surface);border:1px solid var(--surface-border);border-radius:16px;padding:20px;margin-bottom:16px;box-shadow:0 3px 12px #0001}.workspace{display:grid;gap:16px}.rightStack{display:grid;gap:16px;align-content:start}@media(min-width:900px){.workspace{grid-template-columns:minmax(0,1.35fr) minmax(360px,.85fr)}}input{width:100%;padding:12px;border:1px solid #cbd5e1;border-radius:10px;font-size:16px;margin:6px 0}button{border:0;border-radius:10px;padding:11px 15px;font-weight:800;cursor:pointer}.p{background:var(--b);color:#fff}.s{background:#fff;color:var(--b);border:1px solid #b7ccff}.d{background:#fff1f2;color:var(--r);border:1px solid #fecdd3}.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:140px}.status{padding:12px;border-radius:10px;background:#eff6ff;color:#1d4ed8;white-space:pre-wrap;margin-top:10px}.ok{background:#ecfdf5;color:#166534}.err{background:#fef2f2;color:#b91c1c}.hidden{display:none!important}.classBox{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;background:#eef2f7;padding:11px;border-radius:10px;margin:7px 0;cursor:grab;border:2px solid transparent;transition:.15s}.classBox:active{cursor:grabbing}.classBox.dragging{opacity:.45;border-color:#2563eb}.classBox.drag-over{border-color:#2563eb;background:#eff6ff}.dragHandle{font-size:20px;color:#64748b;user-select:none;margin-right:10px;padding-top:8px}.classContent{min-width:0}.classMain{display:flex;align-items:center;gap:10px}.classLabel{display:flex;align-items:center;gap:10px;flex:0 0 auto;min-width:150px}
-.classDescription{flex:1;min-width:180px;margin:0}
-.audioOptions{display:flex;gap:8px 14px;flex-wrap:wrap;margin-top:8px;padding:9px 10px;border-radius:10px;background:#fff}.audioOption{display:flex;align-items:center;gap:6px;color:#5b21b6;font-size:13px;font-weight:800}.audioOption input{width:auto;margin:0;accent-color:#7c3aed}
-@media(max-width:650px){
-  .classMain{flex-wrap:wrap}
-  .classDescription{flex-basis:100%}
-}.task{border:1px solid var(--l);border-radius:12px;padding:14px;margin:10px 0;background:#eef2f7}.top{display:flex;justify-content:space-between;gap:10px}.title{font-size:18px;font-weight:900}.meta,.small{font-size:13px;color:var(--m);line-height:1.6}.badge{padding:4px 8px;border-radius:999px;background:#dbeafe;color:#1d4ed8;font-size:12px;font-weight:800}.rr{display:grid;grid-template-columns:1.2fr .7fr .7fr .7fr;gap:8px;padding:8px;border-bottom:1px solid #eef2f7;font-size:14px}.modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:20px;z-index:99}.box{background:var(--surface);border:1px solid var(--surface-border);padding:20px;border-radius:16px;text-align:center;max-width:380px;width:100%}.url{word-break:break-all;background:#eef2f7;padding:10px;border-radius:8px;margin:10px 0}
-.teachMode{margin:0;background:var(--teaching-bg);border-color:var(--teaching-border)}.navBtn{display:inline-block;text-decoration:none;border-radius:10px;padding:11px 15px;font-weight:800;background:#fff;color:var(--b);border:1px solid #b7ccff}.modelCard{min-height:650px}
-#createTaskCard,#advancedModeCard{background:var(--evaluation-bg);border-color:var(--evaluation-border)}
-.gameMode{border-color:var(--game-border);background:var(--game-bg)}
-.gameMode h2{color:#6d28d9}.gameHint{font-size:13px;line-height:1.7;color:#5b21b6;margin:-4px 0 10px}
+:root{
+  --blue:#2563eb;--blue-dark:#1d4ed8;--indigo:#4f46e5;--teal:#0f766e;
+  --violet:#7c3aed;--red:#dc2626;--ink:#172033;--muted:#64748b;
+  --line:#dbe4ee;--page:#eef3f9;--surface:#fff;
+}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(180deg,#f6f9fd 0,#edf3f9 100%);font-family:"Noto Sans TC","Microsoft JhengHei",Arial,sans-serif;color:var(--ink);min-height:100vh}
+header{background:rgba(255,255,255,.96);border-bottom:1px solid #dbe5f0;box-shadow:0 4px 18px rgba(15,23,42,.07);padding:13px 20px;position:sticky;top:0;z-index:20;backdrop-filter:blur(10px)}
+.head{max-width:1180px;margin:auto;display:flex;justify-content:space-between;align-items:center;gap:18px}
+.brand{display:flex;align-items:center;gap:12px}
+.brandMark{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(135deg,#2563eb,#4f46e5);color:#fff;font-size:21px;font-weight:900;box-shadow:0 7px 18px rgba(37,99,235,.24)}
+h1{margin:0;color:#17376b;font-size:22px;letter-spacing:.04em}
+h2{margin:0 0 14px;font-size:20px}
+main{max-width:1180px;margin:auto;padding:22px 18px 40px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;margin-bottom:16px;box-shadow:0 8px 24px rgba(15,23,42,.065)}
+.workspace{display:grid;gap:18px}.rightStack{display:grid;gap:16px;align-content:start}
+@media(min-width:940px){.workspace{grid-template-columns:minmax(0,1.62fr) minmax(355px,.88fr)}}
+input{width:100%;padding:12px 13px;border:1px solid #cbd5e1;border-radius:11px;background:#fff;color:var(--ink);font-size:16px;margin:6px 0;outline:none;transition:.18s}
+input:focus{border-color:#60a5fa;box-shadow:0 0 0 3px rgba(59,130,246,.14)}
+button,.navBtn{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:pointer;transition:transform .15s,box-shadow .15s,filter .15s}
+button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
+button:disabled{cursor:not-allowed;opacity:.58;transform:none}
+.p{background:linear-gradient(135deg,#2563eb,#345de8);color:#fff;box-shadow:0 5px 13px rgba(37,99,235,.18)}
+.s{background:#fff;color:var(--blue);border:1px solid #b7ccff}.d{background:#fff1f2;color:var(--red);border:1px solid #fecdd3}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1;min-width:140px}
+.status{padding:11px 12px;border-radius:11px;background:#eff6ff;color:var(--blue-dark);white-space:pre-wrap;margin-top:11px;font-size:13px;line-height:1.55}
+.ok{background:#ecfdf5;color:#166534}.err{background:#fef2f2;color:#b91c1c}.hidden{display:none!important}
+.modelCard{min-height:650px;border-top:5px solid var(--blue)}
+.modelCard>h2{color:#17376b}
+.classBox{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;background:#f5f8fc;padding:11px 12px;border-radius:13px;margin:9px 0;cursor:grab;border:1px solid #e1e8f0;transition:.16s}
+.classBox:hover{background:#f0f5fb;border-color:#c9d8e9}.classBox:active{cursor:grabbing}.classBox.dragging{opacity:.45;border-color:var(--blue)}.classBox.drag-over{border-color:var(--blue);background:#eff6ff}
+.dragHandle{font-size:20px;color:#7890aa;user-select:none;margin-right:10px}
+.classContent{display:grid;grid-template-columns:1fr;gap:8px;min-width:0}
+.classMain{display:grid;grid-template-columns:minmax(90px,.48fr) minmax(170px,1fr);align-items:center;gap:10px;min-width:0}
+.classLabel{display:flex;align-items:center;gap:8px;min-width:0;font-weight:800}
+.classLabel input{width:auto;margin:0;accent-color:var(--blue)}
+.classDescription{min-width:0;margin:0}
+.audioOptions{display:flex;justify-content:flex-end;align-items:center;justify-self:end;max-width:100%;gap:7px 12px;flex-wrap:wrap;padding:8px 10px;border:1px solid #ddd6fe;border-radius:10px;background:#faf7ff}
+.audioOption{display:flex;align-items:center;gap:5px;color:#4b2e1f;font-size:12px;font-weight:800;white-space:nowrap}
+.audioOption input{width:auto;margin:0;accent-color:var(--violet)}
+.task{border:1px solid var(--line);border-radius:12px;padding:14px;margin:10px 0;background:#eef2f7}.top{display:flex;justify-content:space-between;gap:10px}.title{font-size:18px;font-weight:900}.meta,.small{font-size:13px;color:var(--muted);line-height:1.6}.badge{padding:4px 8px;border-radius:999px;background:#dbeafe;color:var(--blue-dark);font-size:12px;font-weight:800}.rr{display:grid;grid-template-columns:1.2fr .7fr .7fr .7fr;gap:8px;padding:8px;border-bottom:1px solid #eef2f7;font-size:14px}
+.modal{position:fixed;inset:0;background:rgba(15,23,42,.62);display:flex;align-items:center;justify-content:center;padding:20px;z-index:99}.box{background:#fff;border:1px solid var(--line);padding:22px;border-radius:18px;text-align:center;max-width:390px;width:100%;box-shadow:0 20px 55px rgba(15,23,42,.24)}.url{word-break:break-all;background:#f1f5f9;padding:10px;border-radius:8px;margin:10px 0}
+.navBtn{display:inline-block;text-decoration:none;background:#fff;color:var(--blue);border:1px solid #b7ccff}
+.modeCard{position:relative;overflow:hidden;margin:0;border-left-width:5px}
+.modeCard::after{content:"";position:absolute;width:90px;height:90px;border-radius:50%;right:-38px;top:-38px;opacity:.08;background:currentColor}
+.teachMode{background:#f0f7ff;border-color:#93c5fd;color:#1d4ed8}
+#createTaskCard{background:#f4f5ff;border-color:#a5b4fc;color:#3730a3}
+#advancedModeCard{background:#effcf9;border-color:#5eead4;color:#0f766e}
+.gameMode{background:#faf5ff;border-color:#c4b5fd;color:#6d28d9}
+.modeCard input{color:var(--ink)}.modeCard .status{background:rgba(255,255,255,.66);color:inherit}
+.teachMode .p{background:#2563eb}.modeCard#createTaskCard .p{background:#4f46e5}.modeCard#advancedModeCard .p{background:#0f766e}.gameMode .p{background:#7c3aed}
+.gameHint{font-size:13px;line-height:1.7;color:#6d28d9;margin:-4px 0 10px}
+@media(max-width:700px){
+  header{padding:11px 12px}.head{align-items:flex-start}.brandMark{width:38px;height:38px}.head #userArea{text-align:right}.head #userEmail{display:none}
+  main{padding:14px 10px 28px}.card{padding:16px;border-radius:15px}
+  .workspace{gap:13px}.rightStack{gap:13px}.modelCard{min-height:0}
+  .classBox{grid-template-columns:auto minmax(0,1fr);align-items:start}.dragHandle{padding-top:8px}
+  .classMain{grid-template-columns:1fr}.classDescription{width:100%}
+  .audioOptions{display:grid;grid-template-columns:1fr;justify-self:stretch;padding:9px}
+  .navBtn,button{padding:10px 12px}
+}
 
 </style>
 </head>
 <body>
-<header><div class="head"><div><h1>AI 教師任務平台 V2.0</h1><div class="small">建立任務、產生 QR Code</div></div><div id="userArea" class="hidden"><span id="userEmail" class="small"></span> <a class="navBtn" href="tasks.html">我的任務</a> <button id="logoutBtn" class="s">登出</button></div></div></header>
+<header><div class="head"><div class="brand"><div class="brandMark">AI</div><div><h1>教師平台</h1><div class="small">建立教學與評量・產生學生 QR Code</div></div></div><div id="userArea" class="hidden"><span id="userEmail" class="small"></span> <a class="navBtn" href="task.html">我的任務</a> <button id="logoutBtn" class="s">登出</button></div></div></header>
 <main>
 <section id="authCard" class="card">
   <h2>教師登入</h2>
@@ -47,33 +97,33 @@
     </section>
 
     <div class="rightStack">
-      <section id="teachMode" class="card teachMode hidden">
+      <section id="teachMode" class="card modeCard teachMode hidden">
         <h2>教學模式</h2>
         <input id="teachingTitle" placeholder="教學名稱">
         <button id="createTeachQRBtn" class="p" style="width:100%;margin-top:12px">產生學生教學 QR</button>
-        <div id="teachQRStatus" class="status">尚未建立學生教學模式連結。</div>
+        <div id="teachQRStatus" class="status">尚未建立。</div>
       </section>
 
-      <section id="createTaskCard" class="card hidden">
+      <section id="createTaskCard" class="card modeCard hidden">
         <h2>評量模式</h2>
-        <input id="taskTitle" placeholder="任務名稱">
-        <button id="createBtn" class="p" style="width:100%" disabled>產生學生任務 QR</button>
-        <div id="createStatus" class="status">等待建立任務。</div>
+        <input id="taskTitle" placeholder="評量模式名稱">
+        <button id="createBtn" class="p" style="width:100%" disabled>產生評量 QR</button>
+        <div id="createStatus" class="status">尚未建立。</div>
       </section>
 
-      <section id="advancedModeCard" class="card hidden">
+      <section id="advancedModeCard" class="card modeCard hidden">
         <h2>進階評量模式</h2>
         <input id="advancedTitle" placeholder="進階評量名稱">
         <button id="createAdvancedBtn" class="p" style="width:100%" disabled>產生進階評量 QR</button>
-        <div id="advancedStatus" class="status">等待建立進階評量。</div>
+        <div id="advancedStatus" class="status">尚未建立。</div>
       </section>
 
-      <section id="gameModeCard" class="card gameMode hidden">
-        <h2>多人尋物遊戲模式</h2>
+      <section id="gameModeCard" class="card modeCard gameMode hidden">
+        <h2>多人遊戲模式</h2>
         <div class="gameHint">學生掃描 QR、選擇號碼並等待教師同意；教師統一開始後，依拍照辨識完成順序即時排名。</div>
         <input id="gameTitle" placeholder="遊戲名稱或題目名稱">
         <button id="createGameBtn" class="p" style="width:100%" disabled>建立遊戲並產生 QR</button>
-        <div id="gameStatus" class="status">等待建立多人遊戲。</div>
+        <div id="gameStatus" class="status">尚未建立。</div>
       </section>
     </div>
   </div>
@@ -317,7 +367,7 @@ $("createGameBtn").onclick=createGameModeQR;
 $("createBtn").onclick=async()=>{
   const title=$("taskTitle").value.trim();
   const targets=getSelectedClassesInCurrentOrder();
-  if(!title)return status("createStatus","請輸入任務名稱。","err");
+  if(!title)return status("createStatus","請輸入評量模式名稱。","err");
   if(!targets.length)return status("createStatus","請至少選擇一項物品。","err");
   const audioRequiredClasses=getAudioTargets("evaluation",targets);
   try{
@@ -338,10 +388,10 @@ $("createBtn").onclick=async()=>{
       version:"2.5-evaluation-browser-speech",
       createdAt:firebase.firestore.FieldValue.serverTimestamp()
     });
-    status("createStatus","任務建立成功！\nTask ID："+ref.id,"ok");
+    status("createStatus","評量建立成功！\nTask ID："+ref.id,"ok");
     showQR(ref.id,title);
   }catch(e){
-    status("createStatus","建立任務失敗：\n"+e.message,"err");
+    status("createStatus","建立評量失敗：\n"+e.message,"err");
   }
 };
 function studentURL(id){const base=new URL("student.html",location.href).toString(),u=new URL(base,location.href);u.searchParams.set("task",id);u.searchParams.set("v","2.4-camera-fix");return u.toString()}function showQR(id,title){const url=studentURL(id);$("qrTitle").textContent=title+"－QR Code";$("qrURL").textContent=url;$("qrCode").innerHTML="";new QRCode($("qrCode"),{text:url,width:260,height:260,correctLevel:QRCode.CorrectLevel.M});$("qrModal").classList.remove("hidden")}window.showQR=showQR;$("closeBtn").onclick=()=>$("qrModal").classList.add("hidden");$("copyBtn").onclick=()=>navigator.clipboard.writeText($("qrURL").textContent);
