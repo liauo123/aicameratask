@@ -364,7 +364,6 @@ html,body{
 <main class="app">
   <section id="loadCard" class="card">
     <h2>載入任務</h2>
-    <div style="color:#64748b;font-size:.78rem;margin-top:-6px">學生端 V2.5｜連續拍照修正版</div>
     <label for="taskIdInput">任務代碼</label>
     <input id="taskIdInput" placeholder="掃描 QR Code 會自動帶入">
     <button id="loadBtn" class="primary full">載入任務</button>
@@ -424,7 +423,10 @@ html,body{
 
       <div id="advancedPromptCard" class="target hidden">
         <small>請聽語音說明，找出正確物品</small>
-        <strong>🔊 語音題目</strong>
+        <div class="target-question-row">
+          <img id="advancedTargetThumbnail" class="target-thumbnail hidden" alt="進階評量題目縮圖">
+          <strong>🔊 語音題目</strong>
+        </div>
         <button id="repeatAdvancedPromptBtn" class="primary full" type="button">重複聽說明</button>
       </div>
     </div>
@@ -433,6 +435,7 @@ html,body{
       <div class="teaching-mode-title">教學模式</div>
       <div class="teaching-name-card">
         <div class="teaching-name-row">
+          <img id="teachingTargetThumbnailTop" class="target-thumbnail hidden" alt="教學模式物品縮圖">
           <strong id="teachingNameTop">等待辨識…</strong>
           <button id="speakTeachingBtnTop" class="speak-btn" type="button" aria-label="播放物品名稱" title="播放物品名稱" disabled>🔊</button>
           <button id="speakDescriptionBtnTop" class="speak-btn" type="button" aria-label="播放物品說明" title="播放物品說明" disabled>說明</button>
@@ -466,6 +469,7 @@ html,body{
     <div id="teachingResult" class="teaching-result hidden">
       <small>鏡頭目前辨識到</small>
       <div class="teaching-name-row">
+        <img id="teachingTargetThumbnail" class="target-thumbnail hidden" alt="教學模式物品縮圖">
         <strong id="teachingName">等待辨識…</strong>
         <button id="speakTeachingBtn" class="speak-btn" type="button" aria-label="播放物品名稱" title="播放物品名稱" disabled>🔊</button>
         <button id="speakDescriptionBtn" class="speak-btn" type="button" aria-label="播放物品說明" title="播放物品說明" disabled>說明</button>
@@ -714,13 +718,10 @@ function shouldShowTargetThumbnail(){
   return !!(task&&(isGameMode()||(!isTeachingMode()&&!isAdvancedMode())));
 }
 
-function updateCurrentTargetThumbnail(){
-  const image=$("currentTargetThumbnail");
+function updateThumbnailElement(id,label,defaultAlt){
+  const image=$(id);
   if(!image)return;
-  const label=currentTarget();
-  const thumbnail=shouldShowTargetThumbnail()
-    ? String(task?.classThumbnails?.[label]||"")
-    : "";
+  const thumbnail=String(task?.classThumbnails?.[label]||"");
   const isSupportedImage=/^data:image\/jpeg;base64,/i.test(thumbnail);
   if(isSupportedImage){
     image.src=thumbnail;
@@ -728,9 +729,39 @@ function updateCurrentTargetThumbnail(){
     image.classList.remove("hidden");
   }else{
     image.removeAttribute("src");
-    image.alt="題目物品縮圖";
+    image.alt=defaultAlt;
     image.classList.add("hidden");
   }
+}
+
+function updateCurrentTargetThumbnail(){
+  const label=currentTarget();
+  updateThumbnailElement(
+    "currentTargetThumbnail",
+    shouldShowTargetThumbnail()?label:"",
+    "題目物品縮圖"
+  );
+}
+
+function updateAdvancedTargetThumbnail(){
+  updateThumbnailElement(
+    "advancedTargetThumbnail",
+    isAdvancedMode()?currentTarget():"",
+    "進階評量題目縮圖"
+  );
+}
+
+function updateTeachingTargetThumbnail(label){
+  updateThumbnailElement(
+    "teachingTargetThumbnailTop",
+    label,
+    "教學模式物品縮圖"
+  );
+  updateThumbnailElement(
+    "teachingTargetThumbnail",
+    label,
+    "教學模式物品縮圖"
+  );
 }
 
 function currentTarget(){
@@ -871,6 +902,7 @@ function prepareAdvancedPrompt(autoSpeak=true){
 
   const target=task.targetClasses[currentIndex];
   currentAdvancedDescription=String(task.classDescriptions?.[target]||"").trim();
+  updateAdvancedTargetThumbnail();
 
   $("normalTargetCard").classList.add("hidden");
   $("advancedPromptCard").classList.remove("hidden");
@@ -1335,6 +1367,7 @@ async function startTask(){
       $("holdSection").classList.add("hidden");
       $("itemList").classList.add("hidden");
       $("predictionList").classList.add("hidden");
+      updateTeachingTargetThumbnail("");
 
       const cameraCard=document.querySelector(".teaching-camera-card");
       if(cameraCard && $("imageStage").parentElement!==cameraCard){
@@ -1643,6 +1676,7 @@ async function captureAndRecognize(){
       if(confirmed){
         currentTeachingLabel=top.className;
         currentTeachingDescription=String(task.classDescriptions?.[top.className]||"").trim();
+        updateTeachingTargetThumbnail(top.className);
         const percent=Math.round(top.probability*100);
 
         $("teachingName").textContent=top.className;
@@ -1666,6 +1700,7 @@ async function captureAndRecognize(){
       }else{
         currentTeachingLabel="";
         currentTeachingDescription="";
+        updateTeachingTargetThumbnail("");
         $("teachingName").textContent="";
         $("teachingConfidence").textContent="";
         $("speakTeachingBtn").disabled=true;
@@ -2242,6 +2277,7 @@ function processPredictions(predictions,evidenceCanvas){
       if(isConfirmed){
         currentTeachingLabel=top.className;
         currentTeachingDescription=String(task.classDescriptions?.[top.className]||"").trim();
+        updateTeachingTargetThumbnail(top.className);
 
         if(
           top.className!==lastTeachingClass ||
@@ -2278,6 +2314,7 @@ function processPredictions(predictions,evidenceCanvas){
         );
       }else{
         currentTeachingLabel="";
+        updateTeachingTargetThumbnail("");
         $("teachingName").textContent="";
         $("teachingConfidence").textContent="";
         $("speakTeachingBtn").disabled=true;
@@ -2461,6 +2498,7 @@ function renderTask(){
     ? (currentIndex<total?"請聽語音題目":"全部完成")
     : (currentIndex<total?task.targetClasses[currentIndex]:"全部完成");
   updateCurrentTargetThumbnail();
+  updateAdvancedTargetThumbnail();
 
   $("speakEvaluationTargetBtn").disabled=
     isTeachingMode()||
