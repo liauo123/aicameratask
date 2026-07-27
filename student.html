@@ -95,6 +95,9 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
 .task-title{font-size:1.45rem;font-weight:900;margin-bottom:6px}.meta{color:var(--muted);line-height:1.6}
 .target{text-align:center;background:linear-gradient(135deg,#eff6ff,#dbeafe);border:2px solid #93c5fd;border-radius:18px;padding:16px;margin-bottom:12px}
 .target small{display:block;color:#475569}.target strong{display:block;font-size:30px;color:#1d4ed8;margin-top:5px}
+.target-question-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:5px}
+.target-question-row strong{margin-top:0}
+.target-thumbnail{width:72px;height:72px;object-fit:cover;border-radius:14px;border:2px solid #93c5fd;background:#fff;box-shadow:0 5px 14px rgba(37,99,235,.16);flex:0 0 auto}
 .progress-label{display:flex;justify-content:space-between;color:var(--muted);margin-bottom:7px}
 .progress{height:14px;background:#e7edf6;border-radius:999px;overflow:hidden;margin-bottom:14px}
 .progress>div{height:100%;width:0;background:var(--success);transition:width .2s}
@@ -283,6 +286,9 @@ html,body{
     font-size:clamp(22px,7vw,28px);
     margin-top:2px;
   }
+  .target-question-row{gap:8px;margin-top:3px}
+  .target-question-row strong{margin-top:0}
+  .target-thumbnail{width:58px;height:58px;border-radius:11px}
   .progress{margin-bottom:7px}
   .teaching-name-card{
     padding:8px;
@@ -409,7 +415,8 @@ html,body{
 
       <div id="normalTargetCard" class="target">
         <small id="targetHint">目前指定內容</small>
-        <div class="teaching-name-row">
+        <div class="teaching-name-row target-question-row">
+          <img id="currentTargetThumbnail" class="target-thumbnail hidden" alt="題目物品縮圖">
           <strong id="currentTarget">—</strong>
           <button id="speakEvaluationTargetBtn" class="speak-btn" type="button" aria-label="播放物品名稱" title="播放物品名稱" disabled>🔊</button>
         </div>
@@ -703,6 +710,29 @@ function isGameMode(){
   return !!(task&&task.taskMode==="game");
 }
 
+function shouldShowTargetThumbnail(){
+  return !!(task&&(isGameMode()||(!isTeachingMode()&&!isAdvancedMode())));
+}
+
+function updateCurrentTargetThumbnail(){
+  const image=$("currentTargetThumbnail");
+  if(!image)return;
+  const label=currentTarget();
+  const thumbnail=shouldShowTargetThumbnail()
+    ? String(task?.classThumbnails?.[label]||"")
+    : "";
+  const isSupportedImage=/^data:image\/jpeg;base64,/i.test(thumbnail);
+  if(isSupportedImage){
+    image.src=thumbnail;
+    image.alt=label+"縮圖提示";
+    image.classList.remove("hidden");
+  }else{
+    image.removeAttribute("src");
+    image.alt="題目物品縮圖";
+    image.classList.add("hidden");
+  }
+}
+
 function currentTarget(){
   return task&&Array.isArray(task.targetClasses)&&currentIndex<task.targetClasses.length
     ? String(task.targetClasses[currentIndex]||"")
@@ -966,6 +996,9 @@ async function loadTask(){
     gameTargetsShuffled=false;
     task.classDescriptions=task.classDescriptions&&typeof task.classDescriptions==="object"
       ? task.classDescriptions
+      : {};
+    task.classThumbnails=task.classThumbnails&&typeof task.classThumbnails==="object"
+      ? task.classThumbnails
       : {};
     task.audioRequiredClasses=Array.isArray(task.audioRequiredClasses)
       ? task.audioRequiredClasses.filter(name=>task.targetClasses.includes(name))
@@ -2427,6 +2460,7 @@ function renderTask(){
   $("currentTarget").textContent=isAdvancedMode()
     ? (currentIndex<total?"請聽語音題目":"全部完成")
     : (currentIndex<total?task.targetClasses[currentIndex]:"全部完成");
+  updateCurrentTargetThumbnail();
 
   $("speakEvaluationTargetBtn").disabled=
     isTeachingMode()||
