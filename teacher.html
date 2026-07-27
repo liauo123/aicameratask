@@ -47,7 +47,14 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
 .classLabel{display:flex;align-items:center;gap:8px;min-width:0;font-weight:800}
 .classLabel input{width:auto;margin:0;accent-color:var(--blue)}
 .classDescription{min-width:0;margin:0}
-.audioOptions{display:flex;justify-content:flex-end;align-items:center;justify-self:end;max-width:100%;gap:7px 12px;flex-wrap:wrap;padding:8px 10px;border:1px solid #ddd6fe;border-radius:10px;background:#faf7ff}
+.classTools{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;flex-wrap:wrap}
+.thumbnailRow{display:flex;align-items:center;gap:9px;min-width:0;flex:0 0 auto}
+.thumbnailDrop{width:132px;min-height:54px;border:2px dashed #b7c7dc;border-radius:11px;background:#fff;display:flex;align-items:center;justify-content:center;gap:8px;padding:6px;cursor:pointer;color:#52677f;font-size:12px;font-weight:800;text-align:center;transition:.16s;outline:none}
+.thumbnailDrop:hover,.thumbnailDrop:focus-visible,.thumbnailDrop.is-dragover{border-color:var(--blue);background:#eff6ff;color:var(--blue-dark)}
+.thumbnailPreview{width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid #dbe4ee;flex:0 0 auto}
+.thumbnailRemove{padding:7px 10px;font-size:12px;min-width:auto}
+.thumbnailInput{display:none}
+.audioOptions{display:flex;justify-content:flex-end;align-items:center;max-width:100%;gap:7px 12px;flex-wrap:wrap;padding:8px 10px;border:1px solid #ddd6fe;border-radius:10px;background:#faf7ff;margin-left:auto}
 .audioOption{display:flex;align-items:center;gap:5px;color:#4b2e1f;font-size:12px;font-weight:800;white-space:nowrap}
 .audioOption input{width:auto;margin:0;accent-color:var(--violet)}
 .task{border:1px solid var(--line);border-radius:12px;padding:14px;margin:10px 0;background:#eef2f7}.top{display:flex;justify-content:space-between;gap:10px}.title{font-size:18px;font-weight:900}.meta,.small{font-size:13px;color:var(--muted);line-height:1.6}.badge{padding:4px 8px;border-radius:999px;background:#dbeafe;color:var(--blue-dark);font-size:12px;font-weight:800}.rr{display:grid;grid-template-columns:1.2fr .7fr .7fr .7fr;gap:8px;padding:8px;border-bottom:1px solid #eef2f7;font-size:14px}
@@ -68,7 +75,8 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
   .workspace{gap:13px}.rightStack{gap:13px}.modelCard{min-height:0}
   .classBox{grid-template-columns:auto minmax(0,1fr);align-items:start}.dragHandle{padding-top:8px}
   .classMain{grid-template-columns:1fr}.classDescription{width:100%}
-  .audioOptions{display:grid;grid-template-columns:1fr;justify-self:stretch;padding:9px}
+  .classTools{align-items:stretch}.thumbnailRow{align-items:stretch;flex:1 1 100%}.thumbnailDrop{width:100%;min-height:58px}.thumbnailRemove{align-self:center}
+  .audioOptions{display:grid;grid-template-columns:1fr;width:100%;margin-left:0;padding:9px}
   .navBtn,button{padding:10px 12px}
 }
 
@@ -132,12 +140,12 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
 <div id="qrModal" class="modal hidden"><div class="box"><h3 id="qrTitle">任務 QR Code</h3><div id="qrCode"></div><div id="qrURL" class="url"></div><div class="row"><button id="copyBtn" class="p">複製網址</button><button id="closeBtn" class="s">關閉</button></div></div></div>
 <script>
 const firebaseConfig={apiKey:"AIzaSyBbpIezLbQd2-e-3Z4pSdBLIFc_UlTPUy8",authDomain:"project-6540500202923576846.firebaseapp.com",projectId:"project-6540500202923576846",storageBucket:"project-6540500202923576846.firebasestorage.app",messagingSenderId:"516602165604",appId:"1:516602165604:web:b60f69ee56a4d49c416271"};
-firebase.initializeApp(firebaseConfig);const auth=firebase.auth(),db=firebase.firestore();let user=null,model=null,modelURL="",labels=[],unsub=null;
+firebase.initializeApp(firebaseConfig);const auth=firebase.auth(),db=firebase.firestore();let user=null,model=null,modelURL="",labels=[],unsub=null,classThumbnails={};
 const $=id=>document.getElementById(id);const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));function status(id,msg,type=""){const e=$(id);e.textContent=msg;e.className="status "+type}
 auth.onAuthStateChanged(u=>{user=u;if(u){$("authCard").classList.add("hidden");$("app").classList.remove("hidden");$("userArea").classList.remove("hidden");$("userEmail").textContent=u.email||"教師"}else{$("authCard").classList.remove("hidden");$("app").classList.add("hidden");$("userArea").classList.add("hidden")}});
 $("loginBtn").onclick=async()=>{try{await auth.signInWithEmailAndPassword($("email").value.trim(),$("password").value)}catch(e){status("authStatus","登入失敗：\n"+e.message,"err")}};
 $("logoutBtn").onclick=()=>auth.signOut();
-$("loadModelBtn").onclick=async()=>{$("createTaskCard").classList.add("hidden");$("advancedModeCard").classList.add("hidden");$("gameModeCard").classList.add("hidden");modelURL=$("modelURL").value.trim();if(!modelURL)return status("modelStatus","請輸入模型網址。","err");if(!modelURL.endsWith("/"))modelURL+="/";status("modelStatus","正在載入模型…");try{model=await tmImage.load(modelURL+"model.json",modelURL+"metadata.json");labels=model.getClassLabels();renderClassBoxes();initClassDragSort();$("createBtn").disabled=false;$("createAdvancedBtn").disabled=false;$("createGameBtn").disabled=false;$("teachMode").classList.remove("hidden");$("advancedModeCard").classList.remove("hidden");$("createTaskCard").classList.remove("hidden");$("gameModeCard").classList.remove("hidden");status("modelStatus","模型載入成功，共 "+labels.length+" 類。","ok")}catch(e){status("modelStatus","模型載入失敗：\n"+e.message,"err")}};
+$("loadModelBtn").onclick=async()=>{$("createTaskCard").classList.add("hidden");$("advancedModeCard").classList.add("hidden");$("gameModeCard").classList.add("hidden");modelURL=$("modelURL").value.trim();if(!modelURL)return status("modelStatus","請輸入模型網址。","err");if(!modelURL.endsWith("/"))modelURL+="/";status("modelStatus","正在載入模型…");try{model=await tmImage.load(modelURL+"model.json",modelURL+"metadata.json");labels=model.getClassLabels();classThumbnails={};renderClassBoxes();initClassDragSort();$("createBtn").disabled=false;$("createAdvancedBtn").disabled=false;$("createGameBtn").disabled=false;$("teachMode").classList.remove("hidden");$("advancedModeCard").classList.remove("hidden");$("createTaskCard").classList.remove("hidden");$("gameModeCard").classList.remove("hidden");status("modelStatus","模型載入成功，共 "+labels.length+" 類。可拖拉或點擊加入縮圖。","ok")}catch(e){status("modelStatus","模型載入失敗：\n"+e.message,"err")}};
 
 function renderClassBoxes(){
   $("classes").innerHTML=labels.map((x,i)=>`<div class="classBox" draggable="true" data-label="${esc(x)}">
@@ -147,10 +155,128 @@ function renderClassBoxes(){
         <label class="classLabel"><input type="checkbox" value="${esc(x)}" id="c${i}"> ${esc(x)}</label>
         <input class="classDescription" type="text" placeholder="輸入「${esc(x)}」的說明文字" aria-label="${esc(x)}的說明">
       </div>
-      <div class="audioOptions"></div>
+      <div class="classTools">
+        <div class="thumbnailRow">
+          <div class="thumbnailDrop" role="button" tabindex="0" aria-label="上傳${esc(x)}的縮圖">
+            <img class="thumbnailPreview hidden" alt="${esc(x)}縮圖">
+            <span class="thumbnailPrompt">拖拉照片或點擊上傳縮圖</span>
+          </div>
+          <input class="thumbnailInput" type="file" accept="image/*">
+          <button class="thumbnailRemove d hidden" type="button">刪除縮圖</button>
+        </div>
+        <div class="audioOptions"></div>
+      </div>
     </div>
   </div>`).join("");
   refreshAudioOptions();
+  initThumbnailUploads();
+}
+
+function resizeThumbnail(file){
+  return new Promise((resolve,reject)=>{
+    if(!file||!file.type.startsWith("image/")){
+      reject(new Error("請選擇照片檔案。"));
+      return;
+    }
+    const reader=new FileReader();
+    reader.onerror=()=>reject(new Error("照片讀取失敗。"));
+    reader.onload=()=>{
+      const img=new Image();
+      img.onerror=()=>reject(new Error("無法開啟這張照片。"));
+      img.onload=()=>{
+        const canvas=document.createElement("canvas");
+        const ctx=canvas.getContext("2d");
+        const side=Math.min(img.naturalWidth,img.naturalHeight);
+        const sx=(img.naturalWidth-side)/2;
+        const sy=(img.naturalHeight-side)/2;
+        canvas.width=120;
+        canvas.height=120;
+        ctx.drawImage(img,sx,sy,side,side,0,0,120,120);
+        resolve(canvas.toDataURL("image/jpeg",0.75));
+      };
+      img.src=reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function updateThumbnailUI(item){
+  const label=item.dataset.label;
+  const dataURL=classThumbnails[label]||"";
+  const preview=item.querySelector(".thumbnailPreview");
+  const prompt=item.querySelector(".thumbnailPrompt");
+  const removeBtn=item.querySelector(".thumbnailRemove");
+  if(dataURL){
+    preview.src=dataURL;
+    preview.classList.remove("hidden");
+    prompt.textContent="更換縮圖";
+    removeBtn.classList.remove("hidden");
+  }else{
+    preview.removeAttribute("src");
+    preview.classList.add("hidden");
+    prompt.textContent="拖拉照片或點擊上傳縮圖";
+    removeBtn.classList.add("hidden");
+  }
+}
+
+async function handleThumbnailFile(item,file){
+  const drop=item.querySelector(".thumbnailDrop");
+  const prompt=item.querySelector(".thumbnailPrompt");
+  const originalText=prompt.textContent;
+  drop.classList.remove("is-dragover");
+  prompt.textContent="正在處理照片…";
+  try{
+    classThumbnails[item.dataset.label]=await resizeThumbnail(file);
+    updateThumbnailUI(item);
+  }catch(e){
+    prompt.textContent=originalText;
+    status("modelStatus","縮圖上傳失敗：\n"+(e.message||e),"err");
+  }
+}
+
+function initThumbnailUploads(){
+  document.querySelectorAll("#classes .classBox").forEach(item=>{
+    const drop=item.querySelector(".thumbnailDrop");
+    const input=item.querySelector(".thumbnailInput");
+    const removeBtn=item.querySelector(".thumbnailRemove");
+    const openPicker=()=>input.click();
+    drop.addEventListener("click",openPicker);
+    drop.addEventListener("keydown",e=>{
+      if(e.key==="Enter"||e.key===" "){
+        e.preventDefault();
+        openPicker();
+      }
+    });
+    ["dragenter","dragover"].forEach(type=>drop.addEventListener(type,e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      drop.classList.add("is-dragover");
+      if(e.dataTransfer)e.dataTransfer.dropEffect="copy";
+    }));
+    ["dragleave","dragend"].forEach(type=>drop.addEventListener(type,e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      drop.classList.remove("is-dragover");
+    }));
+    drop.addEventListener("drop",e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      const file=e.dataTransfer?.files?.[0];
+      if(file)handleThumbnailFile(item,file);
+    });
+    input.addEventListener("change",()=>{
+      const file=input.files?.[0];
+      if(file)handleThumbnailFile(item,file);
+      input.value="";
+    });
+    removeBtn.addEventListener("click",e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      delete classThumbnails[item.dataset.label];
+      updateThumbnailUI(item);
+    });
+    updateThumbnailUI(item);
+  });
 }
 
 function refreshAudioOptions(){
@@ -186,6 +312,16 @@ function getClassDescriptions(selectedOnly=false){
     descriptions[label]=description;
   });
   return descriptions;
+}
+function getClassThumbnails(selectedOnly=false){
+  const thumbnails={};
+  document.querySelectorAll("#classes .classBox").forEach(item=>{
+    const checkbox=item.querySelector('input[type="checkbox"]');
+    if(selectedOnly&&!checkbox?.checked)return;
+    const thumbnail=classThumbnails[item.dataset.label];
+    if(thumbnail)thumbnails[item.dataset.label]=thumbnail;
+  });
+  return thumbnails;
 }
 function getAudioTargets(mode,selectedTargets){
   const selectedSet=new Set(selectedTargets);
@@ -226,6 +362,7 @@ async function createTeachingModeQR(){
       modelURL:modelURL,
       targetClasses:[...labels],
       classDescriptions:getClassDescriptions(false),
+      classThumbnails:getClassThumbnails(false),
       threshold:0.85,
       requiredConsecutiveFrames:10,
       orderMode:"teaching",
@@ -292,6 +429,7 @@ async function createAdvancedEvaluationQR(){
       modelURL,
       targetClasses:targets,
       classDescriptions:descriptions,
+      classThumbnails:getClassThumbnails(true),
       audioRequiredClasses,
       speechRecognitionMode:"browser",
       speechRecognitionLanguage:"zh-TW",
@@ -338,6 +476,7 @@ async function createGameModeQR(){
       modelURL,
       targetClasses:targets,
       classDescriptions:getClassDescriptions(true),
+      classThumbnails:getClassThumbnails(true),
       audioRequiredClasses,
       speechRecognitionMode:"browser",
       speechRecognitionLanguage:"zh-TW",
@@ -378,6 +517,7 @@ $("createBtn").onclick=async()=>{
       modelURL,
       targetClasses:targets,
       classDescriptions:getClassDescriptions(true),
+      classThumbnails:getClassThumbnails(true),
       audioRequiredClasses,
       speechRecognitionMode:"browser",
       speechRecognitionLanguage:"zh-TW",
