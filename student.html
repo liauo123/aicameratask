@@ -156,6 +156,9 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
 .item{padding:10px 12px;border:1px solid var(--border);border-radius:11px;display:flex;justify-content:space-between;margin-top:8px}
 .item.done{background:#ecfdf5;border-color:#86efac;color:#166534}
 .complete{text-align:center;animation:pop .45s ease}.complete .icon{font-size:72px}
+.incorrect-summary{margin-top:12px;padding:12px 14px;border:1px solid #fecaca;border-radius:14px;background:#fef2f2;color:#991b1b;text-align:left;line-height:1.7}
+.incorrect-summary.no-error{border-color:#bbf7d0;background:#f0fdf4;color:#166534;text-align:center}
+.incorrect-summary-title{font-weight:900}
 @keyframes pop{0%{transform:scale(.75);opacity:0}100%{transform:scale(1);opacity:1}}
 .teaching-result{
   margin-top:14px;
@@ -511,6 +514,7 @@ html,body{
       <button id="againBtn" class="primary">再一次</button>
       <button id="endBtn" class="secondary">結束</button>
     </div>
+    <div id="incorrectSummary" class="incorrect-summary hidden"></div>
   </section>
 </main>
 
@@ -567,6 +571,7 @@ let gamePlayerRef=null,gamePlayerStatus="",gameTaskUnsub=null,gamePlayerUnsub=nu
 let gameStartedLocally=false,gameModelPreparing=false,gameModelPromise=null,gameRank=0,gameTargetsShuffled=false;
 let currentImagePassed=false,currentAudioPassed=true,currentImageConfidence=0,currentAudioConfidence=0;
 let currentImageEvidenceDataURL="",currentCompletionPending=false;
+let localIncorrectClasses=[],localIncorrectAudioClasses=[];
 
 const $=id=>document.getElementById(id);
 
@@ -1357,6 +1362,7 @@ async function startTask(){
     }
 
     currentIndex=0;completed=[];attempts=0;holdCount=0;finished=false;paused=false;taskSuccessAnimating=false;
+    localIncorrectClasses=[];localIncorrectAudioClasses=[];
     resetCurrentVerification();
     buildPredictionUI(labels);
 
@@ -1764,6 +1770,10 @@ async function captureAndRecognize(){
       showCaptureFeedback("failure","辨識失敗");
       playTaskErrorSound();
 
+      if(target&&!localIncorrectClasses.includes(target)){
+        localIncorrectClasses.push(target);
+      }
+
       if(resultRef&&target){
         try{
           await resultRef.update({
@@ -2103,6 +2113,9 @@ function stopOptionalAudioRecognition(updateUI=true){
 
 async function recordOptionalAudioFailure(target){
   attempts++;
+  if(target&&!localIncorrectAudioClasses.includes(target)){
+    localIncorrectAudioClasses.push(target);
+  }
   if(!resultRef||!target)return;
   try{
     await resultRef.update({
@@ -2535,6 +2548,28 @@ function finishTask(){
       ? "已完成全部進階評量，結果已回傳教師端。"
       : `已完成全部${typeName}任務，結果已回傳教師端。`;
   }
+  renderIncorrectSummary();
+}
+
+function renderIncorrectSummary(){
+  const summary=$("incorrectSummary");
+  if(!summary)return;
+  const photoItems=[...new Set(localIncorrectClasses.filter(Boolean))];
+  const audioItems=[...new Set(localIncorrectAudioClasses.filter(Boolean))];
+  if(!photoItems.length&&!audioItems.length){
+    summary.textContent="本次沒有辨識錯誤。";
+    summary.className="incorrect-summary no-error";
+    return;
+  }
+  const lines=[];
+  if(photoItems.length){
+    lines.push(`<div><span class="incorrect-summary-title">照片辨識錯誤：</span>${photoItems.map(escapeHtml).join("、")}</div>`);
+  }
+  if(audioItems.length){
+    lines.push(`<div><span class="incorrect-summary-title">語音辨識錯誤：</span>${audioItems.map(escapeHtml).join("、")}</div>`);
+  }
+  summary.innerHTML=lines.join("");
+  summary.className="incorrect-summary";
 }
 
 async function repeatTask(){
@@ -2554,23 +2589,20 @@ async function repeatTask(){
 
 function endTask(){
   stopAll();
-
-  finished=false;
-  paused=false;
-  resultRef=null;
-  currentIndex=0;
-  completed=[];
-  attempts=0;
-  holdCount=0;
-  taskSuccessAnimating=false;
-
-  $("completeCard").classList.add("hidden");
-  $("taskCard").classList.add("hidden");
-  $("joinCard").classList.add("hidden");
-  $("loadCard").classList.remove("hidden");
-
-  $("loadStatus").textContent="等待任務資料。";
-  $("loadStatus").className="status";
+  stopGameListeners();
+  if("speechSynthesis" in window)window.speechSynthesis.cancel();
+  try{
+    window.open("","_self");
+    window.close();
+  }catch(e){}
+  setTimeout(()=>{
+    if(window.closed)return;
+    if(window.history.length>1){
+      window.history.back();
+    }else{
+      window.location.replace("about:blank");
+    }
+  },120);
 }
 
 function stopAll(){
