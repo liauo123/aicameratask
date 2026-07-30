@@ -2565,8 +2565,7 @@ function endTask(){
   try{window.stop()}catch(e){}
   document.title="";
   if(document.body)document.body.replaceChildren();
-  try{window.close()}catch(e){}
-  if(!window.closed)window.location.replace("about:blank");
+  window.location.replace("about:blank");
 }
 
 function stopAll(){
