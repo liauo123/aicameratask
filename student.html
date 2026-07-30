@@ -569,6 +569,7 @@ let gameStartedLocally=false,gameModelPreparing=false,gameModelPromise=null,game
 let currentImagePassed=false,currentAudioPassed=true,currentImageConfidence=0,currentAudioConfidence=0;
 let currentImageEvidenceDataURL="",currentCompletionPending=false;
 let localIncorrectClasses=[],localIncorrectAudioClasses=[];
+let exitInProgress=false;
 
 const $=id=>document.getElementById(id);
 
@@ -2539,21 +2540,38 @@ async function repeatTask(){
 }
 
 function endTask(){
+  if(exitInProgress)return;
+  exitInProgress=true;
+  finished=true;
+  paused=true;
+  pageAutoPaused=false;
+  $("endBtn").disabled=true;
+  $("againBtn").disabled=true;
+
   stopAll();
   stopGameListeners();
   if("speechSynthesis" in window)window.speechSynthesis.cancel();
+  if(captureFeedbackTimer){
+    clearTimeout(captureFeedbackTimer);
+    captureFeedbackTimer=null;
+  }
+
+  predictionRows={};
+  resultRef=null;
+  metadata=null;
+  model=null;
+  task=null;
+
+  try{window.stop()}catch(e){}
   try{
     window.open("","_self");
     window.close();
   }catch(e){}
+
   setTimeout(()=>{
     if(window.closed)return;
-    if(window.history.length>1){
-      window.history.back();
-    }else{
-      window.location.replace("about:blank");
-    }
-  },120);
+    window.location.replace("about:blank");
+  },150);
 }
 
 function stopAll(){
