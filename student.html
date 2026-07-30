@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#2563eb">
 <title>AI 多專案學生任務 V2.5｜連續拍照修正版</title>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -13,6 +15,7 @@
 
 <!-- TensorFlow.js 與 Teachable Machine 三種專案 -->
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.3/dist/coco-ssd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.4.0/dist/speech-commands.min.js"></script>
@@ -418,7 +421,7 @@ html,body{
       <div id="normalTargetCard" class="target">
         <small id="targetHint">目前指定內容</small>
         <div class="teaching-name-row target-question-row">
-          <img id="currentTargetThumbnail" class="target-thumbnail hidden" alt="題目物品縮圖">
+          <img id="currentTargetThumbnail" class="target-thumbnail hidden" alt="題目物品縮圖" decoding="async">
           <strong id="currentTarget">—</strong>
           <button id="speakEvaluationTargetBtn" class="speak-btn" type="button" aria-label="播放物品名稱" title="播放物品名稱" disabled>🔊</button>
         </div>
@@ -427,7 +430,7 @@ html,body{
       <div id="advancedPromptCard" class="target hidden">
         <small>請聽語音說明，找出正確物品</small>
         <div class="target-question-row">
-          <img id="advancedTargetThumbnail" class="target-thumbnail hidden" alt="進階評量題目縮圖">
+          <img id="advancedTargetThumbnail" class="target-thumbnail hidden" alt="進階評量題目縮圖" decoding="async">
           <strong>🔊 語音題目</strong>
         </div>
         <button id="repeatAdvancedPromptBtn" class="primary full" type="button">重複聽說明</button>
@@ -438,7 +441,7 @@ html,body{
       <div class="teaching-mode-title">教學模式</div>
       <div class="teaching-name-card">
         <div class="teaching-name-row">
-          <img id="teachingTargetThumbnailTop" class="target-thumbnail hidden" alt="教學模式物品縮圖">
+          <img id="teachingTargetThumbnailTop" class="target-thumbnail hidden" alt="教學模式物品縮圖" decoding="async">
           <strong id="teachingNameTop">等待辨識…</strong>
           <button id="speakTeachingBtnTop" class="speak-btn" type="button" aria-label="播放物品名稱" title="播放物品名稱" disabled>🔊</button>
           <button id="speakDescriptionBtnTop" class="speak-btn" type="button" aria-label="播放物品說明" title="播放物品說明" disabled>說明</button>
@@ -472,7 +475,7 @@ html,body{
     <div id="teachingResult" class="teaching-result hidden">
       <small>鏡頭目前辨識到</small>
       <div class="teaching-name-row">
-        <img id="teachingTargetThumbnail" class="target-thumbnail hidden" alt="教學模式物品縮圖">
+        <img id="teachingTargetThumbnail" class="target-thumbnail hidden" alt="教學模式物品縮圖" decoding="async">
         <strong id="teachingName">等待辨識…</strong>
         <button id="speakTeachingBtn" class="speak-btn" type="button" aria-label="播放物品名稱" title="播放物品名稱" disabled>🔊</button>
         <button id="speakDescriptionBtn" class="speak-btn" type="button" aria-label="播放物品說明" title="播放物品說明" disabled>說明</button>
@@ -539,15 +542,11 @@ const db=firebase.firestore();
 let taskId="",task=null,projectType="",metadata=null,model=null;
 let browserSpeechRecognition=null,optionalAudioListening=false,optionalAudioTimer=null;
 let resultRef=null,currentIndex=0,completed=[],attempts=0,holdCount=0,finished=false,paused=false;
-let imageStream=null,imageRaf=null,imagePredicting=false;
+let imageStream=null;
 let poseWebcam=null,poseCtx=null,poseRaf=null,posePredicting=false,poseVideoStream=null,poseVideo=null;
 let audioListening=false;
 let predictionRows={};
 
-// 深度省電設定：維持模型 224×224 輸入品質，改用低喚醒率計時器。
-const IMAGE_TASK_INTERVAL=240;       // 一般任務與教學模式相同，約 4.2 次/秒
-const IMAGE_TEACHING_INTERVAL=240;   // 教學模式約 4.2 次/秒
-const IMAGE_TEACHING_STABLE_INTERVAL=500; // 結果穩定後約 2 次/秒
 const POSE_INTERVAL=210;             // 姿勢約 4.8 次/秒
 const POSE_STABLE_INTERVAL=320;      // 姿勢結果穩定後約 3.1 次/秒
 let pageAutoPaused=false;
@@ -556,8 +555,6 @@ let lastPoseOverlayText="";
 let lastTeachingClass="";
 let lastTeachingPercent=-1;
 let lastFlashedTeachingClass="";
-let imageStableClass="";
-let imageStableCount=0;
 let poseStableClass="";
 let poseStableCount=0;
 let taskSuccessAnimating=false;
@@ -706,6 +703,20 @@ function playTaskErrorSound(){
 function norm(url){url=(url||"").trim();return url.endsWith("/")?url:url+"/"}
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
 async function ensureAuth(){if(auth.currentUser)return auth.currentUser;return(await auth.signInAnonymously()).user}
+function isCocoRecognition(){
+  return !!(task&&task.recognitionEngine==="coco-ssd");
+}
+function sortPredictionsForDecision(predictions){
+  const sorted=[...predictions].sort((a,b)=>b.probability-a.probability);
+  if(!isCocoRecognition()||isTeachingMode())return sorted;
+  const target=currentTarget();
+  const match=sorted.find(item=>item.className===target);
+  return match?[match,...sorted.filter(item=>item!==match)]:sorted;
+}
+function hasRecognitionMargin(top,second){
+  if(isCocoRecognition())return true;
+  return ((top?.probability||0)-(second?.probability||0))>=0.10;
+}
 
 function isTeachingMode(){
   return !!(task&&task.taskMode==="teaching");
@@ -1023,10 +1034,11 @@ async function loadTask(){
     if(!snap.exists)throw new Error("找不到此任務");
     task={id:snap.id,...snap.data()};
     if(task.status!=="active")throw new Error("任務目前未開放");
-    if(!task.modelURL)throw new Error("任務沒有模型網址");
+    task.recognitionEngine=task.recognitionEngine==="coco-ssd"?"coco-ssd":"teachable-machine";
+    if(task.recognitionEngine==="teachable-machine"&&!task.modelURL)throw new Error("任務沒有模型網址");
     if(!Array.isArray(task.targetClasses)||!task.targetClasses.length)throw new Error("任務沒有指定類別");
 
-    task.modelURL=norm(task.modelURL);
+    if(task.recognitionEngine==="teachable-machine")task.modelURL=norm(task.modelURL);
     task.threshold=Number(task.threshold||0.85);
     task.requiredConsecutiveFrames=Number(task.requiredConsecutiveFrames||10);
     task.taskMode=task.taskMode||task.orderMode||"task";
@@ -1044,11 +1056,18 @@ async function loadTask(){
     task.speechRecognitionLanguage="zh-TW";
     stopOptionalAudioRecognition(false);
 
-    const detected=await detectProjectType(task.modelURL);
-    projectType=detected.type;
-    metadata=detected.metadata;
+    if(task.recognitionEngine==="coco-ssd"){
+      projectType="image";
+      metadata={labels:[...task.targetClasses]};
+    }else{
+      const detected=await detectProjectType(task.modelURL);
+      projectType=detected.type;
+      metadata=detected.metadata;
+    }
 
-    const typeName={image:"圖片專案",audio:"音訊專案",pose:"姿勢專案"}[projectType];
+    const typeName=task.recognitionEngine==="coco-ssd"
+      ?"COCO-SSD 開放辨識"
+      :{image:"圖片專案",audio:"音訊專案",pose:"姿勢專案"}[projectType];
     $("taskTitle").textContent=task.title||"未命名任務";
     const effectiveAudioRequiredClasses=getEffectiveAudioRequiredClasses();
     const audioNote=effectiveAudioRequiredClasses.length
@@ -1418,6 +1437,37 @@ async function startTask(){
 }
 
 async function loadSelectedModel(){
+  if(task.recognitionEngine==="coco-ssd"){
+    if(typeof cocoSsd==="undefined"){
+      throw new Error("COCO-SSD 辨識套件載入失敗，請確認網路連線後重新整理頁面。");
+    }
+    const baseModel=await cocoSsd.load({base:"lite_mobilenet_v2"});
+    const classMap=task.cocoClassMap&&typeof task.cocoClassMap==="object"
+      ? task.cocoClassMap
+      : {};
+    const reverseMap=Object.fromEntries(
+      Object.entries(classMap).map(([zh,en])=>[String(en),String(zh)])
+    );
+    const supportedLabels=Object.keys(classMap).length
+      ? Object.keys(classMap)
+      : [...task.targetClasses];
+    model={
+      getClassLabels:()=>[...supportedLabels],
+      predict:async input=>{
+        const detections=await baseModel.detect(input,20,0.01);
+        const scores={};
+        detections.forEach(item=>{
+          const chinese=reverseMap[item.class];
+          if(chinese)scores[chinese]=Math.max(scores[chinese]||0,Number(item.score||0));
+        });
+        return supportedLabels.map(className=>({
+          className,
+          probability:scores[className]||0
+        }));
+      }
+    };
+    return;
+  }
   if((["teaching","advanced","game"].includes(task.taskMode))&&projectType!=="image"){
     throw new Error("目前教學模式、進階評量與多人遊戲僅支援 Teachable Machine 圖片專案。");
   }
@@ -1598,8 +1648,6 @@ async function startImage(){
   await video.play();
 
   lastImageOverlayText="";
-  imageStableClass="";
-  imageStableCount=0;
   $("imageStage").classList.remove("hidden");
   $("imageOverlay").textContent="等待相機畫面…";
   setStatus(
@@ -1671,13 +1719,14 @@ async function captureAndRecognize(){
     );
 
     const predictions=await model.predict(canvas);
-    const sorted=[...predictions].sort((a,b)=>b.probability-a.probability);
+    const sorted=sortPredictionsForDecision(predictions);
     const top=sorted[0];
     const second=sorted[1]||{probability:0};
     if(isTeachingMode()){
       const confirmed=!!top &&
+        task.targetClasses.includes(top.className) &&
         top.probability>=task.threshold &&
-        (top.probability-second.probability)>=0.10;
+        hasRecognitionMargin(top,second);
 
       if(confirmed){
         currentTeachingLabel=top.className;
@@ -1736,7 +1785,7 @@ async function captureAndRecognize(){
     const correct=!!top &&
       top.className===target &&
       top.probability>=task.threshold &&
-      (top.probability-second.probability)>=0.10;
+      hasRecognitionMargin(top,second);
 
     if(correct){
       taskSuccessAnimating=true;
@@ -1817,9 +1866,6 @@ async function captureAndRecognize(){
 }
 
 function stopImage(cancel=true){
-  if(cancel&&imageRaf)clearTimeout(imageRaf);
-  imageRaf=null;
-
   if(imageStream){
     imageStream.getTracks().forEach(t=>t.stop());
     imageStream=null;
@@ -1829,101 +1875,6 @@ function stopImage(cancel=true){
   if(video){
     try{video.pause();}catch(e){}
     video.srcObject=null;
-  }
-
-  imagePredicting=false;
-  imageStableClass="";
-  imageStableCount=0;
-}
-function scheduleImageLoop(delay){
-  if(finished||paused||!imageStream)return;
-  if(imageRaf)clearTimeout(imageRaf);
-  imageRaf=setTimeout(()=>imageLoop(),delay);
-}
-
-async function imageLoop(){
-  if(finished||paused||!imageStream||imagePredicting)return;
-
-  imagePredicting=true;
-  let nextDelay=task&&task.taskMode==="teaching"
-    ? IMAGE_TEACHING_INTERVAL
-    : IMAGE_TASK_INTERVAL;
-
-  try{
-    const video=$("imageVideo");
-    const canvas=$("imageCanvas");
-    const ctx=canvas.getContext("2d");
-
-    if(video.readyState>=2&&video.videoWidth){
-      const side=Math.min(video.videoWidth,video.videoHeight);
-
-      // 每次推論仍使用完整 224×224 模型輸入。
-      ctx.drawImage(
-        video,
-        (video.videoWidth-side)/2,
-        (video.videoHeight-side)/2,
-        side,
-        side,
-        0,
-        0,
-        224,
-        224
-      );
-
-      const predictions=await model.predict(canvas);
-      const sorted=[...predictions].sort((a,b)=>b.probability-a.probability);
-      const top=sorted[0];
-
-      processPredictions(predictions,canvas);
-
-      if(top){
-        const percent=Math.round(top.probability*100);
-        const second=sorted[1]||{probability:0};
-        const confirmed=
-          top.probability>=task.threshold &&
-          (top.probability-second.probability)>=0.10;
-
-        const overlayText=
-          task&&task.taskMode==="teaching"
-            ? (
-                confirmed
-                  ? `目前辨識：${top.className}｜${percent}%`
-                  : "正在辨識…"
-              )
-            : (
-                taskSuccessAnimating
-                  ? `辨識成功：${top.className}`
-                  : "正在辨識…"
-              );
-
-        if(overlayText!==lastImageOverlayText){
-          $("imageOverlay").textContent=overlayText;
-          lastImageOverlayText=overlayText;
-        }
-
-        if(top.className===imageStableClass&&top.probability>=0.90){
-          imageStableCount++;
-        }else{
-          imageStableClass=top.className;
-          imageStableCount=1;
-        }
-
-        // 教學模式名稱穩定後，減少重複辨識；一般任務仍維持較快速度。
-        if(
-          task&&task.taskMode==="teaching"&&
-          imageStableCount>=4&&
-          top.probability>=0.90
-        ){
-          nextDelay=IMAGE_TEACHING_STABLE_INTERVAL;
-        }
-      }
-    }
-  }catch(e){
-    setStatus("recognitionStatus","圖片辨識錯誤：\n"+e.message,"error");
-    nextDelay=500;
-  }finally{
-    imagePredicting=false;
-    scheduleImageLoop(nextDelay);
   }
 }
 
@@ -2277,7 +2228,7 @@ function processPredictions(predictions,evidenceCanvas){
     }
   });
 
-  const sorted=[...predictions].sort((a,b)=>b.probability-a.probability);
+  const sorted=sortPredictionsForDecision(predictions);
   const top=sorted[0],second=sorted[1]||{probability:0};
 
   if(task.taskMode==="teaching"){
@@ -2285,7 +2236,7 @@ function processPredictions(predictions,evidenceCanvas){
       const teachingPercent=Math.round(top.probability*100);
       const isConfirmed=
         top.probability>=task.threshold &&
-        (top.probability-second.probability)>=0.10;
+        hasRecognitionMargin(top,second);
 
       if(isConfirmed){
         currentTeachingLabel=top.className;
@@ -2353,7 +2304,7 @@ function processPredictions(predictions,evidenceCanvas){
   const success=
     top.className===target &&
     top.probability>=task.threshold &&
-    (top.probability-second.probability)>=0.10;
+    hasRecognitionMargin(top,second);
 
   if(success)holdCount++;
   else{
