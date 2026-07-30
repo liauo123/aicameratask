@@ -3,7 +3,10 @@
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>教師平台</title>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@latest"></script>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -27,8 +30,10 @@ main{max-width:1180px;margin:auto;padding:22px 18px 40px}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px;margin-bottom:16px;box-shadow:0 8px 24px rgba(15,23,42,.065)}
 .workspace{display:grid;gap:18px}.rightStack{display:grid;gap:16px;align-content:start}
 @media(min-width:940px){.workspace{grid-template-columns:minmax(0,1.62fr) minmax(355px,.88fr)}}
-input{width:100%;padding:12px 13px;border:1px solid #cbd5e1;border-radius:11px;background:#fff;color:var(--ink);font-size:16px;margin:6px 0;outline:none;transition:.18s}
-input:focus{border-color:#60a5fa;box-shadow:0 0 0 3px rgba(59,130,246,.14)}
+input,select,textarea{width:100%;padding:12px 13px;border:1px solid #cbd5e1;border-radius:11px;background:#fff;color:var(--ink);font-size:16px;margin:6px 0;outline:none;transition:.18s;font-family:inherit}
+input:focus,select:focus,textarea:focus{border-color:#60a5fa;box-shadow:0 0 0 3px rgba(59,130,246,.14)}
+textarea{min-height:138px;resize:vertical;line-height:1.65}
+.modelHint{font-size:13px;line-height:1.65;color:var(--muted);margin:4px 2px 2px}
 button,.navBtn{border:0;border-radius:11px;padding:11px 15px;font-weight:800;cursor:pointer;transition:transform .15s,box-shadow .15s,filter .15s}
 button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
 button:disabled{cursor:not-allowed;opacity:.58;transform:none}
@@ -97,8 +102,14 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
 <div id="app" class="hidden">
   <div class="workspace">
     <section class="card modelCard">
-      <h2>載入 Teachable Machine 模型</h2>
-      <input id="modelURL" placeholder="貼上 Image Model URL">
+      <h2 id="modelHeading">載入 Teachable Machine 模型</h2>
+      <select id="recognitionEngine" aria-label="選擇辨識方式">
+        <option value="teachable-machine">Teachable Machine 自訂辨識</option>
+        <option value="coco-ssd">COCO-SSD 開放辨識（不需建立模型）</option>
+      </select>
+      <div id="modelURLArea">
+        <input id="modelURL" placeholder="貼上 Image Model URL">
+      </div>
       <button id="loadModelBtn" class="p" style="width:100%">載入模型</button>
       <div id="modelStatus" class="status">尚未載入模型。</div>
       <div id="classes"></div>
@@ -140,8 +151,27 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
 <div id="qrModal" class="modal hidden"><div class="box"><h3 id="qrTitle">任務 QR Code</h3><div id="qrCode"></div><div id="qrURL" class="url"></div><div class="row"><button id="copyBtn" class="p">複製網址</button><button id="closeBtn" class="s">關閉</button></div></div></div>
 <script>
 const firebaseConfig={apiKey:"AIzaSyBbpIezLbQd2-e-3Z4pSdBLIFc_UlTPUy8",authDomain:"project-6540500202923576846.firebaseapp.com",projectId:"project-6540500202923576846",storageBucket:"project-6540500202923576846.firebasestorage.app",messagingSenderId:"516602165604",appId:"1:516602165604:web:b60f69ee56a4d49c416271"};
-firebase.initializeApp(firebaseConfig);const auth=firebase.auth(),db=firebase.firestore();let user=null,model=null,modelURL="",labels=[],unsub=null,classThumbnails={};
+firebase.initializeApp(firebaseConfig);const auth=firebase.auth(),db=firebase.firestore();let user=null,model=null,modelURL="",labels=[],unsub=null,classThumbnails={},recognitionEngine="teachable-machine",cocoClassMap={};
 const $=id=>document.getElementById(id);const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));function status(id,msg,type=""){const e=$(id);e.textContent=msg;e.className="status "+type}
+const COCO_OBJECTS=[
+  ["person","人"],["bicycle","腳踏車"],["car","汽車"],["motorcycle","機車"],["airplane","飛機"],
+  ["bus","公車"],["train","火車"],["truck","卡車"],["boat","船"],["traffic light","紅綠燈"],
+  ["fire hydrant","消防栓"],["stop sign","停止標誌"],["parking meter","停車計時器"],["bench","長椅"],
+  ["bird","鳥"],["cat","貓"],["dog","狗"],["horse","馬"],["sheep","羊"],["cow","牛"],
+  ["elephant","大象"],["bear","熊"],["zebra","斑馬"],["giraffe","長頸鹿"],["backpack","背包"],
+  ["umbrella","雨傘"],["handbag","手提包"],["tie","領帶"],["suitcase","行李箱"],["frisbee","飛盤"],
+  ["skis","滑雪板"],["snowboard","單板滑雪板"],["sports ball","球"],["kite","風箏"],
+  ["baseball bat","棒球棒"],["baseball glove","棒球手套"],["skateboard","滑板"],["surfboard","衝浪板"],
+  ["tennis racket","網球拍"],["bottle","瓶子"],["wine glass","高腳杯"],["cup","杯子"],
+  ["fork","叉子"],["knife","刀子"],["spoon","湯匙"],["bowl","碗"],["banana","香蕉"],
+  ["apple","蘋果"],["sandwich","三明治"],["orange","柳橙"],["broccoli","花椰菜"],["carrot","胡蘿蔔"],
+  ["hot dog","熱狗"],["pizza","披薩"],["donut","甜甜圈"],["cake","蛋糕"],["chair","椅子"],
+  ["couch","沙發"],["potted plant","盆栽"],["bed","床"],["dining table","餐桌"],["toilet","馬桶"],
+  ["tv","電視"],["laptop","筆記型電腦"],["mouse","滑鼠"],["remote","遙控器"],["keyboard","鍵盤"],
+  ["cell phone","手機"],["microwave","微波爐"],["oven","烤箱"],["toaster","烤麵包機"],["sink","水槽"],
+  ["refrigerator","冰箱"],["book","書本"],["clock","時鐘"],["vase","花瓶"],["scissors","剪刀"],
+  ["teddy bear","玩具熊"],["hair drier","吹風機"],["toothbrush","牙刷"]
+];
 const TEACHER_DRAFT_PREFIX="teacherInputDraftV1:";
 let restoringTeacherDraft=false,teacherDraftSaveTimer=null;
 function teacherDraftKey(){return user?TEACHER_DRAFT_PREFIX+user.uid:""}
@@ -187,6 +217,8 @@ function saveTeacherDraft(){
     });
   }
   const draft={
+    recognitionEngine:$("recognitionEngine").value,
+    loadedRecognitionEngine:boxes.length?recognitionEngine:(previous.loadedRecognitionEngine||""),
     modelURLInput:$("modelURL").value,
     loadedModelURL,
     teachingTitle:$("teachingTitle").value,
@@ -215,6 +247,10 @@ function restoreTeacherDraftBase(){
   const draft=readTeacherDraft();
   if(!draft)return false;
   restoringTeacherDraft=true;
+  $("recognitionEngine").value=draft.recognitionEngine==="coco-ssd"
+    ? draft.recognitionEngine
+    : "teachable-machine";
+  updateRecognitionEngineUI(false);
   $("modelURL").value=String(draft.modelURLInput||"");
   $("teachingTitle").value=String(draft.teachingTitle||"");
   $("taskTitle").value=String(draft.taskTitle||"");
@@ -228,6 +264,7 @@ function restoreClassDraft(){
   if(
     !draft||
     normalizeDraftModelURL(draft.loadedModelURL)!==normalizeDraftModelURL(modelURL)||
+    String(draft.loadedRecognitionEngine||draft.recognitionEngine||"teachable-machine")!==recognitionEngine||
     !draft.items||
     typeof draft.items!=="object"
   )return false;
@@ -262,7 +299,78 @@ function restoreClassDraft(){
 auth.onAuthStateChanged(u=>{user=u;if(u){$("authCard").classList.add("hidden");$("app").classList.remove("hidden");$("userArea").classList.remove("hidden");$("userEmail").textContent=u.email||"教師";restoreTeacherDraftBase()}else{$("authCard").classList.remove("hidden");$("app").classList.add("hidden");$("userArea").classList.add("hidden")}});
 $("loginBtn").onclick=async()=>{try{await auth.signInWithEmailAndPassword($("email").value.trim(),$("password").value)}catch(e){status("authStatus","登入失敗：\n"+e.message,"err")}};
 $("logoutBtn").onclick=()=>{saveTeacherDraft();auth.signOut()};
-$("loadModelBtn").onclick=async()=>{$("createTaskCard").classList.add("hidden");$("advancedModeCard").classList.add("hidden");$("gameModeCard").classList.add("hidden");modelURL=$("modelURL").value.trim();if(!modelURL)return status("modelStatus","請輸入模型網址。","err");if(!modelURL.endsWith("/"))modelURL+="/";status("modelStatus","正在載入模型…");try{model=await tmImage.load(modelURL+"model.json",modelURL+"metadata.json");labels=model.getClassLabels();classThumbnails={};renderClassBoxes();initClassDragSort();restoreClassDraft();$("createBtn").disabled=false;$("createAdvancedBtn").disabled=false;$("createGameBtn").disabled=false;$("teachMode").classList.remove("hidden");$("advancedModeCard").classList.remove("hidden");$("createTaskCard").classList.remove("hidden");$("gameModeCard").classList.remove("hidden");status("modelStatus","模型載入成功，共 "+labels.length+" 類。可拖拉或點擊加入縮圖。","ok");saveTeacherDraft()}catch(e){status("modelStatus","模型載入失敗：\n"+e.message,"err")}};
+function updateRecognitionEngineUI(reset=true){
+  recognitionEngine=$("recognitionEngine").value;
+  const isCoco=recognitionEngine==="coco-ssd";
+  $("modelHeading").textContent=isCoco
+    ?"使用 COCO-SSD 開放辨識"
+    :"載入 Teachable Machine 模型";
+  $("modelURLArea").classList.toggle("hidden",isCoco);
+  $("loadModelBtn").textContent=isCoco
+    ?"啟用開放辨識物品清單"
+    :"載入模型";
+  if(reset){
+    model=null;modelURL="";labels=[];cocoClassMap={};classThumbnails={};
+    $("classes").innerHTML="";
+    $("teachMode").classList.add("hidden");
+    $("createTaskCard").classList.add("hidden");
+    $("advancedModeCard").classList.add("hidden");
+    $("gameModeCard").classList.add("hidden");
+    status("modelStatus",isCoco?"尚未啟用自訂物品辨識。":"尚未載入模型。");
+  }
+  scheduleTeacherDraftSave();
+}
+$("recognitionEngine").addEventListener("change",()=>updateRecognitionEngineUI(true));
+$("loadModelBtn").onclick=async()=>{
+  $("createTaskCard").classList.add("hidden");
+  $("advancedModeCard").classList.add("hidden");
+  $("gameModeCard").classList.add("hidden");
+  recognitionEngine=$("recognitionEngine").value;
+  if(recognitionEngine==="coco-ssd"){
+    modelURL="";
+    model={type:"coco-ssd"};
+    labels=COCO_OBJECTS.map(([,zh])=>zh);
+    cocoClassMap=Object.fromEntries(COCO_OBJECTS.map(([en,zh])=>[zh,en]));
+    classThumbnails={};
+    renderClassBoxes();
+    initClassDragSort();
+    restoreClassDraft();
+    $("createBtn").disabled=false;
+    $("createAdvancedBtn").disabled=false;
+    $("createGameBtn").disabled=false;
+    $("teachMode").classList.remove("hidden");
+    $("advancedModeCard").classList.remove("hidden");
+    $("createTaskCard").classList.remove("hidden");
+    $("gameModeCard").classList.remove("hidden");
+    status("modelStatus","COCO-SSD 開放辨識已啟用，共 "+labels.length+" 類。請勾選要評量的物品。","ok");
+    saveTeacherDraft();
+    return;
+  }
+  modelURL=$("modelURL").value.trim();
+  if(!modelURL)return status("modelStatus","請輸入模型網址。","err");
+  if(!modelURL.endsWith("/"))modelURL+="/";
+  status("modelStatus","正在載入模型…");
+  try{
+    model=await tmImage.load(modelURL+"model.json",modelURL+"metadata.json");
+    labels=model.getClassLabels();
+    cocoClassMap={};
+    classThumbnails={};
+    renderClassBoxes();
+    initClassDragSort();
+    restoreClassDraft();
+    $("createBtn").disabled=false;
+    $("createAdvancedBtn").disabled=false;
+    $("createGameBtn").disabled=false;
+    $("teachMode").classList.remove("hidden");
+    $("advancedModeCard").classList.remove("hidden");
+    $("createTaskCard").classList.remove("hidden");
+    $("gameModeCard").classList.remove("hidden");
+    status("modelStatus","模型載入成功，共 "+labels.length+" 類。可拖拉或點擊加入縮圖。","ok");
+    saveTeacherDraft();
+  }catch(e){
+    status("modelStatus","模型載入失敗：\n"+e.message,"err");
+  }
+};
 
 function renderClassBoxes(){
   $("classes").innerHTML=labels.map((x,i)=>`<div class="classBox" draggable="true" data-label="${esc(x)}">
@@ -275,7 +383,7 @@ function renderClassBoxes(){
       <div class="classTools">
         <div class="thumbnailRow">
           <div class="thumbnailDrop" role="button" tabindex="0" aria-label="上傳${esc(x)}的縮圖">
-            <img class="thumbnailPreview hidden" alt="${esc(x)}縮圖">
+            <img class="thumbnailPreview hidden" alt="${esc(x)}縮圖" decoding="async">
             <span class="thumbnailPrompt">拖拉照片或點擊上傳縮圖</span>
           </div>
           <input class="thumbnailInput" type="file" accept="image/*">
@@ -449,6 +557,16 @@ function getAudioTargets(mode,selectedTargets){
     return selectedSet.has(item.dataset.label)&&checkbox&&checkbox.checked;
   }).map(item=>item.dataset.label);
 }
+function getRecognitionTaskFields(targets){
+  const isCoco=recognitionEngine==="coco-ssd";
+  const selectedMap={};
+  if(isCoco)targets.forEach(label=>{if(cocoClassMap[label])selectedMap[label]=cocoClassMap[label]});
+  return {
+    recognitionEngine:isCoco?"coco-ssd":"teachable-machine",
+    cocoClassMap:selectedMap,
+    threshold:isCoco?0.60:0.85
+  };
+}
 
 async function createTeachingModeQR(){
   updateLabelsFromDOM();
@@ -462,8 +580,8 @@ async function createTeachingModeQR(){
     return;
   }
 
-  if(!model||!modelURL||!labels.length){
-    status("teachQRStatus","請先成功載入 Teachable Machine Image Model。","err");
+  if(!model||(!modelURL&&recognitionEngine!=="coco-ssd")||!labels.length){
+    status("teachQRStatus","請先成功載入模型或啟用免建模辨識。","err");
     return;
   }
 
@@ -479,10 +597,10 @@ async function createTeachingModeQR(){
       teacherEmail:user.email||"",
       title:teachingTitle,
       modelURL:modelURL,
+      ...getRecognitionTaskFields(labels),
       targetClasses:[...labels],
       classDescriptions:getClassDescriptions(false),
       classThumbnails:getClassThumbnails(false),
-      threshold:0.85,
       requiredConsecutiveFrames:10,
       orderMode:"teaching",
       taskMode:"teaching",
@@ -546,13 +664,13 @@ async function createAdvancedEvaluationQR(){
       teacherEmail:user.email||"",
       title,
       modelURL,
+      ...getRecognitionTaskFields(targets),
       targetClasses:targets,
       classDescriptions:descriptions,
       classThumbnails:getClassThumbnails(true),
       audioRequiredClasses,
       speechRecognitionMode:"browser",
       speechRecognitionLanguage:"zh-TW",
-      threshold:0.85,
       requiredConsecutiveFrames:1,
       orderMode:"fixed",
       taskMode:"advanced",
@@ -593,13 +711,13 @@ async function createGameModeQR(){
       teacherEmail:user.email||"",
       title,
       modelURL,
+      ...getRecognitionTaskFields(targets),
       targetClasses:targets,
       classDescriptions:getClassDescriptions(true),
       classThumbnails:getClassThumbnails(true),
       audioRequiredClasses,
       speechRecognitionMode:"browser",
       speechRecognitionLanguage:"zh-TW",
-      threshold:0.85,
       requiredConsecutiveFrames:1,
       orderMode:"fixed",
       taskMode:"game",
@@ -634,13 +752,13 @@ $("createBtn").onclick=async()=>{
       teacherEmail:user.email||"",
       title,
       modelURL,
+      ...getRecognitionTaskFields(targets),
       targetClasses:targets,
       classDescriptions:getClassDescriptions(true),
       classThumbnails:getClassThumbnails(true),
       audioRequiredClasses,
       speechRecognitionMode:"browser",
       speechRecognitionLanguage:"zh-TW",
-      threshold:0.85,
       requiredConsecutiveFrames:10,
       orderMode:"fixed",
       status:"active",
@@ -653,7 +771,7 @@ $("createBtn").onclick=async()=>{
     status("createStatus","建立評量失敗：\n"+e.message,"err");
   }
 };
-function studentURL(id){const base=new URL("student.html",location.href).toString(),u=new URL(base,location.href);u.searchParams.set("task",id);u.searchParams.set("v","2.4-camera-fix");return u.toString()}function showQR(id,title){const url=studentURL(id);$("qrTitle").textContent=title+"－QR Code";$("qrURL").textContent=url;$("qrCode").innerHTML="";new QRCode($("qrCode"),{text:url,width:260,height:260,correctLevel:QRCode.CorrectLevel.M});$("qrModal").classList.remove("hidden")}window.showQR=showQR;$("closeBtn").onclick=()=>$("qrModal").classList.add("hidden");$("copyBtn").onclick=()=>navigator.clipboard.writeText($("qrURL").textContent);
+function studentURL(id){const base=new URL("student.html",location.href).toString(),u=new URL(base,location.href);u.searchParams.set("task",id);u.searchParams.set("v","2.6-optimized");return u.toString()}function showQR(id,title){const url=studentURL(id);$("qrTitle").textContent=title+"－QR Code";$("qrURL").textContent=url;$("qrCode").innerHTML="";new QRCode($("qrCode"),{text:url,width:260,height:260,correctLevel:QRCode.CorrectLevel.M});$("qrModal").classList.remove("hidden")}window.showQR=showQR;$("closeBtn").onclick=()=>$("qrModal").classList.add("hidden");$("copyBtn").onclick=()=>navigator.clipboard.writeText($("qrURL").textContent);
 
 ["modelURL","teachingTitle","taskTitle","advancedTitle","gameTitle"].forEach(id=>{
   $(id).addEventListener("input",scheduleTeacherDraftSave);
