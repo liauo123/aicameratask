@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>教師平台｜教學與評量列表</title>
+<link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -140,7 +142,7 @@ $("logoutBtn").onclick=()=>window.close();
 function studentURL(id){
   const u=new URL("student.html",location.href);
   u.searchParams.set("task",id);
-  u.searchParams.set("v","2.4-camera-fix");
+  u.searchParams.set("v","2.6-optimized");
   return u.toString();
 }
 function showQR(id,title){
@@ -196,6 +198,7 @@ async function render(docs){
 
   const renderTeachingTask=doc=>{
     const t=doc.data();
+    const recognitionInfo=`<div class="meta">辨識方式：${t.recognitionEngine==="coco-ssd"?"COCO-SSD 開放辨識":"Teachable Machine 自訂辨識"}</div>`;
     const descriptions=t.classDescriptions&&typeof t.classDescriptions==="object"
       ? t.classDescriptions
       : {};
@@ -212,6 +215,7 @@ async function render(docs){
         <div>
           <span class="modeBadge">教學模式</span>
           <div class="title">${esc(t.title||"未命名教學模式")}</div>
+          ${recognitionInfo}
           <div class="meta">物品與說明：<br>${itemInfo||"尚無物品資料"}</div>
         </div>
       </div>
@@ -224,6 +228,7 @@ async function render(docs){
 
   const renderGameTask=doc=>{
     const t=doc.data();
+    const recognitionInfo=`<div class="meta">辨識方式：${t.recognitionEngine==="coco-ssd"?"COCO-SSD 開放辨識":"Teachable Machine 自訂辨識"}</div>`;
     const stateText={lobby:"等待學生加入",active:"遊戲進行中",finished:"遊戲已結束"}[t.gameStatus]||"等待學生加入";
     const audioItems=Array.isArray(t.audioRequiredClasses)
       ? t.audioRequiredClasses.filter(name=>(t.targetClasses||[]).includes(name))
@@ -236,6 +241,7 @@ async function render(docs){
         <div>
           <span class="modeBadge">多人遊戲模式</span>
           <div class="title">${esc(t.title||"未命名遊戲")}</div>
+          ${recognitionInfo}
           <div class="meta">尋找順序：${(t.targetClasses||[]).map(esc).join(" → ")}</div>
           ${audioInfo}
           <span class="gameState" id="gameState_${doc.id}">${stateText}</span>
@@ -258,6 +264,7 @@ async function render(docs){
   const renderEvaluationTask=async doc=>{
     const t=doc.data();
     const isAdvanced=t.taskMode==="advanced";
+    const recognitionInfo=`<div class="meta">辨識方式：${t.recognitionEngine==="coco-ssd"?"COCO-SSD 開放辨識":"Teachable Machine 自訂辨識"}</div>`;
     let resultDocs=[],resultError="";
 
     try{
@@ -313,6 +320,7 @@ async function render(docs){
         <div>
           <span class="modeBadge">${isAdvanced?"進階評量模式":"評量模式"}</span>
           <div class="title">${esc(t.title||(isAdvanced?"未命名進階評量":"未命名評量"))}</div>
+          ${recognitionInfo}
           <div class="meta">物品：${(t.targetClasses||[]).map(esc).join(" → ")}</div>
           ${audioInfo}
         </div>
