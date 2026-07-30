@@ -2563,15 +2563,8 @@ function endTask(){
   task=null;
 
   try{window.stop()}catch(e){}
-  try{
-    window.open("","_self");
-    window.close();
-  }catch(e){}
-
-  setTimeout(()=>{
-    if(window.closed)return;
-    window.location.replace("about:blank");
-  },150);
+  try{window.close()}catch(e){}
+  if(!window.closed)window.location.replace("about:blank");
 }
 
 function stopAll(){
