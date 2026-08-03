@@ -296,7 +296,7 @@ function restoreClassDraft(){
   restoringTeacherDraft=false;
   return true;
 }
-auth.onAuthStateChanged(u=>{user=u;if(u){$("authCard").classList.add("hidden");$("app").classList.remove("hidden");$("userArea").classList.remove("hidden");$("userEmail").textContent=u.email||"教師";restoreTeacherDraftBase()}else{$("authCard").classList.remove("hidden");$("app").classList.add("hidden");$("userArea").classList.add("hidden")}});
+auth.onAuthStateChanged(async u=>{user=u;if(u){$("authCard").classList.add("hidden");$("app").classList.remove("hidden");$("userArea").classList.remove("hidden");$("userEmail").textContent=u.email||"教師";restoreTeacherDraftBase();const restoreTaskId=new URLSearchParams(location.search).get("restoreTask");if(restoreTaskId)await restoreTaskFromTaskList(restoreTaskId)}else{$("authCard").classList.remove("hidden");$("app").classList.add("hidden");$("userArea").classList.add("hidden")}});
 $("loginBtn").onclick=async()=>{try{await auth.signInWithEmailAndPassword($("email").value.trim(),$("password").value)}catch(e){status("authStatus","登入失敗：\n"+e.message,"err")}};
 $("logoutBtn").onclick=()=>{saveTeacherDraft();auth.signOut()};
 function updateRecognitionEngineUI(reset=true){
@@ -371,6 +371,86 @@ $("loadModelBtn").onclick=async()=>{
     status("modelStatus","模型載入失敗：\n"+e.message,"err");
   }
 };
+
+async function restoreTaskFromTaskList(taskId){
+  try{
+    status("modelStatus","正在回復任務設定…");
+    const snap=await db.collection("tasks").doc(taskId).get();
+    if(!snap.exists)throw new Error("找不到要回復的任務。");
+    const task=snap.data()||{};
+    if(task.teacherId&&task.teacherId!==user.uid)throw new Error("這不是目前登入教師建立的任務。");
+
+    const taskMode=["teaching","advanced","game"].includes(task.taskMode)
+      ? task.taskMode
+      : "evaluation";
+    const taskEngine=task.recognitionEngine==="coco-ssd"
+      ? "coco-ssd"
+      : "teachable-machine";
+
+    restoringTeacherDraft=true;
+    $("recognitionEngine").value=taskEngine;
+    updateRecognitionEngineUI(true);
+    $("modelURL").value=String(task.modelURL||"");
+    if(taskMode==="teaching")$("teachingTitle").value=String(task.title||"");
+    if(taskMode==="evaluation")$("taskTitle").value=String(task.title||"");
+    if(taskMode==="advanced")$("advancedTitle").value=String(task.title||"");
+    if(taskMode==="game")$("gameTitle").value=String(task.title||"");
+    restoringTeacherDraft=false;
+
+    await $("loadModelBtn").onclick();
+    if(!model||!labels.length)throw new Error("辨識模型未能成功載入，請確認模型網址及網路連線。");
+
+    restoringTeacherDraft=true;
+    const targets=Array.isArray(task.targetClasses)?task.targetClasses.filter(Boolean):[];
+    const targetSet=new Set(targets);
+    const descriptions=task.classDescriptions&&typeof task.classDescriptions==="object"
+      ? task.classDescriptions
+      : {};
+    const thumbnails=task.classThumbnails&&typeof task.classThumbnails==="object"
+      ? task.classThumbnails
+      : {};
+    const audioSet=new Set(Array.isArray(task.audioRequiredClasses)?task.audioRequiredClasses:[]);
+    const container=$("classes");
+    const boxes=[...container.querySelectorAll(".classBox")];
+    const byLabel=new Map(boxes.map(item=>[item.dataset.label,item]));
+
+    targets.forEach(label=>{
+      const item=byLabel.get(label);
+      if(item)container.appendChild(item);
+    });
+    boxes.forEach(item=>{
+      if(!targetSet.has(item.dataset.label))container.appendChild(item);
+    });
+
+    classThumbnails={};
+    container.querySelectorAll(".classBox").forEach(item=>{
+      const label=item.dataset.label;
+      const selected=item.querySelector(".classLabel input[type='checkbox']");
+      const description=item.querySelector(".classDescription");
+      if(selected)selected.checked=targetSet.has(label);
+      if(description)description.value=String(descriptions[label]||"");
+      item.querySelectorAll(".audioCheck").forEach(check=>{
+        check.checked=taskMode!=="teaching"&&check.dataset.mode===taskMode&&audioSet.has(label);
+      });
+      if(/^data:image\/jpeg;base64,/i.test(thumbnails[label]||"")){
+        classThumbnails[label]=thumbnails[label];
+      }
+      updateThumbnailUI(item);
+    });
+
+    updateLabelsFromDOM();
+    restoringTeacherDraft=false;
+    saveTeacherDraft();
+    status("modelStatus","任務設定已回復。已載入物品縮圖、說明及語音辨識勾選狀態。","ok");
+    const cleanURL=new URL(location.href);
+    cleanURL.searchParams.delete("restoreTask");
+    history.replaceState(null,"",cleanURL.toString());
+    $("modelHeading").scrollIntoView({behavior:"smooth",block:"start"});
+  }catch(e){
+    restoringTeacherDraft=false;
+    status("modelStatus","回復教師平台失敗：\n"+(e.message||e),"err");
+  }
+}
 
 function renderClassBoxes(){
   $("classes").innerHTML=labels.map((x,i)=>`<div class="classBox" draggable="true" data-label="${esc(x)}">
