@@ -49,6 +49,8 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
 .task+.task{margin-top:16px}
 .top{display:flex;justify-content:space-between;gap:10px;position:relative;z-index:1}
 .title{font-size:18px;font-weight:900}
+.titleLine{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.restoreTeacherBtn{padding:7px 11px;font-size:13px;min-width:auto}
 .meta,.small{font-size:13px;color:var(--m);line-height:1.6}
 .badge{padding:4px 8px;border-radius:999px;background:#dbeafe;color:#1d4ed8;font-size:12px;font-weight:800}
 .rr{display:grid;grid-template-columns:1.2fr .7fr .7fr 1.2fr;gap:8px;padding:9px;border-bottom:1px solid #e2e8f0;font-size:14px}
@@ -154,6 +156,12 @@ function showQR(id,title){
   $("qrModal").classList.remove("hidden");
 }
 window.showQR=showQR;
+function restoreTeacherPlatform(id){
+  const u=new URL("teacher.html",location.href);
+  u.searchParams.set("restoreTask",id);
+  location.href=u.toString();
+}
+window.restoreTeacherPlatform=restoreTeacherPlatform;
 $("closeBtn").onclick=()=>$("qrModal").classList.add("hidden");
 $("copyBtn").onclick=()=>navigator.clipboard.writeText($("qrURL").textContent);
 
@@ -214,7 +222,10 @@ async function render(docs){
       <div class="top">
         <div>
           <span class="modeBadge">教學模式</span>
-          <div class="title">${esc(t.title||"未命名教學模式")}</div>
+          <div class="titleLine">
+            <div class="title">${esc(t.title||"未命名教學模式")}</div>
+            <button class="s restoreTeacherBtn" type="button" onclick="restoreTeacherPlatform('${doc.id}')">回復教師平台</button>
+          </div>
           ${recognitionInfo}
           <div class="meta">物品與說明：<br>${itemInfo||"尚無物品資料"}</div>
         </div>
@@ -240,7 +251,10 @@ async function render(docs){
       <div class="top">
         <div>
           <span class="modeBadge">多人遊戲模式</span>
-          <div class="title">${esc(t.title||"未命名遊戲")}</div>
+          <div class="titleLine">
+            <div class="title">${esc(t.title||"未命名遊戲")}</div>
+            <button class="s restoreTeacherBtn" type="button" onclick="restoreTeacherPlatform('${doc.id}')">回復教師平台</button>
+          </div>
           ${recognitionInfo}
           <div class="meta">尋找順序：${(t.targetClasses||[]).map(esc).join(" → ")}</div>
           ${audioInfo}
@@ -319,7 +333,10 @@ async function render(docs){
       <div class="top">
         <div>
           <span class="modeBadge">${isAdvanced?"進階評量模式":"評量模式"}</span>
-          <div class="title">${esc(t.title||(isAdvanced?"未命名進階評量":"未命名評量"))}</div>
+          <div class="titleLine">
+            <div class="title">${esc(t.title||(isAdvanced?"未命名進階評量":"未命名評量"))}</div>
+            <button class="s restoreTeacherBtn" type="button" onclick="restoreTeacherPlatform('${doc.id}')">回復教師平台</button>
+          </div>
           ${recognitionInfo}
           <div class="meta">物品：${(t.targetClasses||[]).map(esc).join(" → ")}</div>
           ${audioInfo}
