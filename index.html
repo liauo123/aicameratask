@@ -47,17 +47,19 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
 .classBox{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;background:#f5f8fc;padding:11px 12px;border-radius:13px;margin:9px 0;cursor:grab;border:1px solid #e1e8f0;transition:.16s}
 .classBox:hover{background:#f0f5fb;border-color:#c9d8e9}.classBox:active{cursor:grabbing}.classBox.dragging{opacity:.45;border-color:var(--blue)}.classBox.drag-over{border-color:var(--blue);background:#eff6ff}
 .dragHandle{font-size:20px;color:#7890aa;user-select:none;margin-right:10px}
-.classContent{display:grid;grid-template-columns:1fr;gap:8px;min-width:0}
-.classMain{display:grid;grid-template-columns:minmax(90px,.48fr) minmax(170px,1fr);align-items:center;gap:10px;min-width:0}
-.classLabel{display:flex;align-items:center;gap:8px;min-width:0;font-weight:800}
-.classLabel input{width:auto;margin:0;accent-color:var(--blue)}
-.classDescription{min-width:0;margin:0}
-.classTools{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0;flex-wrap:wrap}
+.classContent{display:grid;grid-template-columns:minmax(112px,auto) auto minmax(170px,1fr);grid-template-areas:"label tools description";align-items:center;gap:10px;min-width:0}
+.classMain{display:contents}
+.classLabel{grid-area:label;display:flex;align-items:flex-start;gap:8px;width:calc(6em + 28px);max-width:100%;min-width:0;font-weight:800}
+.classLabel input{flex:0 0 auto;width:auto;margin:3px 0 0;accent-color:var(--blue)}
+.className{display:block;width:6em;max-width:6em;line-height:1.45;overflow-wrap:anywhere;word-break:break-all}
+.classDescription{grid-area:description;min-width:0;min-height:58px;height:58px;max-height:58px;margin:0;padding:8px 12px;line-height:1.45;resize:none;overflow-y:auto}
+.classTools{grid-area:tools;display:flex;align-items:center;justify-content:flex-start;gap:12px;min-width:0;flex-wrap:nowrap}
 .thumbnailRow{display:flex;align-items:center;gap:9px;min-width:0;flex:0 0 auto}
-.thumbnailDrop{width:132px;min-height:54px;border:2px dashed #b7c7dc;border-radius:11px;background:#fff;display:flex;align-items:center;justify-content:center;gap:8px;padding:6px;cursor:pointer;color:#52677f;font-size:12px;font-weight:800;text-align:center;transition:.16s;outline:none}
+.thumbnailDrop{width:132px;min-height:54px;border:2px dashed #b7c7dc;border-radius:11px;background:#fff;display:flex;align-items:center;justify-content:center;gap:6px;padding:2px 5px;cursor:pointer;color:#52677f;font-size:12px;font-weight:800;text-align:center;transition:.16s;outline:none}
 .thumbnailDrop:hover,.thumbnailDrop:focus-visible,.thumbnailDrop.is-dragover{border-color:var(--blue);background:#eff6ff;color:var(--blue-dark)}
-.thumbnailPreview{width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid #dbe4ee;flex:0 0 auto}
-.thumbnailRemove{padding:7px 10px;font-size:12px;min-width:auto}
+.thumbnailPreview{width:50px;height:50px;object-fit:cover;border-radius:8px;border:1px solid #dbe4ee;flex:0 0 auto}
+.thumbnailPreview:not(.hidden)+.thumbnailPrompt{width:2em;line-height:1.25;white-space:normal;word-break:break-all}
+.thumbnailRemove{width:44px;min-width:44px;padding:7px 6px;font-size:12px;line-height:1.25;white-space:normal;word-break:break-all}
 .thumbnailInput{display:none}
 .audioOptions{display:none}
 .audioOption{display:flex;align-items:center;gap:5px;color:#4b2e1f;font-size:12px;font-weight:800;white-space:nowrap}
@@ -86,7 +88,7 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
   main{padding:14px 10px 28px}.card{padding:16px;border-radius:15px}
   .workspace{gap:13px}.rightStack{gap:13px}.modelCard{min-height:0}
   .classBox{grid-template-columns:auto minmax(0,1fr);align-items:start}.dragHandle{padding-top:8px}
-  .classMain{grid-template-columns:1fr}.classDescription{width:100%}
+  .classContent{grid-template-columns:1fr;grid-template-areas:"label" "tools" "description"}.classDescription{width:100%}
   .classTools{align-items:stretch}.thumbnailRow{align-items:stretch;flex:1 1 100%}.thumbnailDrop{width:100%;min-height:58px}.thumbnailRemove{align-self:center}
   .audioOptions{display:grid;grid-template-columns:1fr;width:100%;margin-left:0;padding:9px}
   .navBtn,button{padding:10px 12px}
@@ -121,7 +123,7 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
     <div class="rightStack">
       <section id="clickModeCard" class="card modeCard clickMode hidden">
         <h2>簡易點選練習模式</h2>
-        <div class="clickHint">物品名稱與縮圖會在學生畫面隨機位置出現；學生點選後播放物品名稱與答對音效，教師端只保留答對、逾時與平均秒數摘要。</div>
+        <div class="clickHint">需要點選的縮圖會顯示在學生畫面上方，1–3 種物品選項會隨機出現；點錯會顯示錯誤畫面與音效，教師端只保留答對、逾時與平均秒數摘要。</div>
         <input id="clickTitle" placeholder="簡易點選練習名稱">
         <div class="rangeSetting">
           <label for="clickDisplaySeconds">每次物品顯示時間</label>
@@ -133,12 +135,17 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
           <output id="clickRepeatCountValue">3 次</output>
           <input id="clickRepeatCount" type="range" min="3" max="5" step="1" value="3">
         </div>
+        <div class="rangeSetting">
+          <label for="clickSimultaneousCount">同時出現物品種類</label>
+          <output id="clickSimultaneousCountValue">1 種</output>
+          <input id="clickSimultaneousCount" type="range" min="1" max="3" step="1" value="1">
+        </div>
         <button id="createClickBtn" class="p" style="width:100%" disabled>產生簡易點選練習 QR</button>
         <div id="clickStatus" class="status">尚未建立。</div>
       </section>
 
       <section id="teachMode" class="card modeCard teachMode hidden">
-        <h2>教學模式</h2>
+        <h2>實際物品辨識教學模式</h2>
         <input id="teachingTitle" placeholder="教學名稱">
         <button id="createTeachQRBtn" class="p" style="width:100%;margin-top:12px">產生學生教學 QR</button>
         <div id="teachQRStatus" class="status">尚未建立。</div>
@@ -186,16 +193,22 @@ firebase.initializeApp(firebaseConfig);const auth=firebase.auth(),db=firebase.fi
 const $=id=>document.getElementById(id);const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));function status(id,msg,type=""){const e=$(id);e.textContent=msg;e.className="status "+type}
 const TEACHER_DRAFT_PREFIX="teacherInputDraftV1:";
 let restoringTeacherDraft=false,teacherDraftSaveTimer=null;
+let teacherDraftCacheKey="",teacherDraftCache=null,teacherDraftCacheLoaded=false;
 function teacherDraftKey(){return user?TEACHER_DRAFT_PREFIX+user.uid:""}
 function normalizeDraftModelURL(value){const url=String(value||"").trim();return url&& !url.endsWith("/")?url+"/":url}
 function readTeacherDraft(){
   const key=teacherDraftKey();
   if(!key)return null;
+  if(teacherDraftCacheLoaded&&teacherDraftCacheKey===key)return teacherDraftCache;
   try{
     const value=JSON.parse(localStorage.getItem(key)||"null");
-    return value&&typeof value==="object"?value:null;
+    teacherDraftCacheKey=key;
+    teacherDraftCache=value&&typeof value==="object"?value:null;
+    teacherDraftCacheLoaded=true;
+    return teacherDraftCache;
   }catch(e){
     console.warn("讀取教師輸入紀錄失敗",e);
+    teacherDraftCacheKey=key;teacherDraftCache=null;teacherDraftCacheLoaded=true;
     return null;
   }
 }
@@ -243,12 +256,17 @@ function saveTeacherDraft(){
     clickTitle:$("clickTitle").value,
     clickDisplaySeconds:Number($("clickDisplaySeconds").value||5),
     clickRepeatCount:Number($("clickRepeatCount").value||3),
+    clickSimultaneousCount:Number($("clickSimultaneousCount").value||1),
     order,
-    items,
-    savedAt:Date.now()
+    items
   };
   try{
+    const previousComparable={...previous};
+    delete previousComparable.savedAt;
+    if(JSON.stringify(previousComparable)===JSON.stringify(draft))return;
+    draft.savedAt=Date.now();
     localStorage.setItem(key,JSON.stringify(draft));
+    teacherDraftCacheKey=key;teacherDraftCache=draft;teacherDraftCacheLoaded=true;
   }catch(e){
     console.warn("儲存教師輸入紀錄失敗",e);
   }
@@ -278,6 +296,7 @@ function restoreTeacherDraftBase(){
   $("clickTitle").value=String(draft.clickTitle||"");
   $("clickDisplaySeconds").value=String(Math.min(8,Math.max(3,Number(draft.clickDisplaySeconds||5))));
   $("clickRepeatCount").value=String(Math.min(5,Math.max(3,Number(draft.clickRepeatCount||3))));
+  $("clickSimultaneousCount").value=String(Math.min(3,Math.max(1,Number(draft.clickSimultaneousCount||1))));
   updateClickRangeLabels();
   restoringTeacherDraft=false;
   return true;
@@ -390,6 +409,7 @@ async function restoreTaskFromTaskList(taskId){
       $("clickTitle").value=String(task.title||"");
       $("clickDisplaySeconds").value=String(Math.min(8,Math.max(3,Number(task.clickDisplaySeconds||5))));
       $("clickRepeatCount").value=String(Math.min(5,Math.max(3,Number(task.clickRepeatCount||3))));
+      $("clickSimultaneousCount").value=String(Math.min(3,Math.max(1,Number(task.clickSimultaneousCount||1))));
       updateClickRangeLabels();
     }
     restoringTeacherDraft=false;
@@ -454,8 +474,8 @@ function renderClassBoxes(){
     <span class="dragHandle">☰</span>
     <div class="classContent">
       <div class="classMain">
-        <label class="classLabel"><input type="checkbox" value="${esc(x)}" id="c${i}"> ${esc(x)}</label>
-        <input class="classDescription" type="text" placeholder="輸入「${esc(x)}」的說明文字" aria-label="${esc(x)}的說明">
+        <label class="classLabel"><input type="checkbox" value="${esc(x)}" id="c${i}"><span class="className">${esc(x)}</span></label>
+        <textarea class="classDescription" rows="2" placeholder="輸入「${esc(x)}」的說明文字" aria-label="${esc(x)}的說明"></textarea>
       </div>
       <div class="classTools">
         <div class="thumbnailRow">
@@ -813,6 +833,7 @@ $("createGameBtn").onclick=createGameModeQR;
 function updateClickRangeLabels(){
   $("clickDisplaySecondsValue").textContent=$("clickDisplaySeconds").value+" 秒";
   $("clickRepeatCountValue").textContent=$("clickRepeatCount").value+" 次";
+  $("clickSimultaneousCountValue").textContent=$("clickSimultaneousCount").value+" 種";
 }
 
 async function createClickModeQR(){
@@ -821,8 +842,10 @@ async function createClickModeQR(){
   const targets=getSelectedClassesInCurrentOrder();
   const clickDisplaySeconds=Math.min(8,Math.max(3,Number($("clickDisplaySeconds").value||5)));
   const clickRepeatCount=Math.min(5,Math.max(3,Number($("clickRepeatCount").value||3)));
+  const clickSimultaneousCount=Math.min(3,Math.max(1,Number($("clickSimultaneousCount").value||1)));
   if(!title)return status("clickStatus","請輸入簡易點選練習名稱。","err");
   if(!targets.length)return status("clickStatus","請至少勾選一項物品。","err");
+  if(targets.length<clickSimultaneousCount)return status("clickStatus",`同時出現 ${clickSimultaneousCount} 種物品時，請至少勾選 ${clickSimultaneousCount} 項物品。`,"err");
   if(!user)return status("clickStatus","請先登入教師帳號。","err");
   const thumbnails=getClassThumbnails(true);
   const missingThumbnails=targets.filter(name=>!thumbnails[name]);
@@ -843,14 +866,15 @@ async function createClickModeQR(){
       classThumbnails:thumbnails,
       clickDisplaySeconds,
       clickRepeatCount,
+      clickSimultaneousCount,
       maxPlayers:15,
       orderMode:"random-click",
       taskMode:"click",
       status:"active",
-      version:"2.7-random-click",
+      version:"2.9-simultaneous-click",
       createdAt:firebase.firestore.FieldValue.serverTimestamp()
     });
-    status("clickStatus",`簡易點選練習建立成功！\n每個物品出現 ${clickRepeatCount} 次，每次最多 ${clickDisplaySeconds} 秒。\nTask ID：${ref.id}`,"ok");
+    status("clickStatus",`簡易點選練習建立成功！\n同時出現 ${clickSimultaneousCount} 種物品，每個物品出現 ${clickRepeatCount} 次，每次最多 ${clickDisplaySeconds} 秒。\nTask ID：${ref.id}`,"ok");
     showQR(ref.id,title);
   }catch(e){
     status("clickStatus","建立簡易點選練習失敗：\n"+(e.message||e),"err");
@@ -860,7 +884,7 @@ async function createClickModeQR(){
 }
 
 $("createClickBtn").onclick=createClickModeQR;
-[$("clickDisplaySeconds"),$("clickRepeatCount")].forEach(input=>{
+[$("clickDisplaySeconds"),$("clickRepeatCount"),$("clickSimultaneousCount")].forEach(input=>{
   input.addEventListener("input",()=>{updateClickRangeLabels();scheduleTeacherDraftSave()});
 });
 updateClickRangeLabels();
@@ -928,6 +952,9 @@ $("classes").addEventListener("input",scheduleTeacherDraftSave);
 $("classes").addEventListener("change",scheduleTeacherDraftSave);
 window.addEventListener("pagehide",saveTeacherDraft);
 window.addEventListener("beforeunload",saveTeacherDraft);
+window.addEventListener("storage",event=>{
+  if(event.key===teacherDraftKey())teacherDraftCacheLoaded=false;
+});
 
 </script>
 </body></html>
