@@ -164,11 +164,14 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
 .incorrect-summary-title{font-weight:900}
 .click-task{padding:12px;background:linear-gradient(145deg,#fff7ed,#fef3c7);border:2px solid #fbbf24}
 .click-task-head{padding:4px 4px 10px}.click-task-head h2{margin:0 0 5px;color:#92400e}.click-task-meta{display:flex;justify-content:space-between;gap:10px;color:#78350f;font-weight:800}
+.click-prompt{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;margin:0 auto 10px;padding:9px 16px;width:max-content;max-width:100%;border:2px solid #f59e0b;border-radius:16px;background:#fff;color:#92400e;font-weight:900;text-align:center;box-shadow:0 6px 18px rgba(146,64,14,.14)}
+.click-prompt img{width:clamp(76px,19vw,112px);height:clamp(76px,19vw,112px);object-fit:cover;border-radius:13px}
 .click-stage{position:relative;width:100%;height:clamp(420px,68svh,720px);overflow:hidden;border-radius:18px;background:radial-gradient(circle at top,#fffbeb,#fde68a);border:2px solid #f59e0b;touch-action:manipulation}
 .click-target{position:absolute;width:clamp(118px,31vw,176px);min-height:0;padding:10px;border:3px solid #fff;border-radius:20px;background:#fff;color:#92400e;box-shadow:0 12px 30px rgba(146,64,14,.25);display:flex;flex-direction:column;align-items:center;gap:7px;transform:scale(1);animation:clickTargetPop .22s ease;user-select:none;-webkit-user-select:none}
 .click-target img{width:clamp(88px,24vw,138px);height:clamp(88px,24vw,138px);object-fit:cover;border-radius:14px}.click-target span{font-size:clamp(18px,5vw,25px);font-weight:1000;line-height:1.2;text-align:center}.click-target:active{transform:scale(.94)}
 .click-waiting{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:#92400e;font-size:22px;font-weight:900;padding:28px}.click-countdown{position:absolute;left:12px;right:12px;bottom:10px;height:9px;border-radius:999px;background:rgba(255,255,255,.75);overflow:hidden}.click-countdown>div{height:100%;width:100%;background:#f97316;transform-origin:left center}
 .click-feedback{position:absolute;inset:0;display:grid;place-items:center;background:rgba(22,163,74,.88);color:#fff;font-size:clamp(42px,13vw,84px);font-weight:1000;z-index:4;pointer-events:none;animation:clickFeedback .65s ease forwards}
+.click-feedback.error{background:rgba(220,38,38,.9)}
 @keyframes clickTargetPop{from{transform:scale(.72);opacity:0}to{transform:scale(1);opacity:1}}
 @keyframes clickFeedback{0%{opacity:0}20%,70%{opacity:1}100%{opacity:0}}
 @keyframes pop{0%{transform:scale(.75);opacity:0}100%{transform:scale(1);opacity:1}}
@@ -522,12 +525,13 @@ html,body{
       <h2 id="clickTaskTitle">隨機點選測驗</h2>
       <div class="click-task-meta"><span id="clickStudentNumber"></span><span id="clickProgressText">0 / 0</span></div>
     </div>
+    <div id="clickPrompt" class="click-prompt hidden">
+      <span>請點選這個縮圖</span>
+      <img id="clickPromptImage" alt="需要點選的物品縮圖" decoding="async">
+    </div>
     <div id="clickStage" class="click-stage">
       <div id="clickWaiting" class="click-waiting">準備開始…</div>
-      <button id="clickTargetButton" class="click-target hidden" type="button">
-        <img id="clickTargetImage" alt="物品縮圖" decoding="async">
-        <span id="clickTargetName"></span>
-      </button>
+      <div id="clickTargets"></div>
       <div id="clickCountdown" class="click-countdown hidden"><div id="clickCountdownFill"></div></div>
     </div>
   </section>
@@ -594,9 +598,10 @@ let currentImagePassed=false,currentAudioPassed=true,currentImageConfidence=0,cu
 let currentImageEvidenceDataURL="",currentCompletionPending=false;
 let localIncorrectClasses=[],localIncorrectAudioClasses=[];
 let exitInProgress=false;
-let clickSequence=[],clickTrialIndex=0,clickRecords=[],clickTrialTimer=null,clickNextTimer=null,clickShownAt=0,clickTrialActive=false;
+let clickSequence=[],clickTrialIndex=0,clickRecords=[],clickTrialTimer=null,clickNextTimer=null,clickShownAt=0,clickTrialActive=false,clickCurrentTarget="",clickCurrentChoices=[];
 
 const $=id=>document.getElementById(id);
+const numberButtons=[...document.querySelectorAll(".number-btn")];
 
 function setStatus(id,msg,type=""){
   const el=$(id);el.textContent=msg;el.className="status"+(type?" "+type:"");el.classList.remove("hidden");
@@ -1107,6 +1112,7 @@ async function loadTask(){
     task.speechRecognitionLanguage="zh-TW";
     task.clickDisplaySeconds=Math.min(8,Math.max(3,Number(task.clickDisplaySeconds||5)));
     task.clickRepeatCount=Math.min(5,Math.max(3,Number(task.clickRepeatCount||3)));
+    task.clickSimultaneousCount=Math.min(3,Math.max(1,Number(task.clickSimultaneousCount||1)),task.targetClasses.length);
     stopOptionalAudioRecognition(false);
 
     if(isClickMode()){
@@ -1132,7 +1138,7 @@ async function loadTask(){
       ? `｜${effectiveAudioRequiredClasses.length}項需要語音辨識`
       : "";
     $("taskMeta").textContent=isClickMode()
-      ? `隨機點選測驗｜每個物品 ${task.clickRepeatCount} 次｜每次最多 ${task.clickDisplaySeconds} 秒`
+      ? `隨機點選測驗｜同時 ${task.clickSimultaneousCount} 種｜每個物品 ${task.clickRepeatCount} 次｜每次最多 ${task.clickDisplaySeconds} 秒`
       : task.taskMode==="teaching"
       ? `專案類型：${typeName}｜教學模式：拍照後顯示名稱與說明`
       : task.taskMode==="advanced"
@@ -1149,7 +1155,7 @@ async function loadTask(){
         throw new Error(task.gameStatus==="active"?"遊戲已經開始，無法再加入":"這場遊戲已經結束");
       }
       selectedStudentNumber="";
-      document.querySelectorAll(".number-btn").forEach(button=>{
+      numberButtons.forEach(button=>{
         button.classList.remove("selected");
       });
       $("selectedNumberText").textContent="尚未選擇編號";
@@ -1175,7 +1181,7 @@ async function loadTask(){
 function selectStudentNumber(number){
   selectedStudentNumber=String(number);
 
-  document.querySelectorAll(".number-btn").forEach(button=>{
+  numberButtons.forEach(button=>{
     button.classList.toggle(
       "selected",
       button.dataset.studentNumber===selectedStudentNumber
@@ -1187,7 +1193,7 @@ function selectStudentNumber(number){
   $("joinStatus").classList.add("hidden");
 }
 
-document.querySelectorAll(".number-btn").forEach(button=>{
+numberButtons.forEach(button=>{
   button.addEventListener("click",()=>{
     selectStudentNumber(button.dataset.studentNumber);
   });
@@ -1206,7 +1212,7 @@ function listenGameSeats(){
       const data=doc.data();
       if(["pending","approved","playing","completed"].includes(data.status))occupied.add(String(data.studentNumber||doc.id));
     });
-    document.querySelectorAll(".number-btn").forEach(button=>{
+    numberButtons.forEach(button=>{
       const taken=occupied.has(button.dataset.studentNumber);
       button.disabled=taken;
       button.style.opacity=taken?".38":"1";
@@ -1522,19 +1528,29 @@ function shuffleClickSequence(items){
 function buildClickSequence(){
   const repeated=[];
   for(let repeat=0;repeat<task.clickRepeatCount;repeat++){
-    repeated.push(...task.targetClasses);
+    repeated.push(...shuffleClickSequence(task.targetClasses));
   }
   return shuffleClickSequence(repeated);
 }
 
-function clearClickTimers(){
+function getClickTotalCount(){
+  return clickSequence.length;
+}
+
+function clearClickTimers(preserveRound=false){
   if(clickTrialTimer)clearTimeout(clickTrialTimer);
   if(clickNextTimer)clearTimeout(clickNextTimer);
   clickTrialTimer=null;clickNextTimer=null;clickTrialActive=false;
-  const button=$("clickTargetButton");
+  const targets=$("clickTargets");
   const countdown=$("clickCountdown");
-  if(button)button.classList.add("hidden");
+  const prompt=$("clickPrompt");
+  if(targets)targets.innerHTML="";
   if(countdown)countdown.classList.add("hidden");
+  if(prompt&&!preserveRound)prompt.classList.add("hidden");
+  if(!preserveRound){
+    clickCurrentTarget="";
+    clickCurrentChoices=[];
+  }
 }
 
 function speakClickLabel(label){
@@ -1546,16 +1562,37 @@ function speakClickLabel(label){
 }
 
 function updateClickProgress(){
-  $("clickProgressText").textContent=`${clickTrialIndex} / ${clickSequence.length}`;
+  $("clickProgressText").textContent=`${clickRecords.length} / ${getClickTotalCount()}`;
 }
 
-function positionClickTarget(){
-  const stage=$("clickStage"),button=$("clickTargetButton");
+function positionClickTargets(){
+  const stage=$("clickStage");
+  const buttons=[...$("clickTargets").querySelectorAll(".click-target")];
   const padding=10;
-  const maxLeft=Math.max(padding,stage.clientWidth-button.offsetWidth-padding);
-  const maxTop=Math.max(padding,stage.clientHeight-button.offsetHeight-padding-18);
-  button.style.left=(padding+Math.random()*Math.max(0,maxLeft-padding))+"px";
-  button.style.top=(padding+Math.random()*Math.max(0,maxTop-padding))+"px";
+  const placed=[];
+  buttons.forEach((button,index)=>{
+    const width=button.offsetWidth,height=button.offsetHeight;
+    const maxLeft=Math.max(padding,stage.clientWidth-width-padding);
+    const maxTop=Math.max(padding,stage.clientHeight-height-padding-18);
+    let left=padding,top=padding,found=false;
+    for(let attempt=0;attempt<50;attempt++){
+      const candidateLeft=padding+Math.random()*Math.max(0,maxLeft-padding);
+      const candidateTop=padding+Math.random()*Math.max(0,maxTop-padding);
+      const candidate={left:candidateLeft,top:candidateTop,right:candidateLeft+width,bottom:candidateTop+height};
+      const overlaps=placed.some(rect=>!(candidate.right+8<rect.left||candidate.left>rect.right+8||candidate.bottom+8<rect.top||candidate.top>rect.bottom+8));
+      if(!overlaps){left=candidateLeft;top=candidateTop;placed.push(candidate);found=true;break}
+    }
+    if(!found){
+      const columns=Math.min(2,buttons.length);
+      const rows=Math.ceil(buttons.length/columns);
+      const column=index%columns,row=Math.floor(index/columns);
+      left=padding+column*Math.max(0,(stage.clientWidth-width-2*padding)/Math.max(1,columns-1));
+      top=padding+row*Math.max(0,(stage.clientHeight-height-2*padding-18)/Math.max(1,rows-1));
+      placed.push({left,top,right:left+width,bottom:top+height});
+    }
+    button.style.left=left+"px";
+    button.style.top=top+"px";
+  });
 }
 
 async function saveClickProgress(completedStatus=false){
@@ -1565,7 +1602,7 @@ async function saveClickProgress(completedStatus=false){
   const averageReactionMs=correct.length
     ? Math.round(correct.reduce((sum,record)=>sum+Number(record.reactionMs||0),0)/correct.length)
     : 0;
-  const progress=Math.round(clickTrialIndex/Math.max(1,clickSequence.length)*100);
+  const progress=Math.round(clickRecords.length/Math.max(1,getClickTotalCount())*100);
   await resultRef.update({
     clickCorrectCount:correct.length,
     clickMissCount:misses.length,
@@ -1578,10 +1615,10 @@ async function saveClickProgress(completedStatus=false){
   });
 }
 
-function showClickFeedback(){
+function showClickFeedback(isError=false){
   const feedback=document.createElement("div");
-  feedback.className="click-feedback";
-  feedback.textContent="答對了！";
+  feedback.className="click-feedback"+(isError?" error":"");
+  feedback.textContent=isError?"點錯了！":"答對了！";
   $("clickStage").appendChild(feedback);
   setTimeout(()=>feedback.remove(),700);
 }
@@ -1603,43 +1640,64 @@ async function finishClickMode(){
   $("incorrectSummary").classList.add("hidden");
 }
 
-async function recordClickTrial(result,reactionMs=0){
+async function finishClickRound(timedOut=false){
   if(!clickTrialActive)return;
   clickTrialActive=false;
   if(clickTrialTimer)clearTimeout(clickTrialTimer);
   clickTrialTimer=null;
-  const label=clickSequence[clickTrialIndex];
-  clickRecords.push({
-    sequence:clickTrialIndex+1,
-    targetClass:label,
-    result,
-    reactionMs:result==="correct"?Math.max(1,Math.round(reactionMs)):0,
-    recordedAt:new Date().toISOString()
-  });
+  if(timedOut){
+    clickRecords.push({
+      sequence:clickRecords.length+1,
+      targetClass:clickCurrentTarget,
+      result:"timeout",
+      reactionMs:0,
+      recordedAt:new Date().toISOString()
+    });
+  }
   clickTrialIndex++;
   updateClickProgress();
-  $("clickTargetButton").classList.add("hidden");
+  $("clickTargets").innerHTML="";
+  $("clickPrompt").classList.add("hidden");
   $("clickCountdown").classList.add("hidden");
   try{await saveClickProgress(false)}catch(e){console.error("點選紀錄寫入失敗",e)}
   if(clickTrialIndex>=clickSequence.length){
     await finishClickMode();
     return;
   }
-  $("clickWaiting").textContent=result==="correct"?"很好！準備下一個物品…":"時間到，準備下一個物品…";
+  $("clickWaiting").textContent=timedOut?"時間到，準備下一個物品…":"很好！準備下一個物品…";
   $("clickWaiting").classList.remove("hidden");
   clickNextTimer=setTimeout(showNextClickTrial,850);
 }
 
-function showNextClickTrial(){
-  clearClickTimers();
+function showNextClickTrial(resumeRound=false){
+  clearClickTimers(resumeRound);
   if(finished||clickTrialIndex>=clickSequence.length){finishClickMode();return}
-  const label=clickSequence[clickTrialIndex];
+  if(!resumeRound||!clickCurrentTarget||!clickCurrentChoices.length){
+    clickCurrentTarget=clickSequence[clickTrialIndex];
+    const distractors=shuffleClickSequence(task.targetClasses.filter(label=>label!==clickCurrentTarget))
+      .slice(0,Math.max(0,task.clickSimultaneousCount-1));
+    clickCurrentChoices=shuffleClickSequence([clickCurrentTarget,...distractors]);
+  }
   $("clickWaiting").classList.add("hidden");
-  $("clickTargetName").textContent=label;
-  $("clickTargetImage").src=task.classThumbnails[label];
-  const button=$("clickTargetButton");
-  button.classList.remove("hidden");
-  requestAnimationFrame(()=>positionClickTarget());
+  $("clickPromptImage").src=task.classThumbnails[clickCurrentTarget];
+  $("clickPrompt").classList.remove("hidden");
+  const targets=$("clickTargets");
+  targets.innerHTML="";
+  clickCurrentChoices.forEach(label=>{
+    const button=document.createElement("button");
+    button.className="click-target";
+    button.type="button";
+    button.dataset.label=label;
+    const image=document.createElement("img");
+    image.src=task.classThumbnails[label];
+    image.alt=label+"縮圖";
+    image.decoding="async";
+    const name=document.createElement("span");
+    name.textContent=label;
+    button.append(image,name);
+    targets.appendChild(button);
+  });
+  requestAnimationFrame(()=>positionClickTargets());
   const durationMs=task.clickDisplaySeconds*1000;
   const fill=$("clickCountdownFill");
   $("clickCountdown").classList.remove("hidden");
@@ -1651,7 +1709,7 @@ function showNextClickTrial(){
   clickTrialActive=true;
   clickTrialTimer=setTimeout(()=>{
     playTaskErrorSound();
-    recordClickTrial("timeout",0);
+    finishClickRound(true);
   },durationMs);
 }
 
@@ -1673,6 +1731,7 @@ async function startClickMode(){
       incorrectAudioClasses:[],
       clickDisplaySeconds:task.clickDisplaySeconds,
       clickRepeatCount:task.clickRepeatCount,
+      clickSimultaneousCount:task.clickSimultaneousCount,
       clickCorrectCount:0,
       clickMissCount:0,
       clickAverageReactionMs:0,
@@ -1701,14 +1760,30 @@ async function startClickMode(){
   }
 }
 
-$("clickTargetButton").addEventListener("click",()=>{
+$("clickTargets").addEventListener("click",event=>{
+  const button=event.target.closest(".click-target");
+  if(!button)return;
   if(!clickTrialActive)return;
-  const label=clickSequence[clickTrialIndex];
+  const label=button.dataset.label;
+  if(label!==clickCurrentTarget){
+    playTaskErrorSound();
+    showClickFeedback(true);
+    return;
+  }
   const reactionMs=performance.now()-clickShownAt;
+  clickRecords.push({
+    sequence:clickRecords.length+1,
+    targetClass:label,
+    result:"correct",
+    reactionMs:Math.max(1,Math.round(reactionMs)),
+    recordedAt:new Date().toISOString()
+  });
+  button.remove();
+  updateClickProgress();
   speakClickLabel(label);
   playTaskSuccessSound();
   showClickFeedback();
-  recordClickTrial("correct",reactionMs);
+  finishClickRound(false);
 });
 
 async function loadSelectedModel(){
@@ -2159,7 +2234,7 @@ async function startPose(){
   }
 
   if(poseRaf){
-    cancelAnimationFrame(poseRaf);
+    clearTimeout(poseRaf);
     poseRaf=null;
   }
 
@@ -2211,7 +2286,7 @@ async function poseLoop(){
     drawPose(pose);
     processPredictions(predictions,canvas);
 
-    const top=[...predictions].sort((a,b)=>b.probability-a.probability)[0];
+    const top=predictions.reduce((best,item)=>!best||item.probability>best.probability?item:best,null);
 
     if(top){
       const overlayText=
@@ -2840,10 +2915,10 @@ function endTask(){
   window.location.replace("about:blank");
 }
 
-function stopAll(){
+function stopAll(preserveClickRound=false){
   taskSuccessAnimating=false;
   photoRecognizing=false;
-  clearClickTimers();
+  clearClickTimers(preserveClickRound);
   if($("captureBtn"))$("captureBtn").disabled=false;
   stopImage();
   if(poseRaf)clearTimeout(poseRaf);
@@ -2900,7 +2975,7 @@ document.addEventListener("visibilitychange",async()=>{
   if(document.hidden){
     if(!finished&&task&&!paused){
       pageAutoPaused=true;
-      stopAll();
+      stopAll(isClickMode());
       if(isClickMode()&&$("clickWaiting")){
         $("clickWaiting").textContent="測驗已暫停，回到頁面後繼續。";
         $("clickWaiting").classList.remove("hidden");
@@ -2914,7 +2989,7 @@ document.addEventListener("visibilitychange",async()=>{
 
     try{
       if(isClickMode()){
-        clickNextTimer=setTimeout(showNextClickTrial,500);
+        clickNextTimer=setTimeout(()=>showNextClickTrial(true),500);
       }else{
         await startSelectedProject();
       }
