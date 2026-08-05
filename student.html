@@ -162,6 +162,15 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
 .incorrect-summary{margin-top:12px;padding:12px 14px;border:1px solid #fecaca;border-radius:14px;background:#fef2f2;color:#991b1b;text-align:left;line-height:1.7}
 .incorrect-summary.no-error{border-color:#bbf7d0;background:#f0fdf4;color:#166534;text-align:center}
 .incorrect-summary-title{font-weight:900}
+.click-task{padding:12px;background:linear-gradient(145deg,#fff7ed,#fef3c7);border:2px solid #fbbf24}
+.click-task-head{padding:4px 4px 10px}.click-task-head h2{margin:0 0 5px;color:#92400e}.click-task-meta{display:flex;justify-content:space-between;gap:10px;color:#78350f;font-weight:800}
+.click-stage{position:relative;width:100%;height:clamp(420px,68svh,720px);overflow:hidden;border-radius:18px;background:radial-gradient(circle at top,#fffbeb,#fde68a);border:2px solid #f59e0b;touch-action:manipulation}
+.click-target{position:absolute;width:clamp(118px,31vw,176px);min-height:0;padding:10px;border:3px solid #fff;border-radius:20px;background:#fff;color:#92400e;box-shadow:0 12px 30px rgba(146,64,14,.25);display:flex;flex-direction:column;align-items:center;gap:7px;transform:scale(1);animation:clickTargetPop .22s ease;user-select:none;-webkit-user-select:none}
+.click-target img{width:clamp(88px,24vw,138px);height:clamp(88px,24vw,138px);object-fit:cover;border-radius:14px}.click-target span{font-size:clamp(18px,5vw,25px);font-weight:1000;line-height:1.2;text-align:center}.click-target:active{transform:scale(.94)}
+.click-waiting{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:#92400e;font-size:22px;font-weight:900;padding:28px}.click-countdown{position:absolute;left:12px;right:12px;bottom:10px;height:9px;border-radius:999px;background:rgba(255,255,255,.75);overflow:hidden}.click-countdown>div{height:100%;width:100%;background:#f97316;transform-origin:left center}
+.click-feedback{position:absolute;inset:0;display:grid;place-items:center;background:rgba(22,163,74,.88);color:#fff;font-size:clamp(42px,13vw,84px);font-weight:1000;z-index:4;pointer-events:none;animation:clickFeedback .65s ease forwards}
+@keyframes clickTargetPop{from{transform:scale(.72);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes clickFeedback{0%{opacity:0}20%,70%{opacity:1}100%{opacity:0}}
 @keyframes pop{0%{transform:scale(.75);opacity:0}100%{transform:scale(1);opacity:1}}
 .teaching-result{
   margin-top:14px;
@@ -508,6 +517,21 @@ html,body{
     <div id="itemList"></div>
   </section>
 
+  <section id="clickTaskCard" class="card click-task hidden">
+    <div class="click-task-head">
+      <h2 id="clickTaskTitle">隨機點選測驗</h2>
+      <div class="click-task-meta"><span id="clickStudentNumber"></span><span id="clickProgressText">0 / 0</span></div>
+    </div>
+    <div id="clickStage" class="click-stage">
+      <div id="clickWaiting" class="click-waiting">準備開始…</div>
+      <button id="clickTargetButton" class="click-target hidden" type="button">
+        <img id="clickTargetImage" alt="物品縮圖" decoding="async">
+        <span id="clickTargetName"></span>
+      </button>
+      <div id="clickCountdown" class="click-countdown hidden"><div id="clickCountdownFill"></div></div>
+    </div>
+  </section>
+
   <section id="completeCard" class="card hidden complete">
     <div id="completeIcon" class="icon">🎉</div>
     <h2 id="completeTitle">任務完成！</h2>
@@ -570,6 +594,7 @@ let currentImagePassed=false,currentAudioPassed=true,currentImageConfidence=0,cu
 let currentImageEvidenceDataURL="",currentCompletionPending=false;
 let localIncorrectClasses=[],localIncorrectAudioClasses=[];
 let exitInProgress=false;
+let clickSequence=[],clickTrialIndex=0,clickRecords=[],clickTrialTimer=null,clickNextTimer=null,clickShownAt=0,clickTrialActive=false;
 
 const $=id=>document.getElementById(id);
 
@@ -731,8 +756,21 @@ function isGameMode(){
   return !!(task&&task.taskMode==="game");
 }
 
+function isClickMode(){
+  return !!(task&&task.taskMode==="click");
+}
+
+function isEvaluationMode(){
+  return !!(task&&!isTeachingMode()&&!isAdvancedMode()&&!isGameMode()&&!isClickMode());
+}
+
+function isDescriptionPromptMode(){
+  return !!(isEvaluationMode()&&task.promptMode==="description");
+}
+
 function shouldShowTargetThumbnail(){
-  return !!(task&&(isGameMode()||(!isTeachingMode()&&!isAdvancedMode())));
+  if(!task||!(isGameMode()||isEvaluationMode()))return false;
+  return task.showThumbnailHint===undefined?true:!!task.showThumbnailHint;
 }
 
 function updateThumbnailElement(id,label,defaultAlt){
@@ -761,9 +799,10 @@ function updateCurrentTargetThumbnail(){
 }
 
 function updateAdvancedTargetThumbnail(){
+  const mayShow=isAdvancedMode()||(isDescriptionPromptMode()&&shouldShowTargetThumbnail());
   updateThumbnailElement(
     "advancedTargetThumbnail",
-    isAdvancedMode()?currentTarget():"",
+    mayShow?currentTarget():"",
     "進階評量題目縮圖"
   );
 }
@@ -915,7 +954,7 @@ function speakAdvancedPrompt(){
 }
 
 function prepareAdvancedPrompt(autoSpeak=true){
-  if(!isAdvancedMode()||currentIndex>=task.targetClasses.length)return;
+  if(!(isAdvancedMode()||isDescriptionPromptMode())||currentIndex>=task.targetClasses.length)return;
 
   const target=task.targetClasses[currentIndex];
   currentAdvancedDescription=String(task.classDescriptions?.[target]||"").trim();
@@ -927,6 +966,15 @@ function prepareAdvancedPrompt(autoSpeak=true){
 
   if(autoSpeak&&currentAdvancedDescription){
     setTimeout(()=>speakAdvancedPrompt(),250);
+  }
+}
+
+function prepareCurrentQuestionPrompt(autoSpeak=true){
+  if(currentIndex>=task.targetClasses.length)return;
+  if(isAdvancedMode()||isDescriptionPromptMode()){
+    prepareAdvancedPrompt(autoSpeak);
+  }else if(isEvaluationMode()&&autoSpeak){
+    setTimeout(()=>speakEvaluationTarget(),250);
   }
 }
 
@@ -1035,14 +1083,14 @@ async function loadTask(){
     if(!snap.exists)throw new Error("找不到此任務");
     task={id:snap.id,...snap.data()};
     if(task.status!=="active")throw new Error("任務目前未開放");
+    task.taskMode=task.taskMode||task.orderMode||"task";
     task.recognitionEngine=task.recognitionEngine==="coco-ssd"?"coco-ssd":"teachable-machine";
-    if(task.recognitionEngine==="teachable-machine"&&!task.modelURL)throw new Error("任務沒有模型網址");
+    if(!isClickMode()&&task.recognitionEngine==="teachable-machine"&&!task.modelURL)throw new Error("任務沒有模型網址");
     if(!Array.isArray(task.targetClasses)||!task.targetClasses.length)throw new Error("任務沒有指定類別");
 
-    if(task.recognitionEngine==="teachable-machine")task.modelURL=norm(task.modelURL);
+    if(!isClickMode()&&task.recognitionEngine==="teachable-machine")task.modelURL=norm(task.modelURL);
     task.threshold=Number(task.threshold||0.85);
     task.requiredConsecutiveFrames=Number(task.requiredConsecutiveFrames||10);
-    task.taskMode=task.taskMode||task.orderMode||"task";
     gameTargetsShuffled=false;
     task.classDescriptions=task.classDescriptions&&typeof task.classDescriptions==="object"
       ? task.classDescriptions
@@ -1053,11 +1101,20 @@ async function loadTask(){
     task.audioRequiredClasses=Array.isArray(task.audioRequiredClasses)
       ? task.audioRequiredClasses.filter(name=>task.targetClasses.includes(name))
       : [];
+    task.promptMode=task.promptMode==="description"?"description":"name";
+    task.showThumbnailHint=task.showThumbnailHint===undefined?true:!!task.showThumbnailHint;
     task.speechRecognitionMode="browser";
     task.speechRecognitionLanguage="zh-TW";
+    task.clickDisplaySeconds=Math.min(8,Math.max(3,Number(task.clickDisplaySeconds||5)));
+    task.clickRepeatCount=Math.min(5,Math.max(3,Number(task.clickRepeatCount||3)));
     stopOptionalAudioRecognition(false);
 
-    if(task.recognitionEngine==="coco-ssd"){
+    if(isClickMode()){
+      projectType="click";
+      metadata={labels:[...task.targetClasses]};
+      const missingThumbnails=task.targetClasses.filter(name=>!/^data:image\/jpeg;base64,/i.test(String(task.classThumbnails?.[name]||"")));
+      if(missingThumbnails.length)throw new Error("隨機點選測驗缺少物品縮圖："+missingThumbnails.join("、"));
+    }else if(task.recognitionEngine==="coco-ssd"){
       projectType="image";
       metadata={labels:[...task.targetClasses]};
     }else{
@@ -1066,7 +1123,7 @@ async function loadTask(){
       metadata=detected.metadata;
     }
 
-    const typeName=task.recognitionEngine==="coco-ssd"
+    const typeName=isClickMode()?"隨機點選測驗":task.recognitionEngine==="coco-ssd"
       ?"COCO-SSD 開放辨識"
       :{image:"圖片專案",audio:"音訊專案",pose:"姿勢專案"}[projectType];
     $("taskTitle").textContent=task.title||"未命名任務";
@@ -1074,13 +1131,15 @@ async function loadTask(){
     const audioNote=effectiveAudioRequiredClasses.length
       ? `｜${effectiveAudioRequiredClasses.length}項需要語音辨識`
       : "";
-    $("taskMeta").textContent=task.taskMode==="teaching"
+    $("taskMeta").textContent=isClickMode()
+      ? `隨機點選測驗｜每個物品 ${task.clickRepeatCount} 次｜每次最多 ${task.clickDisplaySeconds} 秒`
+      : task.taskMode==="teaching"
       ? `專案類型：${typeName}｜教學模式：拍照後顯示名稱與說明`
       : task.taskMode==="advanced"
         ? `專案類型：${typeName}｜進階評量：依語音說明找出正確物品${audioNote}`
         : task.taskMode==="game"
           ? `多人尋物遊戲｜教師開始後，每位學生會收到不同的隨機物品順序${audioNote}`
-          : `專案類型：${typeName}｜順序：${task.targetClasses.join(" → ")}`;
+          : `專案類型：${typeName}｜${task.promptMode==="description"?"說明文字語音出題":"物品名稱語音出題"}${audioNote}｜順序：${task.targetClasses.join(" → ")}`;
     if(task.taskMode==="teaching"){
       $("joinCard").classList.add("hidden");
       setStatus("loadStatus","教學模式載入成功，正在開啟鏡頭…","success");
@@ -1095,7 +1154,7 @@ async function loadTask(){
       });
       $("selectedNumberText").textContent="尚未選擇編號";
       $("startBtn").disabled=true;
-      $("startBtn").textContent=isGameMode()?"送出加入申請":"開始任務";
+      $("startBtn").textContent=isGameMode()?"送出加入申請":isClickMode()?"開始點選測驗":"開始任務";
 
       $("joinCard").classList.remove("hidden");
       if(isGameMode()){
@@ -1329,6 +1388,11 @@ async function startTask(){
     return;
   }
 
+  if(isClickMode()){
+    await startClickMode();
+    return;
+  }
+
   if(isGameMode()&&!["approved","playing"].includes(gamePlayerStatus)){
     setStatus("gameWaitingStatus","尚未取得教師同意，請繼續等待。","error");
     return;
@@ -1407,7 +1471,7 @@ async function startTask(){
       $("holdSection").classList.add("hidden");
       $("itemList").classList.add("hidden");
 
-      if(isAdvancedMode()){
+      if(isAdvancedMode()||isDescriptionPromptMode()){
         $("normalTargetCard").classList.add("hidden");
         $("advancedPromptCard").classList.remove("hidden");
       }else{
@@ -1416,6 +1480,7 @@ async function startTask(){
       }
 
       renderTask();
+      prepareCurrentQuestionPrompt(true);
     }
 
     $("loadCard").classList.add("hidden");
@@ -1436,6 +1501,215 @@ async function startTask(){
     $("startBtn").disabled=false;
   }
 }
+
+function shuffleClickSequence(items){
+  const values=[...items];
+  for(let i=values.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [values[i],values[j]]=[values[j],values[i]];
+  }
+  if(values.length>2){
+    for(let i=1;i<values.length;i++){
+      if(values[i]===values[i-1]){
+        const swapIndex=values.findIndex((value,index)=>index>i&&value!==values[i]);
+        if(swapIndex>i)[values[i],values[swapIndex]]=[values[swapIndex],values[i]];
+      }
+    }
+  }
+  return values;
+}
+
+function buildClickSequence(){
+  const repeated=[];
+  for(let repeat=0;repeat<task.clickRepeatCount;repeat++){
+    repeated.push(...task.targetClasses);
+  }
+  return shuffleClickSequence(repeated);
+}
+
+function clearClickTimers(){
+  if(clickTrialTimer)clearTimeout(clickTrialTimer);
+  if(clickNextTimer)clearTimeout(clickNextTimer);
+  clickTrialTimer=null;clickNextTimer=null;clickTrialActive=false;
+  const button=$("clickTargetButton");
+  const countdown=$("clickCountdown");
+  if(button)button.classList.add("hidden");
+  if(countdown)countdown.classList.add("hidden");
+}
+
+function speakClickLabel(label){
+  if(!label||!("speechSynthesis" in window))return;
+  window.speechSynthesis.cancel();
+  const utterance=new SpeechSynthesisUtterance(label);
+  utterance.lang="zh-TW";utterance.rate=.9;utterance.pitch=1;utterance.volume=1;
+  window.speechSynthesis.speak(utterance);
+}
+
+function updateClickProgress(){
+  $("clickProgressText").textContent=`${clickTrialIndex} / ${clickSequence.length}`;
+}
+
+function positionClickTarget(){
+  const stage=$("clickStage"),button=$("clickTargetButton");
+  const padding=10;
+  const maxLeft=Math.max(padding,stage.clientWidth-button.offsetWidth-padding);
+  const maxTop=Math.max(padding,stage.clientHeight-button.offsetHeight-padding-18);
+  button.style.left=(padding+Math.random()*Math.max(0,maxLeft-padding))+"px";
+  button.style.top=(padding+Math.random()*Math.max(0,maxTop-padding))+"px";
+}
+
+async function saveClickProgress(completedStatus=false){
+  if(!resultRef)return;
+  const correct=clickRecords.filter(record=>record.result==="correct");
+  const misses=clickRecords.filter(record=>record.result==="timeout");
+  const averageReactionMs=correct.length
+    ? Math.round(correct.reduce((sum,record)=>sum+Number(record.reactionMs||0),0)/correct.length)
+    : 0;
+  const progress=Math.round(clickTrialIndex/Math.max(1,clickSequence.length)*100);
+  await resultRef.update({
+    clickCorrectCount:correct.length,
+    clickMissCount:misses.length,
+    clickAverageReactionMs:averageReactionMs,
+    progress,
+    attempts:clickRecords.length,
+    status:completedStatus?"completed":"inProgress",
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+    ...(completedStatus?{completedAt:firebase.firestore.FieldValue.serverTimestamp()}:{})
+  });
+}
+
+function showClickFeedback(){
+  const feedback=document.createElement("div");
+  feedback.className="click-feedback";
+  feedback.textContent="答對了！";
+  $("clickStage").appendChild(feedback);
+  setTimeout(()=>feedback.remove(),700);
+}
+
+async function finishClickMode(){
+  clearClickTimers();
+  finished=true;
+  try{await saveClickProgress(true)}catch(e){console.error("點選紀錄完成寫入失敗",e)}
+  $("clickTaskCard").classList.add("hidden");
+  $("completeCard").classList.remove("hidden");
+  $("completeActions").classList.remove("hidden");
+  $("completeIcon").textContent="🎉";
+  $("completeTitle").textContent="點選測驗完成！";
+  $("rankDisplay").classList.add("hidden");
+  const correct=clickRecords.filter(record=>record.result==="correct");
+  const misses=clickRecords.filter(record=>record.result==="timeout");
+  const average=correct.length?Math.round(correct.reduce((sum,record)=>sum+record.reactionMs,0)/correct.length):0;
+  $("completeMessage").textContent=`答對 ${correct.length} 次，未在時間內點選 ${misses.length} 次，平均點選時間 ${average?average+" 毫秒":"—"}；紀錄已回傳教師端。`;
+  $("incorrectSummary").classList.add("hidden");
+}
+
+async function recordClickTrial(result,reactionMs=0){
+  if(!clickTrialActive)return;
+  clickTrialActive=false;
+  if(clickTrialTimer)clearTimeout(clickTrialTimer);
+  clickTrialTimer=null;
+  const label=clickSequence[clickTrialIndex];
+  clickRecords.push({
+    sequence:clickTrialIndex+1,
+    targetClass:label,
+    result,
+    reactionMs:result==="correct"?Math.max(1,Math.round(reactionMs)):0,
+    recordedAt:new Date().toISOString()
+  });
+  clickTrialIndex++;
+  updateClickProgress();
+  $("clickTargetButton").classList.add("hidden");
+  $("clickCountdown").classList.add("hidden");
+  try{await saveClickProgress(false)}catch(e){console.error("點選紀錄寫入失敗",e)}
+  if(clickTrialIndex>=clickSequence.length){
+    await finishClickMode();
+    return;
+  }
+  $("clickWaiting").textContent=result==="correct"?"很好！準備下一個物品…":"時間到，準備下一個物品…";
+  $("clickWaiting").classList.remove("hidden");
+  clickNextTimer=setTimeout(showNextClickTrial,850);
+}
+
+function showNextClickTrial(){
+  clearClickTimers();
+  if(finished||clickTrialIndex>=clickSequence.length){finishClickMode();return}
+  const label=clickSequence[clickTrialIndex];
+  $("clickWaiting").classList.add("hidden");
+  $("clickTargetName").textContent=label;
+  $("clickTargetImage").src=task.classThumbnails[label];
+  const button=$("clickTargetButton");
+  button.classList.remove("hidden");
+  requestAnimationFrame(()=>positionClickTarget());
+  const durationMs=task.clickDisplaySeconds*1000;
+  const fill=$("clickCountdownFill");
+  $("clickCountdown").classList.remove("hidden");
+  fill.style.transition="none";fill.style.width="100%";
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    fill.style.transition=`width ${durationMs}ms linear`;fill.style.width="0%";
+  }));
+  clickShownAt=performance.now();
+  clickTrialActive=true;
+  clickTrialTimer=setTimeout(()=>{
+    playTaskErrorSound();
+    recordClickTrial("timeout",0);
+  },durationMs);
+}
+
+async function startClickMode(){
+  if(!selectedStudentNumber)return setStatus("joinStatus","請先選擇學生編號。","error");
+  $("startBtn").disabled=true;
+  setStatus("joinStatus","正在建立點選測驗紀錄…");
+  try{
+    const currentUser=await ensureAuth();
+    resultRef=await db.collection("taskResults").add({
+      taskId,
+      teacherId:task.teacherId||"",
+      studentUid:currentUser.uid,
+      studentName:"學生 "+selectedStudentNumber,
+      studentCode:selectedStudentNumber,
+      projectType:"click",
+      targetClasses:[...task.targetClasses],
+      incorrectClasses:[],
+      incorrectAudioClasses:[],
+      clickDisplaySeconds:task.clickDisplaySeconds,
+      clickRepeatCount:task.clickRepeatCount,
+      clickCorrectCount:0,
+      clickMissCount:0,
+      clickAverageReactionMs:0,
+      progress:0,
+      attempts:0,
+      status:"inProgress",
+      taskMode:"click",
+      startedAt:firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    clickSequence=buildClickSequence();clickTrialIndex=0;clickRecords=[];finished=false;paused=false;
+    $("clickTaskTitle").textContent=task.title||"隨機點選測驗";
+    $("clickStudentNumber").textContent="學生編號 "+selectedStudentNumber;
+    updateClickProgress();
+    $("loadCard").classList.add("hidden");
+    $("joinCard").classList.add("hidden");
+    $("taskCard").classList.add("hidden");
+    $("completeCard").classList.add("hidden");
+    $("clickTaskCard").classList.remove("hidden");
+    $("clickWaiting").textContent="準備開始…";
+    $("clickWaiting").classList.remove("hidden");
+    clickNextTimer=setTimeout(showNextClickTrial,900);
+  }catch(e){
+    setStatus("joinStatus","開始點選測驗失敗：\n"+(e.message||e),"error");
+    $("startBtn").disabled=false;
+  }
+}
+
+$("clickTargetButton").addEventListener("click",()=>{
+  if(!clickTrialActive)return;
+  const label=clickSequence[clickTrialIndex];
+  const reactionMs=performance.now()-clickShownAt;
+  speakClickLabel(label);
+  playTaskSuccessSound();
+  showClickFeedback();
+  recordClickTrial("correct",reactionMs);
+});
 
 async function loadSelectedModel(){
   if(task.recognitionEngine==="coco-ssd"){
@@ -1670,15 +1944,12 @@ async function startImage(){
     lastImageOverlayText=$("imageOverlay").textContent;
     setStatus(
       "recognitionStatus",
-      isAdvancedMode()
+      (isAdvancedMode()||isDescriptionPromptMode())
         ?"相機已啟動，請聽語音說明後拍照辨識。"
         :"相機已啟動，請按「拍照辨識」。",
       "success"
     );
 
-    if(isAdvancedMode()){
-      prepareAdvancedPrompt(true);
-    }
   }
 }
 async function captureAndRecognize(){
@@ -2446,12 +2717,12 @@ async function completeCurrent(confidence,evidenceCanvas,evidenceDataURL="",audi
     if(isGameMode())await claimGameRank();
     finishTask();
   }else{
-    if(isAdvancedMode()){
+    if(isAdvancedMode()||isDescriptionPromptMode()){
       setStatus("recognitionStatus","答對了，請聽下一題語音說明。","success");
-      prepareAdvancedPrompt(true);
     }else{
       setStatus("recognitionStatus",`已完成「${item}」，請進行下一項。`,"success");
     }
+    prepareCurrentQuestionPrompt(true);
   }
 }
 
@@ -2459,7 +2730,7 @@ function renderTask(){
   const total=task.targetClasses.length,done=completed.length;
   $("progressText").textContent=`${done} / ${total}`;
   $("progressFill").style.width=Math.round(done/total*100)+"%";
-  $("currentTarget").textContent=isAdvancedMode()
+  $("currentTarget").textContent=(isAdvancedMode()||isDescriptionPromptMode())
     ? (currentIndex<total?"請聽語音題目":"全部完成")
     : (currentIndex<total?task.targetClasses[currentIndex]:"全部完成");
   updateCurrentTargetThumbnail();
@@ -2468,6 +2739,7 @@ function renderTask(){
   $("speakEvaluationTargetBtn").disabled=
     isTeachingMode()||
     isAdvancedMode()||
+    isDescriptionPromptMode()||
     currentIndex>=total;
   $("itemList").innerHTML=task.targetClasses.map((x,i)=>`
     <div class="item ${i<done?"done":""}">
@@ -2571,6 +2843,7 @@ function endTask(){
 function stopAll(){
   taskSuccessAnimating=false;
   photoRecognizing=false;
+  clearClickTimers();
   if($("captureBtn"))$("captureBtn").disabled=false;
   stopImage();
   if(poseRaf)clearTimeout(poseRaf);
@@ -2628,6 +2901,10 @@ document.addEventListener("visibilitychange",async()=>{
     if(!finished&&task&&!paused){
       pageAutoPaused=true;
       stopAll();
+      if(isClickMode()&&$("clickWaiting")){
+        $("clickWaiting").textContent="測驗已暫停，回到頁面後繼續。";
+        $("clickWaiting").classList.remove("hidden");
+      }
     }
     return;
   }
@@ -2636,7 +2913,11 @@ document.addEventListener("visibilitychange",async()=>{
     pageAutoPaused=false;
 
     try{
-      await startSelectedProject();
+      if(isClickMode()){
+        clickNextTimer=setTimeout(showNextClickTrial,500);
+      }else{
+        await startSelectedProject();
+      }
     }catch(e){
       setStatus(
         "recognitionStatus",
