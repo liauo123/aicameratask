@@ -99,7 +99,7 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
     </div>
     <div class="modeTabs" role="tablist" aria-label="選擇任務模式">
       <button class="modeTab clickTab" type="button" data-mode="click" role="tab" aria-selected="true">簡易點選練習模式</button>
-      <button class="modeTab teachingTab" type="button" data-mode="teaching" role="tab" aria-selected="false">教學模式</button>
+      <button class="modeTab teachingTab" type="button" data-mode="teaching" role="tab" aria-selected="false">實際物品辨識教學模式</button>
       <button class="modeTab evaluationTab" type="button" data-mode="evaluation" role="tab" aria-selected="false">評量模式</button>
       <button class="modeTab gameTab" type="button" data-mode="game" role="tab" aria-selected="false">多人遊戲模式</button>
     </div>
@@ -124,7 +124,7 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
 const firebaseConfig={apiKey:"AIzaSyBbpIezLbQd2-e-3Z4pSdBLIFc_UlTPUy8",authDomain:"project-6540500202923576846.firebaseapp.com",projectId:"project-6540500202923576846",storageBucket:"project-6540500202923576846.firebasestorage.app",messagingSenderId:"516602165604",appId:"1:516602165604:web:b60f69ee56a4d49c416271"};
 firebase.initializeApp(firebaseConfig);
 const auth=firebase.auth(),db=firebase.firestore();
-let user=null,unsub=null,playerUnsubs=[],activeMode="click";
+let user=null,unsub=null,playerUnsubs=[],activeMode="click",renderGeneration=0;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function status(id,msg,type=""){const e=$(id);e.textContent=msg;e.className="status "+type}
@@ -137,6 +137,7 @@ auth.onAuthStateChanged(u=>{
     $("userArea").classList.remove("hidden");
     listen();
   }else{
+    renderGeneration++;
     $("authCard").classList.remove("hidden");
     $("taskCard").classList.add("hidden");
     $("userArea").classList.add("hidden");
@@ -195,20 +196,22 @@ async function refreshTasks(){
 }
 $("refreshBtn").onclick=refreshTasks;
 
+const modeTabs=[...document.querySelectorAll(".modeTab")];
 function applyModeFilter(){
-  document.querySelectorAll(".modeTab").forEach(btn=>btn.setAttribute("aria-selected",String(btn.dataset.mode===activeMode)));
+  modeTabs.forEach(btn=>btn.setAttribute("aria-selected",String(btn.dataset.mode===activeMode)));
   const sections=[...document.querySelectorAll("#taskList .modeSection")];
   sections.forEach(section=>section.classList.toggle("hidden",section.dataset.mode!==activeMode));
   const oldEmpty=$("modeEmpty");if(oldEmpty)oldEmpty.remove();
   if(!sections.some(section=>section.dataset.mode===activeMode)){
-    const names={click:"簡易點選練習模式",teaching:"教學模式",evaluation:"評量模式",game:"多人遊戲模式"};
+    const names={click:"簡易點選練習模式",teaching:"實際物品辨識教學模式",evaluation:"評量模式",game:"多人遊戲模式"};
     const empty=document.createElement("div");empty.id="modeEmpty";empty.className="status";empty.textContent="目前沒有「"+names[activeMode]+"」資料。";
     $("taskList").appendChild(empty);
   }
 }
-document.querySelectorAll(".modeTab").forEach(btn=>btn.addEventListener("click",()=>{activeMode=btn.dataset.mode;applyModeFilter()}));
+modeTabs.forEach(btn=>btn.addEventListener("click",()=>{activeMode=btn.dataset.mode;applyModeFilter()}));
 
 async function render(docs){
+  const generation=++renderGeneration;
   const getTime=doc=>{
     const value=doc.data().createdAt;
     if(value&&typeof value.toMillis==="function")return value.toMillis();
@@ -240,9 +243,9 @@ async function render(docs){
     return `<div class="task teachingTask">
       <div class="top">
         <div>
-          <span class="modeBadge">教學模式</span>
+          <span class="modeBadge">實際物品辨識教學模式</span>
           <div class="titleLine">
-            <div class="title">${esc(t.title||"未命名教學模式")}</div>
+            <div class="title">${esc(t.title||"未命名實際物品辨識教學模式")}</div>
             <button class="s restoreTeacherBtn" type="button" onclick="restoreTeacherPlatform('${doc.id}')">回復教師平台</button>
           </div>
           ${recognitionInfo}
@@ -250,7 +253,7 @@ async function render(docs){
         </div>
       </div>
       <div class="row" style="margin-top:12px">
-        <button class="s" onclick="showQR('${doc.id}','${esc(t.title||"教學模式")}')">重新產生 QR</button>
+        <button class="s" onclick="showQR('${doc.id}','${esc(t.title||"實際物品辨識教學模式")}')">重新產生 QR</button>
         <button class="d" onclick="delTask('${doc.id}')">完整刪除</button>
       </div>
     </div>`;
@@ -413,27 +416,21 @@ async function render(docs){
   const sections=[];
 
   if(teachingDocs.length){
-    sections.push('<section class="modeSection teaching" data-mode="teaching"><h2 class="modeTitle">教學模式資訊</h2>');
+    sections.push('<section class="modeSection teaching" data-mode="teaching"><h2 class="modeTitle">實際物品辨識教學模式資訊</h2>');
     sections.push(teachingDocs.map(renderTeachingTask).join(""));
     sections.push('</section>');
   }
 
   if(evaluationDocs.length){
     sections.push('<section class="modeSection evaluation" data-mode="evaluation"><h2 class="modeTitle">評量模式資訊</h2>');
-    const evaluationHtml=[];
-    for(const doc of evaluationDocs){
-      evaluationHtml.push(await renderEvaluationTask(doc));
-    }
+    const evaluationHtml=await Promise.all(evaluationDocs.map(renderEvaluationTask));
     sections.push(evaluationHtml.join(""));
     sections.push('</section>');
   }
 
   if(advancedDocs.length){
     sections.push('<section class="modeSection advanced" data-mode="evaluation"><h2 class="modeTitle">進階評量模式資訊</h2>');
-    const advancedHtml=[];
-    for(const doc of advancedDocs){
-      advancedHtml.push(await renderEvaluationTask(doc));
-    }
+    const advancedHtml=await Promise.all(advancedDocs.map(renderEvaluationTask));
     sections.push(advancedHtml.join(""));
     sections.push('</section>');
   }
@@ -446,12 +443,12 @@ async function render(docs){
 
   if(clickDocs.length){
     sections.push('<section class="modeSection click" data-mode="click"><h2 class="modeTitle">簡易點選練習模式</h2>');
-    const clickHtml=[];
-    for(const doc of clickDocs)clickHtml.push(await renderClickTask(doc));
+    const clickHtml=await Promise.all(clickDocs.map(renderClickTask));
     sections.push(clickHtml.join(""));
     sections.push('</section>');
   }
 
+  if(generation!==renderGeneration)return;
   playerUnsubs.forEach(fn=>fn());playerUnsubs=[];
   $("taskList").innerHTML=sections.join("");
   applyModeFilter();
