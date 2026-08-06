@@ -25,7 +25,9 @@
 :root{
   --primary:#2563eb;--primary-dark:#1d4ed8;--success:#16a34a;
   --danger:#dc2626;--bg:#f3f6fb;--card:#fff;--text:#172033;
-  --muted:#64748b;--border:#dce4f0;--radius:20px
+  --muted:#64748b;--border:#dce4f0;--radius:20px;
+  --mode-soft:#eff6ff;--mode-soft-strong:#dbeafe;--mode-border:#93c5fd;
+  --mode-text:#1d4ed8;--mode-shadow:rgba(37,99,235,.22)
 }
 *{box-sizing:border-box}
 html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC","Microsoft JhengHei",sans-serif;color:var(--text);background:var(--bg)}
@@ -69,17 +71,17 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
   font-weight:900;
 }
 .number-btn.selected{
-  border-color:#2563eb;
-  background:#2563eb;
+  border-color:var(--primary);
+  background:var(--primary);
   color:#fff;
-  box-shadow:0 6px 16px rgba(37,99,235,.22);
+  box-shadow:0 6px 16px var(--mode-shadow);
 }
 .selected-number{
   margin-top:12px;
   padding:10px;
   border-radius:12px;
-  background:#eff6ff;
-  color:#1d4ed8;
+  background:var(--mode-soft);
+  color:var(--mode-text);
   text-align:center;
   font-weight:800;
 }
@@ -228,6 +230,20 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
 .teaching-camera-card{background:#fff;border:2px solid #cbd5e1;border-radius:18px;padding:12px}
 .teaching-camera-card .stage{aspect-ratio:3/4;border-radius:14px}
 .teaching-camera-card .guide{inset:10%}
+
+body[data-mode-theme] .task-title{color:var(--mode-text)}
+body[data-mode-theme] #joinCard,
+body[data-mode-theme] #taskCard{border-color:var(--mode-border)}
+body[data-mode-theme] .status:not(.success):not(.error){background:var(--mode-soft);color:var(--mode-text)}
+body[data-mode-theme] .target,
+body[data-mode-theme] .teaching-result{background:linear-gradient(135deg,var(--mode-soft),var(--mode-soft-strong));border-color:var(--mode-border)}
+body[data-mode-theme] .target strong,
+body[data-mode-theme] .teaching-result strong,
+body[data-mode-theme] .teaching-name-card strong{color:var(--mode-text)}
+body[data-mode-theme] .target-thumbnail,
+body[data-mode-theme] .speak-btn{border-color:var(--mode-border);color:var(--mode-text)}
+body[data-mode-theme] .target-thumbnail{box-shadow:0 5px 14px var(--mode-shadow)}
+body[data-mode-theme] .progress>div{background:var(--primary)}
 .teaching-camera-card .overlay{left:8px;right:8px;bottom:8px}
 
 /* iPhone／iPad 響應式顯示：避免相機區過高把按鈕推出畫面 */
@@ -769,6 +785,34 @@ function isEvaluationMode(){
   return !!(task&&!isTeachingMode()&&!isAdvancedMode()&&!isGameMode()&&!isClickMode());
 }
 
+function applyTaskModeTheme(mode){
+  const themeKey=mode==="click"
+    ? "click"
+    : mode==="teaching"
+      ? "teaching"
+      : mode==="game"
+        ? "game"
+        : "evaluation";
+  const themes={
+    click:{primary:"#d97706",dark:"#b45309",soft:"#fff8ed",strong:"#fef3c7",border:"#fbbf24",text:"#92400e",shadow:"rgba(217,119,6,.22)"},
+    teaching:{primary:"#2563eb",dark:"#1d4ed8",soft:"#f0f7ff",strong:"#dbeafe",border:"#93c5fd",text:"#1d4ed8",shadow:"rgba(37,99,235,.22)"},
+    evaluation:{primary:"#16a34a",dark:"#15803d",soft:"#ecfdf5",strong:"#dcfce7",border:"#86efac",text:"#166534",shadow:"rgba(22,163,74,.22)"},
+    game:{primary:"#7c3aed",dark:"#6d28d9",soft:"#faf5ff",strong:"#ede9fe",border:"#c4b5fd",text:"#6d28d9",shadow:"rgba(124,58,237,.22)"}
+  };
+  const theme=themes[themeKey];
+  const root=document.documentElement;
+  root.style.setProperty("--primary",theme.primary);
+  root.style.setProperty("--primary-dark",theme.dark);
+  root.style.setProperty("--mode-soft",theme.soft);
+  root.style.setProperty("--mode-soft-strong",theme.strong);
+  root.style.setProperty("--mode-border",theme.border);
+  root.style.setProperty("--mode-text",theme.text);
+  root.style.setProperty("--mode-shadow",theme.shadow);
+  document.body.dataset.modeTheme=themeKey;
+  const themeMeta=document.querySelector('meta[name="theme-color"]');
+  if(themeMeta)themeMeta.setAttribute("content",theme.primary);
+}
+
 function isDescriptionPromptMode(){
   return !!(isEvaluationMode()&&task.promptMode==="description");
 }
@@ -1089,6 +1133,7 @@ async function loadTask(){
     task={id:snap.id,...snap.data()};
     if(task.status!=="active")throw new Error("任務目前未開放");
     task.taskMode=task.taskMode||task.orderMode||"task";
+    applyTaskModeTheme(task.taskMode);
     task.recognitionEngine=task.recognitionEngine==="coco-ssd"?"coco-ssd":"teachable-machine";
     if(!isClickMode()&&task.recognitionEngine==="teachable-machine"&&!task.modelURL)throw new Error("任務沒有模型網址");
     if(!Array.isArray(task.targetClasses)||!task.targetClasses.length)throw new Error("任務沒有指定類別");
