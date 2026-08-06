@@ -383,6 +383,12 @@ async function restoreTaskFromTaskList(taskId){
     const taskMode=["teaching","advanced","game","click"].includes(task.taskMode)
       ? task.taskMode
       : "evaluation";
+    const savedDraft=readTeacherDraft();
+    const savedDraftItems=(
+      savedDraft&&
+      normalizeDraftModelURL(savedDraft.loadedModelURL)===normalizeDraftModelURL(task.modelURL||"")&&
+      savedDraft.items&&typeof savedDraft.items==="object"
+    )?savedDraft.items:{};
     restoringTeacherDraft=true;
     model=null;modelURL="";labels=[];classThumbnails={};
     $("classes").innerHTML="";
@@ -442,15 +448,24 @@ async function restoreTaskFromTaskList(taskId){
     classThumbnails={};
     container.querySelectorAll(".classBox").forEach(item=>{
       const label=item.dataset.label;
+      const savedState=savedDraftItems[label]&&typeof savedDraftItems[label]==="object"
+        ? savedDraftItems[label]
+        : {};
       const selected=item.querySelector(".classLabel input[type='checkbox']");
       const description=item.querySelector(".classDescription");
       if(selected)selected.checked=targetSet.has(label);
-      if(description)description.value=String(descriptions[label]||"");
+      if(description){
+        description.value=Object.prototype.hasOwnProperty.call(descriptions,label)
+          ? String(descriptions[label]||"")
+          : String(savedState.description||"");
+      }
       item.querySelectorAll(".audioCheck").forEach(check=>{
         check.checked=taskMode!=="teaching"&&check.dataset.mode===taskMode&&audioSet.has(label);
       });
       if(/^data:image\/jpeg;base64,/i.test(thumbnails[label]||"")){
         classThumbnails[label]=thumbnails[label];
+      }else if(/^data:image\/jpeg;base64,/i.test(savedState.thumbnail||"")){
+        classThumbnails[label]=savedState.thumbnail;
       }
       updateThumbnailUI(item);
     });
@@ -747,8 +762,8 @@ async function createAdvancedEvaluationQR(){
       modelURL,
       ...getRecognitionTaskFields(targets),
       targetClasses:targets,
-      classDescriptions:descriptions,
-      classThumbnails:getClassThumbnails(true),
+      classDescriptions:getClassDescriptions(false),
+      classThumbnails:getClassThumbnails(false),
       audioRequiredClasses,
       speechRecognitionMode:"browser",
       speechRecognitionLanguage:"zh-TW",
@@ -801,8 +816,8 @@ async function createGameModeQR(){
       modelURL,
       ...getRecognitionTaskFields(targets),
       targetClasses:targets,
-      classDescriptions:getClassDescriptions(true),
-      classThumbnails:thumbnails,
+      classDescriptions:getClassDescriptions(false),
+      classThumbnails:getClassThumbnails(false),
       audioRequiredClasses,
       speechRecognitionEnabled,
       showThumbnailHint,
@@ -862,8 +877,8 @@ async function createClickModeQR(){
       modelURL,
       ...getRecognitionTaskFields(targets),
       targetClasses:targets,
-      classDescriptions:getClassDescriptions(true),
-      classThumbnails:thumbnails,
+      classDescriptions:getClassDescriptions(false),
+      classThumbnails:getClassThumbnails(false),
       clickDisplaySeconds,
       clickRepeatCount,
       clickSimultaneousCount,
@@ -920,8 +935,8 @@ $("createBtn").onclick=async()=>{
       modelURL,
       ...getRecognitionTaskFields(targets),
       targetClasses:targets,
-      classDescriptions:descriptions,
-      classThumbnails:thumbnails,
+      classDescriptions:getClassDescriptions(false),
+      classThumbnails:getClassThumbnails(false),
       audioRequiredClasses,
       promptMode,
       speechRecognitionEnabled,
