@@ -20,6 +20,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.4.0/dist/speech-commands.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.28.2/dist/index.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js"></script>
 
 <style>
 :root{
@@ -168,6 +169,7 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
 .click-task-head{padding:4px 4px 10px}.click-task-head h2{margin:0 0 5px;color:#92400e}.click-task-meta{display:flex;justify-content:space-between;gap:10px;color:#78350f;font-weight:800}
 .click-prompt{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;margin:0 auto 10px;padding:9px 16px;width:max-content;max-width:100%;border:2px solid #f59e0b;border-radius:16px;background:#fff;color:#92400e;font-weight:900;text-align:center;box-shadow:0 6px 18px rgba(146,64,14,.14)}
 .click-prompt img{width:clamp(76px,19vw,112px);height:clamp(76px,19vw,112px);object-fit:cover;border-radius:13px}
+.click-prompt-text{font-size:clamp(25px,7vw,38px);font-weight:1000;line-height:1.25;overflow-wrap:anywhere}
 .click-stage{position:relative;width:100%;height:clamp(420px,68svh,720px);overflow:hidden;border-radius:18px;background:radial-gradient(circle at top,#fffbeb,#fde68a);border:2px solid #f59e0b;touch-action:manipulation}
 .click-target{position:absolute;width:clamp(118px,31vw,176px);min-height:0;padding:10px;border:3px solid #fff;border-radius:20px;background:#fff;color:#92400e;box-shadow:0 12px 30px rgba(146,64,14,.25);display:flex;flex-direction:column;align-items:center;gap:7px;transform:scale(1);animation:clickTargetPop .22s ease;user-select:none;-webkit-user-select:none}
 .click-target img{width:clamp(88px,24vw,138px);height:clamp(88px,24vw,138px);object-fit:cover;border-radius:14px}.click-target span{font-size:clamp(18px,5vw,25px);font-weight:1000;line-height:1.2;text-align:center}.click-target:active{transform:scale(.94)}
@@ -542,8 +544,9 @@ html,body{
       <div class="click-task-meta"><span id="clickStudentNumber"></span><span id="clickProgressText">0 / 0</span></div>
     </div>
     <div id="clickPrompt" class="click-prompt hidden">
-      <span>請點選這個縮圖</span>
+      <span id="clickPromptInstruction">請點選這個縮圖</span>
       <img id="clickPromptImage" alt="需要點選的物品縮圖" decoding="async">
+      <span id="clickPromptText" class="click-prompt-text hidden"></span>
     </div>
     <div id="clickStage" class="click-stage">
       <div id="clickWaiting" class="click-waiting">準備開始…</div>
@@ -584,6 +587,7 @@ const auth=firebase.auth();
 const db=firebase.firestore();
 
 let taskId="",task=null,projectType="",metadata=null,model=null;
+let ocrWorker=null,lastOcrText="",lastOcrConfidence=0;
 let browserSpeechRecognition=null,optionalAudioListening=false,optionalAudioTimer=null;
 let resultRef=null,currentIndex=0,completed=[],attempts=0,holdCount=0,finished=false,paused=false;
 let imageStream=null;
@@ -753,15 +757,18 @@ async function ensureAuth(){if(auth.currentUser)return auth.currentUser;return(a
 function isCocoRecognition(){
   return !!(task&&task.recognitionEngine==="coco-ssd");
 }
+function isOcrRecognition(){
+  return !!(task&&task.recognitionEngine==="ocr");
+}
 function sortPredictionsForDecision(predictions){
   const sorted=[...predictions].sort((a,b)=>b.probability-a.probability);
-  if(!isCocoRecognition()||isTeachingMode())return sorted;
+  if((!isCocoRecognition()&&!isOcrRecognition())||isTeachingMode())return sorted;
   const target=currentTarget();
   const match=sorted.find(item=>item.className===target);
   return match?[match,...sorted.filter(item=>item!==match)]:sorted;
 }
 function hasRecognitionMargin(top,second){
-  if(isCocoRecognition())return true;
+  if(isCocoRecognition()||isOcrRecognition())return true;
   return ((top?.probability||0)-(second?.probability||0))>=0.10;
 }
 
@@ -818,6 +825,7 @@ function isDescriptionPromptMode(){
 }
 
 function shouldShowTargetThumbnail(){
+  if(isOcrRecognition())return false;
   if(!task||!(isGameMode()||isEvaluationMode()))return false;
   return task.showThumbnailHint===undefined?true:!!task.showThumbnailHint;
 }
@@ -857,6 +865,7 @@ function updateAdvancedTargetThumbnail(){
 }
 
 function updateTeachingTargetThumbnail(label){
+  if(isOcrRecognition())label="";
   updateThumbnailElement(
     "teachingTargetThumbnailTop",
     label,
@@ -1134,7 +1143,9 @@ async function loadTask(){
     if(task.status!=="active")throw new Error("任務目前未開放");
     task.taskMode=task.taskMode||task.orderMode||"task";
     applyTaskModeTheme(task.taskMode);
-    task.recognitionEngine=task.recognitionEngine==="coco-ssd"?"coco-ssd":"teachable-machine";
+    task.recognitionEngine=["coco-ssd","ocr"].includes(task.recognitionEngine)
+      ? task.recognitionEngine
+      : "teachable-machine";
     if(!isClickMode()&&task.recognitionEngine==="teachable-machine"&&!task.modelURL)throw new Error("任務沒有模型網址");
     if(!Array.isArray(task.targetClasses)||!task.targetClasses.length)throw new Error("任務沒有指定類別");
 
@@ -1145,14 +1156,17 @@ async function loadTask(){
     task.classDescriptions=task.classDescriptions&&typeof task.classDescriptions==="object"
       ? task.classDescriptions
       : {};
-    task.classThumbnails=task.classThumbnails&&typeof task.classThumbnails==="object"
+    task.classThumbnails=task.recognitionEngine!=="ocr"&&task.classThumbnails&&typeof task.classThumbnails==="object"
       ? task.classThumbnails
       : {};
     task.audioRequiredClasses=Array.isArray(task.audioRequiredClasses)
       ? task.audioRequiredClasses.filter(name=>task.targetClasses.includes(name))
       : [];
     task.promptMode=task.promptMode==="description"?"description":"name";
-    task.showThumbnailHint=task.showThumbnailHint===undefined?true:!!task.showThumbnailHint;
+    task.showNameText=task.recognitionEngine==="ocr"&&!!task.showNameText;
+    task.showThumbnailHint=task.recognitionEngine==="ocr"
+      ? false
+      : task.showThumbnailHint===undefined?true:!!task.showThumbnailHint;
     task.speechRecognitionMode="browser";
     task.speechRecognitionLanguage="zh-TW";
     task.clickDisplaySeconds=Math.min(8,Math.max(3,Number(task.clickDisplaySeconds||5)));
@@ -1163,9 +1177,11 @@ async function loadTask(){
     if(isClickMode()){
       projectType="click";
       metadata={labels:[...task.targetClasses]};
-      const missingThumbnails=task.targetClasses.filter(name=>!/^data:image\/jpeg;base64,/i.test(String(task.classThumbnails?.[name]||"")));
-      if(missingThumbnails.length)throw new Error("隨機點選測驗缺少物品縮圖："+missingThumbnails.join("、"));
-    }else if(task.recognitionEngine==="coco-ssd"){
+      if(task.recognitionEngine!=="ocr"){
+        const missingThumbnails=task.targetClasses.filter(name=>!/^data:image\/jpeg;base64,/i.test(String(task.classThumbnails?.[name]||"")));
+        if(missingThumbnails.length)throw new Error("隨機點選測驗缺少物品縮圖："+missingThumbnails.join("、"));
+      }
+    }else if(task.recognitionEngine==="coco-ssd"||task.recognitionEngine==="ocr"){
       projectType="image";
       metadata={labels:[...task.targetClasses]};
     }else{
@@ -1176,7 +1192,9 @@ async function loadTask(){
 
     const typeName=isClickMode()?"隨機點選測驗":task.recognitionEngine==="coco-ssd"
       ?"COCO-SSD 開放辨識"
-      :{image:"圖片專案",audio:"音訊專案",pose:"姿勢專案"}[projectType];
+      :task.recognitionEngine==="ocr"
+        ?"OCR 文字辨識"
+        :{image:"圖片專案",audio:"音訊專案",pose:"姿勢專案"}[projectType];
     $("taskTitle").textContent=task.title||"未命名任務";
     const effectiveAudioRequiredClasses=getEffectiveAudioRequiredClasses();
     const audioNote=effectiveAudioRequiredClasses.length
@@ -1724,7 +1742,12 @@ function showNextClickTrial(resumeRound=false){
     clickCurrentChoices=shuffleClickSequence([clickCurrentTarget,...distractors]);
   }
   $("clickWaiting").classList.add("hidden");
-  $("clickPromptImage").src=task.classThumbnails[clickCurrentTarget];
+  const useTextChoices=task.recognitionEngine==="ocr";
+  $("clickPromptInstruction").textContent=useTextChoices?"請點選這個文字":"請點選這個縮圖";
+  $("clickPromptText").textContent=useTextChoices?clickCurrentTarget:"";
+  $("clickPromptText").classList.toggle("hidden",!useTextChoices);
+  $("clickPromptImage").classList.toggle("hidden",useTextChoices);
+  if(!useTextChoices)$("clickPromptImage").src=task.classThumbnails[clickCurrentTarget];
   $("clickPrompt").classList.remove("hidden");
   const targets=$("clickTargets");
   targets.innerHTML="";
@@ -1733,13 +1756,17 @@ function showNextClickTrial(resumeRound=false){
     button.className="click-target";
     button.type="button";
     button.dataset.label=label;
-    const image=document.createElement("img");
-    image.src=task.classThumbnails[label];
-    image.alt=label+"縮圖";
-    image.decoding="async";
     const name=document.createElement("span");
     name.textContent=label;
-    button.append(image,name);
+    if(useTextChoices){
+      button.appendChild(name);
+    }else{
+      const image=document.createElement("img");
+      image.src=task.classThumbnails[label];
+      image.alt=label+"縮圖";
+      image.decoding="async";
+      button.append(image,name);
+    }
     targets.appendChild(button);
   });
   requestAnimationFrame(()=>positionClickTargets());
@@ -1832,6 +1859,64 @@ $("clickTargets").addEventListener("click",event=>{
 });
 
 async function loadSelectedModel(){
+  if(task.recognitionEngine==="ocr"){
+    if(typeof Tesseract==="undefined"){
+      throw new Error("OCR 文字辨識套件載入失敗，請確認網路連線後重新整理頁面。");
+    }
+    if(!ocrWorker){
+      const languages=Array.isArray(task.ocrLanguages)&&task.ocrLanguages.length
+        ? task.ocrLanguages
+        : ["chi_tra","eng"];
+      ocrWorker=await Tesseract.createWorker(languages,1,{
+        logger:message=>{
+          if(message.status!=="recognizing text")return;
+          const percent=Math.round(Number(message.progress||0)*100);
+          if(photoRecognizing&&$("imageOverlay")){
+            $("imageOverlay").textContent="正在辨識文字："+percent+"%";
+            return;
+          }
+          const targetId=$("gameWaitingCard")&&!$("gameWaitingCard").classList.contains("hidden")
+            ? "gameWaitingStatus"
+            : $("joinCard")&&!$("joinCard").classList.contains("hidden")
+              ? "joinStatus"
+              : "loadStatus";
+          setStatus(targetId,"正在準備 OCR 文字辨識："+percent+"%");
+        }
+      });
+      try{
+        await ocrWorker.setParameters({
+          tessedit_pageseg_mode:"11",
+          preserve_interword_spaces:"1",
+          user_defined_dpi:"300"
+        });
+      }catch(error){
+        console.warn("OCR 進階參數無法套用，改用預設設定",error);
+      }
+    }
+    const supportedLabels=[...task.targetClasses];
+    model={
+      getClassLabels:()=>[...supportedLabels],
+      predict:async input=>{
+        const enhanced=createEnhancedOcrCanvas(input);
+        const first=await ocrWorker.recognize(enhanced);
+        let combinedText=String(first?.data?.text||"");
+        let confidence=Number(first?.data?.confidence||0);
+        let predictions=buildOcrPredictions(combinedText,supportedLabels);
+
+        if(!predictions.some(item=>item.probability>0)){
+          const second=await ocrWorker.recognize(input);
+          combinedText+="\n"+String(second?.data?.text||"");
+          confidence=Math.max(confidence,Number(second?.data?.confidence||0));
+          predictions=buildOcrPredictions(combinedText,supportedLabels);
+        }
+
+        lastOcrText=combinedText.trim();
+        lastOcrConfidence=Math.max(0,Math.min(1,confidence/100));
+        return predictions;
+      }
+    };
+    return;
+  }
   if(task.recognitionEngine==="coco-ssd"){
     if(typeof cocoSsd==="undefined"){
       throw new Error("COCO-SSD 辨識套件載入失敗，請確認網路連線後重新整理頁面。");
@@ -1876,6 +1961,111 @@ async function loadSelectedModel(){
   }else{
     throw new Error("不支援的專案類型");
   }
+}
+
+function normalizeOcrText(value){
+  const variants={
+    "发":"髮","髪":"髮","台":"臺","体":"體","门":"門","车":"車",
+    "头":"頭","后":"後","里":"裡","裏":"裡","药":"藥","饮":"飲",
+    "净":"淨","洁":"潔","护":"護","肤":"膚","齿":"齒","盐":"鹽"
+  };
+  const normalized=String(value||"").normalize("NFKC").toLowerCase().replace(/[\s\p{P}\p{S}]/gu,"");
+  return [...normalized].map(character=>variants[character]||character).join("");
+}
+
+function createEnhancedOcrCanvas(sourceCanvas){
+  const canvas=document.createElement("canvas");
+  canvas.width=sourceCanvas.width;
+  canvas.height=sourceCanvas.height;
+  const ctx=canvas.getContext("2d",{willReadFrequently:true});
+  ctx.drawImage(sourceCanvas,0,0);
+  const image=ctx.getImageData(0,0,canvas.width,canvas.height);
+  const data=image.data;
+  const histogram=new Uint32Array(256);
+
+  for(let i=0;i<data.length;i+=16){
+    const gray=Math.round(data[i]*0.299+data[i+1]*0.587+data[i+2]*0.114);
+    histogram[gray]++;
+  }
+
+  const sampleCount=Math.max(1,Math.ceil(data.length/16));
+  const lowTarget=sampleCount*0.02;
+  const highTarget=sampleCount*0.98;
+  let sum=0,low=0,high=255;
+  for(let i=0;i<256;i++){
+    sum+=histogram[i];
+    if(sum>=lowTarget){low=i;break}
+  }
+  sum=0;
+  for(let i=0;i<256;i++){
+    sum+=histogram[i];
+    if(sum>=highTarget){high=i;break}
+  }
+  const range=Math.max(32,high-low);
+
+  for(let i=0;i<data.length;i+=4){
+    const gray=data[i]*0.299+data[i+1]*0.587+data[i+2]*0.114;
+    const leveled=Math.max(0,Math.min(255,(gray-low)*255/range));
+    const contrasted=Math.max(0,Math.min(255,(leveled-128)*1.28+128));
+    data[i]=data[i+1]=data[i+2]=contrasted;
+  }
+  ctx.putImageData(image,0,0);
+  return canvas;
+}
+
+function limitedEditDistance(a,b,limit){
+  if(Math.abs(a.length-b.length)>limit)return limit+1;
+  let previous=Array.from({length:b.length+1},(_,index)=>index);
+  for(let i=1;i<=a.length;i++){
+    const current=[i];
+    let rowMinimum=current[0];
+    for(let j=1;j<=b.length;j++){
+      const value=Math.min(
+        current[j-1]+1,
+        previous[j]+1,
+        previous[j-1]+(a[i-1]===b[j-1]?0:1)
+      );
+      current[j]=value;
+      rowMinimum=Math.min(rowMinimum,value);
+    }
+    if(rowMinimum>limit)return limit+1;
+    previous=current;
+  }
+  return previous[b.length];
+}
+
+function ocrTextMatches(recognizedText,targetText){
+  const recognized=normalizeOcrText(recognizedText);
+  const target=normalizeOcrText(targetText);
+  if(!recognized||!target)return false;
+  if(recognized.includes(target))return true;
+  if(target.length<6)return false;
+
+  const limit=1;
+  for(let length=Math.max(1,target.length-limit);length<=target.length+limit;length++){
+    for(let start=0;start+length<=recognized.length;start++){
+      if(limitedEditDistance(recognized.slice(start,start+length),target,limit)<=limit)return true;
+    }
+  }
+  return false;
+}
+
+function buildOcrPredictions(text,labels){
+  return labels.map(className=>({
+    className,
+    probability:ocrTextMatches(text,className)?1:0
+  }));
+}
+
+function createOcrEvidenceDataURL(sourceCanvas){
+  if(!isOcrRecognition())return sourceCanvas.toDataURL("image/jpeg",0.42);
+  const maxSide=720;
+  const scale=Math.min(1,maxSide/Math.max(sourceCanvas.width,sourceCanvas.height));
+  const evidenceCanvas=document.createElement("canvas");
+  evidenceCanvas.width=Math.max(1,Math.round(sourceCanvas.width*scale));
+  evidenceCanvas.height=Math.max(1,Math.round(sourceCanvas.height*scale));
+  evidenceCanvas.getContext("2d").drawImage(sourceCanvas,0,0,evidenceCanvas.width,evidenceCanvas.height);
+  return evidenceCanvas.toDataURL("image/jpeg",0.38);
 }
 
 async function createAudioRecognizer(url){
@@ -2054,6 +2244,9 @@ async function startImage(){
   );
 
   $("captureBtn").classList.remove("hidden");
+  $("captureBtn").textContent=isOcrRecognition()?"拍照辨識文字":"拍照辨識";
+  const guideText=$("imageStage").querySelector(".guide span");
+  if(guideText)guideText.textContent=isOcrRecognition()?"請將文字放入框內":"請將物品放入框內";
 
   if(isTeachingMode()){
     $("imageOverlay").textContent="請將物品放入框內，再按「拍照辨識」";
@@ -2097,18 +2290,38 @@ async function captureAndRecognize(){
       throw new Error("相機畫面尚未準備完成");
     }
 
-    const side=Math.min(video.videoWidth,video.videoHeight);
-    ctx.drawImage(
-      video,
-      (video.videoWidth-side)/2,
-      (video.videoHeight-side)/2,
-      side,
-      side,
-      0,
-      0,
-      224,
-      224
-    );
+    if(isOcrRecognition()){
+      const sourceSide=Math.min(video.videoWidth,video.videoHeight);
+      const outputSide=Math.max(1,Math.round(Math.min(1400,sourceSide)));
+      canvas.width=outputSide;
+      canvas.height=outputSide;
+      ctx.drawImage(
+        video,
+        (video.videoWidth-sourceSide)/2,
+        (video.videoHeight-sourceSide)/2,
+        sourceSide,
+        sourceSide,
+        0,
+        0,
+        outputSide,
+        outputSide
+      );
+    }else{
+      canvas.width=224;
+      canvas.height=224;
+      const side=Math.min(video.videoWidth,video.videoHeight);
+      ctx.drawImage(
+        video,
+        (video.videoWidth-side)/2,
+        (video.videoHeight-side)/2,
+        side,
+        side,
+        0,
+        0,
+        224,
+        224
+      );
+    }
 
     const predictions=await model.predict(canvas);
     const sorted=sortPredictionsForDecision(predictions);
@@ -2163,7 +2376,9 @@ async function captureAndRecognize(){
           $("speakDescriptionBtnTop").disabled=true;
         }
 
-        $("imageOverlay").textContent="無法確定辨識，請重新拍照";
+        $("imageOverlay").textContent=isOcrRecognition()&&lastOcrText.trim()
+          ? "讀到文字，但沒有符合設定項目，請重新拍照"
+          : "無法確定辨識，請重新拍照";
         lastImageOverlayText=$("imageOverlay").textContent;
       }
 
@@ -2183,7 +2398,7 @@ async function captureAndRecognize(){
       taskSuccessAnimating=true;
       currentImagePassed=true;
       currentImageConfidence=top.probability;
-      currentImageEvidenceDataURL=canvas.toDataURL("image/jpeg",0.42);
+      currentImageEvidenceDataURL=createOcrEvidenceDataURL(canvas);
       const capturedIndex=currentIndex;
       updateVerificationUI();
       const successText=`辨識成功：${top.className}`;
@@ -2227,13 +2442,15 @@ async function captureAndRecognize(){
         }
       }
 
-      $("imageOverlay").textContent="辨識錯誤，請重新拍照";
+      $("imageOverlay").textContent=isOcrRecognition()?"文字不符合，請重新拍照":"辨識錯誤，請重新拍照";
       lastImageOverlayText=$("imageOverlay").textContent;
       setStatus(
         "recognitionStatus",
         isAdvancedMode()
           ?"辨識錯誤，請再聽一次語音說明後重新拍照。"
-          :"辨識錯誤，請將指定物品放入框內後重新拍照。",
+          :isOcrRecognition()
+            ?"沒有讀到指定文字，請靠近、對準後重新拍照。"
+            :"辨識錯誤，請將指定物品放入框內後重新拍照。",
         "error"
       );
 
@@ -2853,6 +3070,8 @@ function renderTask(){
   $("currentTarget").textContent=(isAdvancedMode()||isDescriptionPromptMode())
     ? (currentIndex<total?"請聽語音題目":"全部完成")
     : (currentIndex<total?task.targetClasses[currentIndex]:"全部完成");
+  const hideOcrTargetName=isOcrRecognition()&&(isEvaluationMode()||isGameMode())&&!task.showNameText&&currentIndex<total;
+  $("currentTarget").classList.toggle("hidden",hideOcrTargetName);
   updateCurrentTargetThumbnail();
   updateAdvancedTargetThumbnail();
 
@@ -2877,7 +3096,7 @@ function finishTask(){
   $("gameWaitingCard").classList.add("hidden");
   $("completeCard").classList.remove("hidden");
   $("completeActions").classList.toggle("hidden",isTeachingMode()||isGameMode());
-  const typeName={image:"圖片",audio:"音訊",pose:"姿勢"}[projectType];
+  const typeName=isOcrRecognition()?"文字":{image:"圖片",audio:"音訊",pose:"姿勢"}[projectType];
   if(isGameMode()){
     $("completeIcon").textContent=gameRank===1?"🏆":gameRank===2?"🥈":gameRank===3?"🥉":"🎉";
     $("completeTitle").textContent=gameRank===1?"恭喜獲得第一名！":"尋物遊戲完成！";
@@ -2952,6 +3171,10 @@ function endTask(){
   resultRef=null;
   metadata=null;
   model=null;
+  if(ocrWorker){
+    try{ocrWorker.terminate()}catch(e){}
+    ocrWorker=null;
+  }
   task=null;
 
   try{window.stop()}catch(e){}
