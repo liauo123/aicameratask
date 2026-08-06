@@ -128,6 +128,11 @@ let user=null,unsub=null,playerUnsubs=[],activeMode="click",renderGeneration=0;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function status(id,msg,type=""){const e=$(id);e.textContent=msg;e.className="status "+type}
+function recognitionEngineName(engine){
+  if(engine==="ocr")return "OCR 文字辨識";
+  if(engine==="coco-ssd")return "COCO-SSD 開放辨識";
+  return "Teachable Machine 自訂辨識";
+}
 
 auth.onAuthStateChanged(u=>{
   user=u;
@@ -228,7 +233,7 @@ async function render(docs){
 
   const renderTeachingTask=doc=>{
     const t=doc.data();
-    const recognitionInfo=`<div class="meta">辨識方式：${t.recognitionEngine==="coco-ssd"?"COCO-SSD 開放辨識":"Teachable Machine 自訂辨識"}</div>`;
+    const recognitionInfo=`<div class="meta">辨識方式：${recognitionEngineName(t.recognitionEngine)}</div>`;
     const descriptions=t.classDescriptions&&typeof t.classDescriptions==="object"
       ? t.classDescriptions
       : {};
@@ -261,7 +266,7 @@ async function render(docs){
 
   const renderGameTask=doc=>{
     const t=doc.data();
-    const recognitionInfo=`<div class="meta">辨識方式：${t.recognitionEngine==="coco-ssd"?"COCO-SSD 開放辨識":"Teachable Machine 自訂辨識"}</div>`;
+    const recognitionInfo=`<div class="meta">辨識方式：${recognitionEngineName(t.recognitionEngine)}</div>`;
     const stateText={lobby:"等待學生加入",active:"遊戲進行中",finished:"遊戲已結束"}[t.gameStatus]||"等待學生加入";
     const audioItems=Array.isArray(t.audioRequiredClasses)
       ? t.audioRequiredClasses.filter(name=>(t.targetClasses||[]).includes(name))
@@ -300,7 +305,7 @@ async function render(docs){
   const renderEvaluationTask=async doc=>{
     const t=doc.data();
     const isAdvanced=t.taskMode==="advanced";
-    const recognitionInfo=`<div class="meta">辨識方式：${t.recognitionEngine==="coco-ssd"?"COCO-SSD 開放辨識":"Teachable Machine 自訂辨識"}</div>`;
+    const recognitionInfo=`<div class="meta">辨識方式：${recognitionEngineName(t.recognitionEngine)}</div>`;
     let resultDocs=[],resultError="";
 
     try{
