@@ -153,7 +153,7 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
       </section>
 
       <section id="teachMode" class="card modeCard teachMode hidden">
-        <h2>實際物品辨識教學模式</h2>
+        <h2>物品(文字)辨識教學模式</h2>
         <input id="teachingTitle" placeholder="教學名稱">
         <button id="createTeachQRBtn" class="p" style="width:100%;margin-top:12px">產生學生教學 QR</button>
         <div id="teachQRStatus" class="status">尚未建立。</div>
@@ -245,7 +245,7 @@ function saveTeacherDraft(){
         selected:!!item.querySelector(".classLabel input[type='checkbox']")?.checked,
         description:item.querySelector(".classDescription")?.value||"",
         audio,
-        thumbnail:getSelectedRecognitionEngine()!=="ocr"&&/^data:image\/jpeg;base64,/i.test(classThumbnails[label]||"")
+        thumbnail:/^data:image\/jpeg;base64,/i.test(classThumbnails[label]||"")
           ? classThumbnails[label]
           : ""
       };
@@ -347,7 +347,7 @@ function restoreClassDraft(){
     item.querySelectorAll(".audioCheck").forEach(check=>{
       check.checked=!!state.audio?.[check.dataset.mode];
     });
-    if(getSelectedRecognitionEngine()!=="ocr"&&/^data:image\/jpeg;base64,/i.test(state.thumbnail||"")){
+    if(/^data:image\/jpeg;base64,/i.test(state.thumbnail||"")){
       classThumbnails[item.dataset.label]=state.thumbnail;
     }
     updateThumbnailUI(item);
@@ -381,13 +381,12 @@ function syncRecognitionEngineUI(){
   if(isOcr){
     $("evaluationThumbnailHint").checked=false;
     $("gameThumbnailHint").checked=false;
-    classThumbnails={};
   }else{
     $("evaluationShowNameText").checked=false;
     $("gameShowNameText").checked=false;
   }
   $("clickModeHint").textContent=isOcr
-    ? "需要點選的目標文字會顯示在學生畫面上方，1–3 個文字選項會隨機出現；點錯會顯示錯誤畫面與音效，教師端只保留答對、逾時與平均秒數摘要。"
+    ? "需要點選的目標文字會顯示在學生畫面上方；有設定縮圖時會與文字一起出現，沒有縮圖時只顯示文字。1–3 個文字選項會隨機出現。"
     : "需要點選的縮圖會顯示在學生畫面上方，1–3 種物品選項會隨機出現；點錯會顯示錯誤畫面與音效，教師端只保留答對、逾時與平均秒數摘要。";
   $("loadModelBtn").textContent=isOcr?"載入 OCR 文字辨識":"載入模型";
   status("modelStatus",isOcr
@@ -427,7 +426,7 @@ $("loadModelBtn").onclick=async()=>{
     $("gameModeCard").classList.remove("hidden");
     $("clickModeCard").classList.remove("hidden");
     status("modelStatus",engine==="ocr"
-      ? "OCR 文字辨識已載入，共 "+labels.length+" 項文字。可拖拉調整順序。"
+      ? "OCR 文字辨識已載入，共 "+labels.length+" 項文字。可拖拉調整順序並選擇性加入縮圖。"
       : "模型載入成功，共 "+labels.length+" 類。可拖拉或點擊加入縮圖。","ok");
     saveTeacherDraft();
   }catch(e){
@@ -505,7 +504,7 @@ async function restoreTaskFromTaskList(taskId){
     const descriptions=task.classDescriptions&&typeof task.classDescriptions==="object"
       ? task.classDescriptions
       : {};
-    const thumbnails=task.recognitionEngine!=="ocr"&&task.classThumbnails&&typeof task.classThumbnails==="object"
+    const thumbnails=task.classThumbnails&&typeof task.classThumbnails==="object"
       ? task.classThumbnails
       : {};
     const audioSet=new Set(Array.isArray(task.audioRequiredClasses)?task.audioRequiredClasses:[]);
@@ -538,9 +537,9 @@ async function restoreTaskFromTaskList(taskId){
       item.querySelectorAll(".audioCheck").forEach(check=>{
         check.checked=taskMode!=="teaching"&&check.dataset.mode===taskMode&&audioSet.has(label);
       });
-      if(task.recognitionEngine!=="ocr"&&/^data:image\/jpeg;base64,/i.test(thumbnails[label]||"")){
+      if(/^data:image\/jpeg;base64,/i.test(thumbnails[label]||"")){
         classThumbnails[label]=thumbnails[label];
-      }else if(task.recognitionEngine!=="ocr"&&/^data:image\/jpeg;base64,/i.test(savedState.thumbnail||"")){
+      }else if(/^data:image\/jpeg;base64,/i.test(savedState.thumbnail||"")){
         classThumbnails[label]=savedState.thumbnail;
       }
       updateThumbnailUI(item);
@@ -550,7 +549,7 @@ async function restoreTaskFromTaskList(taskId){
     restoringTeacherDraft=false;
     saveTeacherDraft();
     status("modelStatus",task.recognitionEngine==="ocr"
-      ? "OCR 任務設定已回復。已載入文字項目、說明及語音辨識勾選狀態。"
+      ? "OCR 任務設定已回復。已載入文字項目、縮圖、說明及語音辨識勾選狀態。"
       : "任務設定已回復。已載入物品縮圖、說明及語音辨識勾選狀態。","ok");
     const cleanURL=new URL(location.href);
     cleanURL.searchParams.delete("restoreTask");
@@ -563,7 +562,7 @@ async function restoreTaskFromTaskList(taskId){
 }
 
 function renderClassBoxes(){
-  const useThumbnails=getSelectedRecognitionEngine()!=="ocr";
+  const useThumbnails=true;
   $("classes").innerHTML=labels.map((x,i)=>`<div class="classBox" draggable="true" data-label="${esc(x)}">
     <span class="dragHandle">☰</span>
     <div class="classContent">
@@ -722,7 +721,6 @@ function getClassDescriptions(selectedOnly=false){
   return descriptions;
 }
 function getClassThumbnails(selectedOnly=false){
-  if(getSelectedRecognitionEngine()==="ocr")return {};
   const thumbnails={};
   document.querySelectorAll("#classes .classBox").forEach(item=>{
     const checkbox=item.querySelector('input[type="checkbox"]');
