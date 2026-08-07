@@ -1176,10 +1176,6 @@ async function loadTask(){
     if(isClickMode()){
       projectType="click";
       metadata={labels:[...task.targetClasses]};
-      if(task.recognitionEngine!=="ocr"){
-        const missingThumbnails=task.targetClasses.filter(name=>!/^data:image\/jpeg;base64,/i.test(String(task.classThumbnails?.[name]||"")));
-        if(missingThumbnails.length)throw new Error("隨機點選測驗缺少物品縮圖："+missingThumbnails.join("、"));
-      }
     }else if(task.recognitionEngine==="coco-ssd"||task.recognitionEngine==="ocr"){
       projectType="image";
       metadata={labels:[...task.targetClasses]};
@@ -1744,11 +1740,16 @@ function showNextClickTrial(resumeRound=false){
   const useTextChoices=task.recognitionEngine==="ocr";
   const promptThumbnail=String(task.classThumbnails?.[clickCurrentTarget]||"");
   const hasPromptThumbnail=/^data:image\/jpeg;base64,/i.test(promptThumbnail);
-  $("clickPromptInstruction").textContent=useTextChoices?"請點選這個文字":"請點選這個縮圖";
-  $("clickPromptText").textContent=useTextChoices?clickCurrentTarget:"";
-  $("clickPromptText").classList.toggle("hidden",!useTextChoices);
-  $("clickPromptImage").classList.toggle("hidden",useTextChoices&&!hasPromptThumbnail);
-  if(!useTextChoices||hasPromptThumbnail)$("clickPromptImage").src=promptThumbnail;
+  const showPromptText=useTextChoices||!hasPromptThumbnail;
+  $("clickPromptInstruction").textContent=showPromptText?"請點選這個文字":"請點選這個縮圖";
+  $("clickPromptText").textContent=showPromptText?clickCurrentTarget:"";
+  $("clickPromptText").classList.toggle("hidden",!showPromptText);
+  $("clickPromptImage").classList.toggle("hidden",!hasPromptThumbnail);
+  if(hasPromptThumbnail){
+    $("clickPromptImage").src=promptThumbnail;
+  }else{
+    $("clickPromptImage").removeAttribute("src");
+  }
   $("clickPrompt").classList.remove("hidden");
   const targets=$("clickTargets");
   targets.innerHTML="";
@@ -1761,7 +1762,7 @@ function showNextClickTrial(resumeRound=false){
     name.textContent=label;
     const thumbnail=String(task.classThumbnails?.[label]||"");
     const hasThumbnail=/^data:image\/jpeg;base64,/i.test(thumbnail);
-    if(!useTextChoices||hasThumbnail){
+    if(hasThumbnail){
       const image=document.createElement("img");
       image.src=thumbnail;
       image.alt=label+"縮圖";
