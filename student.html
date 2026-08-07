@@ -821,7 +821,7 @@ function applyTaskModeTheme(mode){
 }
 
 function isDescriptionPromptMode(){
-  return !!(isEvaluationMode()&&task.promptMode==="description");
+  return !!((isEvaluationMode()||isGameMode())&&task.promptMode==="description");
 }
 
 function shouldShowTargetThumbnail(){
