@@ -164,9 +164,9 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
         <input id="taskTitle" placeholder="評量模式名稱">
         <div class="modeSettings">
           <label class="modeSetting"><input id="evaluationDescriptionPrompt" type="checkbox">說明文字出題</label>
-          <label class="modeSetting"><input id="evaluationSpeechRecognition" type="checkbox">語音辨識</label>
           <label id="evaluationNameTextSetting" class="modeSetting hidden"><input id="evaluationShowNameText" type="checkbox">顯示名稱文字</label>
           <label id="evaluationThumbnailSetting" class="modeSetting"><input id="evaluationThumbnailHint" type="checkbox">縮圖提示</label>
+          <label class="modeSetting"><input id="evaluationSpeechRecognition" type="checkbox">語音辨識</label>
         </div>
         <button id="createBtn" class="p" style="width:100%" disabled>產生評量 QR</button>
         <div id="createStatus" class="status">尚未建立。</div>
@@ -185,9 +185,9 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
         <input id="gameTitle" placeholder="遊戲名稱或題目名稱">
         <div class="modeSettings">
           <label class="modeSetting"><input id="gameDescriptionPrompt" type="checkbox">說明文字出題</label>
-          <label class="modeSetting"><input id="gameSpeechRecognition" type="checkbox">語音辨識</label>
           <label id="gameNameTextSetting" class="modeSetting hidden"><input id="gameShowNameText" type="checkbox">顯示名稱文字</label>
           <label id="gameThumbnailSetting" class="modeSetting"><input id="gameThumbnailHint" type="checkbox">縮圖提示</label>
+          <label class="modeSetting"><input id="gameSpeechRecognition" type="checkbox">語音辨識</label>
         </div>
         <button id="createGameBtn" class="p" style="width:100%" disabled>建立遊戲並產生 QR</button>
         <div id="gameStatus" class="status">尚未建立。</div>
@@ -310,11 +310,11 @@ function restoreTeacherDraftBase(){
   $("evaluationDescriptionPrompt").checked=!!draft.evaluationDescriptionPrompt;
   $("evaluationSpeechRecognition").checked=!!draft.evaluationSpeechRecognition;
   $("evaluationShowNameText").checked=getSelectedRecognitionEngine()==="ocr"&&!!draft.evaluationShowNameText;
-  $("evaluationThumbnailHint").checked=getSelectedRecognitionEngine()==="ocr"?false:!!draft.evaluationThumbnailHint;
+  $("evaluationThumbnailHint").checked=!!draft.evaluationThumbnailHint;
   $("gameDescriptionPrompt").checked=!!draft.gameDescriptionPrompt;
   $("gameSpeechRecognition").checked=!!draft.gameSpeechRecognition;
   $("gameShowNameText").checked=getSelectedRecognitionEngine()==="ocr"&&!!draft.gameShowNameText;
-  $("gameThumbnailHint").checked=getSelectedRecognitionEngine()==="ocr"?false:!!draft.gameThumbnailHint;
+  $("gameThumbnailHint").checked=!!draft.gameThumbnailHint;
   $("clickTitle").value=String(draft.clickTitle||"");
   $("clickDisplaySeconds").value=String(Math.min(8,Math.max(3,Number(draft.clickDisplaySeconds||5))));
   $("clickRepeatCount").value=String(Math.min(5,Math.max(3,Number(draft.clickRepeatCount||3))));
@@ -379,12 +379,9 @@ function syncRecognitionEngineUI(){
   $("ocrFields").classList.toggle("hidden",!isOcr);
   $("evaluationNameTextSetting").classList.toggle("hidden",!isOcr);
   $("gameNameTextSetting").classList.toggle("hidden",!isOcr);
-  $("evaluationThumbnailSetting").classList.toggle("hidden",isOcr);
-  $("gameThumbnailSetting").classList.toggle("hidden",isOcr);
-  if(isOcr){
-    $("evaluationThumbnailHint").checked=false;
-    $("gameThumbnailHint").checked=false;
-  }else{
+  $("evaluationThumbnailSetting").classList.remove("hidden");
+  $("gameThumbnailSetting").classList.remove("hidden");
+  if(!isOcr){
     $("evaluationShowNameText").checked=false;
     $("gameShowNameText").checked=false;
   }
@@ -477,7 +474,7 @@ async function restoreTaskFromTaskList(taskId){
       $("evaluationSpeechRecognition").checked=Array.isArray(task.audioRequiredClasses)&&task.audioRequiredClasses.length>0;
       $("evaluationShowNameText").checked=task.recognitionEngine==="ocr"&&!!task.showNameText;
       $("evaluationThumbnailHint").checked=task.recognitionEngine==="ocr"
-        ? false
+        ? !!task.showThumbnailHint
         : task.showThumbnailHint===undefined?true:!!task.showThumbnailHint;
     }
     if(taskMode==="game"){
@@ -485,7 +482,7 @@ async function restoreTaskFromTaskList(taskId){
       $("gameSpeechRecognition").checked=Array.isArray(task.audioRequiredClasses)&&task.audioRequiredClasses.length>0;
       $("gameShowNameText").checked=task.recognitionEngine==="ocr"&&!!task.showNameText;
       $("gameThumbnailHint").checked=task.recognitionEngine==="ocr"
-        ? false
+        ? !!task.showThumbnailHint
         : task.showThumbnailHint===undefined?true:!!task.showThumbnailHint;
     }
     if(taskMode==="click"){
@@ -889,7 +886,7 @@ async function createGameModeQR(){
   const promptMode=$("gameDescriptionPrompt").checked?"description":"name";
   const speechRecognitionEnabled=$("gameSpeechRecognition").checked;
   const showNameText=getSelectedRecognitionEngine()==="ocr"&&$("gameShowNameText").checked;
-  const showThumbnailHint=getSelectedRecognitionEngine()!=="ocr"&&$("gameThumbnailHint").checked;
+  const showThumbnailHint=$("gameThumbnailHint").checked;
   const audioRequiredClasses=speechRecognitionEnabled?[...targets]:[];
   if(!title)return status("gameStatus","請輸入遊戲名稱或題目名稱。","err");
   if(!targets.length)return status("gameStatus","請至少勾選一項要尋找的物品。","err");
@@ -900,7 +897,7 @@ async function createGameModeQR(){
     const missingDescriptions=targets.filter(name=>!String(descriptions[name]||"").trim());
     if(missingDescriptions.length)return status("gameStatus","說明文字出題需要先填寫每個勾選物品的說明：\n"+missingDescriptions.join("、"),"err");
   }
-  if(showThumbnailHint){
+  if(showThumbnailHint&&getSelectedRecognitionEngine()!=="ocr"){
     const missingThumbnails=targets.filter(name=>!thumbnails[name]);
     if(missingThumbnails.length)return status("gameStatus","縮圖提示需要先上傳每個勾選物品的縮圖：\n"+missingThumbnails.join("、"),"err");
   }
@@ -1015,7 +1012,7 @@ $("createBtn").onclick=async()=>{
   const promptMode=$("evaluationDescriptionPrompt").checked?"description":"name";
   const speechRecognitionEnabled=$("evaluationSpeechRecognition").checked;
   const showNameText=getSelectedRecognitionEngine()==="ocr"&&$("evaluationShowNameText").checked;
-  const showThumbnailHint=getSelectedRecognitionEngine()!=="ocr"&&$("evaluationThumbnailHint").checked;
+  const showThumbnailHint=$("evaluationThumbnailHint").checked;
   const descriptions=getClassDescriptions(true);
   const thumbnails=getClassThumbnails(true);
   if(promptMode==="description"){
@@ -1024,7 +1021,7 @@ $("createBtn").onclick=async()=>{
       return status("createStatus","說明文字出題需要先填寫每個勾選物品的說明：\n"+missingDescriptions.join("、"),"err");
     }
   }
-  if(showThumbnailHint){
+  if(showThumbnailHint&&getSelectedRecognitionEngine()!=="ocr"){
     const missingThumbnails=targets.filter(name=>!thumbnails[name]);
     if(missingThumbnails.length){
       return status("createStatus","縮圖提示需要先上傳每個勾選物品的縮圖：\n"+missingThumbnails.join("、"),"err");
