@@ -99,7 +99,7 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
     </div>
     <div class="modeTabs" role="tablist" aria-label="選擇任務模式">
       <button class="modeTab clickTab" type="button" data-mode="click" role="tab" aria-selected="true">簡易點選練習模式</button>
-      <button class="modeTab teachingTab" type="button" data-mode="teaching" role="tab" aria-selected="false">實際物品辨識教學模式</button>
+      <button class="modeTab teachingTab" type="button" data-mode="teaching" role="tab" aria-selected="false">物品(文字)辨識教學模式</button>
       <button class="modeTab evaluationTab" type="button" data-mode="evaluation" role="tab" aria-selected="false">評量模式</button>
       <button class="modeTab gameTab" type="button" data-mode="game" role="tab" aria-selected="false">多人遊戲模式</button>
     </div>
@@ -208,7 +208,7 @@ function applyModeFilter(){
   sections.forEach(section=>section.classList.toggle("hidden",section.dataset.mode!==activeMode));
   const oldEmpty=$("modeEmpty");if(oldEmpty)oldEmpty.remove();
   if(!sections.some(section=>section.dataset.mode===activeMode)){
-    const names={click:"簡易點選練習模式",teaching:"實際物品辨識教學模式",evaluation:"評量模式",game:"多人遊戲模式"};
+    const names={click:"簡易點選練習模式",teaching:"物品(文字)辨識教學模式",evaluation:"評量模式",game:"多人遊戲模式"};
     const empty=document.createElement("div");empty.id="modeEmpty";empty.className="status";empty.textContent="目前沒有「"+names[activeMode]+"」資料。";
     $("taskList").appendChild(empty);
   }
@@ -248,9 +248,9 @@ async function render(docs){
     return `<div class="task teachingTask">
       <div class="top">
         <div>
-          <span class="modeBadge">實際物品辨識教學模式</span>
+          <span class="modeBadge">物品(文字)辨識教學模式</span>
           <div class="titleLine">
-            <div class="title">${esc(t.title||"未命名實際物品辨識教學模式")}</div>
+            <div class="title">${esc(t.title||"未命名物品(文字)辨識教學模式")}</div>
             <button class="s restoreTeacherBtn" type="button" onclick="restoreTeacherPlatform('${doc.id}')">回復教師平台</button>
           </div>
           ${recognitionInfo}
@@ -258,7 +258,7 @@ async function render(docs){
         </div>
       </div>
       <div class="row" style="margin-top:12px">
-        <button class="s" onclick="showQR('${doc.id}','${esc(t.title||"實際物品辨識教學模式")}')">重新產生 QR</button>
+        <button class="s" onclick="showQR('${doc.id}','${esc(t.title||"物品(文字)辨識教學模式")}')">重新產生 QR</button>
         <button class="d" onclick="delTask('${doc.id}')">完整刪除</button>
       </div>
     </div>`;
@@ -421,7 +421,7 @@ async function render(docs){
   const sections=[];
 
   if(teachingDocs.length){
-    sections.push('<section class="modeSection teaching" data-mode="teaching"><h2 class="modeTitle">實際物品辨識教學模式資訊</h2>');
+    sections.push('<section class="modeSection teaching" data-mode="teaching"><h2 class="modeTitle">物品(文字)辨識教學模式資訊</h2>');
     sections.push(teachingDocs.map(renderTeachingTask).join(""));
     sections.push('</section>');
   }
