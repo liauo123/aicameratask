@@ -274,6 +274,9 @@ async function render(docs){
     const audioInfo=audioItems.length
       ? `<div class="meta">瀏覽器語音辨識（zh-TW）：${audioItems.map(esc).join("、")}</div>`
       : "";
+    const promptInfo=t.promptMode==="description"
+      ? '<div class="meta">出題方式：說明文字出題</div>'
+      : "";
     return `<div class="task gameTask">
       <div class="top">
         <div>
@@ -283,6 +286,7 @@ async function render(docs){
             <button class="s restoreTeacherBtn" type="button" onclick="restoreTeacherPlatform('${doc.id}')">回復教師平台</button>
           </div>
           ${recognitionInfo}
+          ${promptInfo}
           <div class="meta">尋找順序：${(t.targetClasses||[]).map(esc).join(" → ")}</div>
           ${audioInfo}
           <span class="gameState" id="gameState_${doc.id}">${stateText}</span>
