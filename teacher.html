@@ -184,6 +184,7 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
         <div class="gameHint">學生掃描 QR、選擇號碼並等待教師同意；教師統一開始後，依拍照辨識完成順序即時排名。</div>
         <input id="gameTitle" placeholder="遊戲名稱或題目名稱">
         <div class="modeSettings">
+          <label class="modeSetting"><input id="gameDescriptionPrompt" type="checkbox">說明文字出題</label>
           <label class="modeSetting"><input id="gameSpeechRecognition" type="checkbox">語音辨識</label>
           <label id="gameNameTextSetting" class="modeSetting hidden"><input id="gameShowNameText" type="checkbox">顯示名稱文字</label>
           <label id="gameThumbnailSetting" class="modeSetting"><input id="gameThumbnailHint" type="checkbox">縮圖提示</label>
@@ -264,6 +265,7 @@ function saveTeacherDraft(){
     evaluationSpeechRecognition:$("evaluationSpeechRecognition").checked,
     evaluationShowNameText:$("evaluationShowNameText").checked,
     evaluationThumbnailHint:$("evaluationThumbnailHint").checked,
+    gameDescriptionPrompt:$("gameDescriptionPrompt").checked,
     gameSpeechRecognition:$("gameSpeechRecognition").checked,
     gameShowNameText:$("gameShowNameText").checked,
     gameThumbnailHint:$("gameThumbnailHint").checked,
@@ -309,6 +311,7 @@ function restoreTeacherDraftBase(){
   $("evaluationSpeechRecognition").checked=!!draft.evaluationSpeechRecognition;
   $("evaluationShowNameText").checked=getSelectedRecognitionEngine()==="ocr"&&!!draft.evaluationShowNameText;
   $("evaluationThumbnailHint").checked=getSelectedRecognitionEngine()==="ocr"?false:!!draft.evaluationThumbnailHint;
+  $("gameDescriptionPrompt").checked=!!draft.gameDescriptionPrompt;
   $("gameSpeechRecognition").checked=!!draft.gameSpeechRecognition;
   $("gameShowNameText").checked=getSelectedRecognitionEngine()==="ocr"&&!!draft.gameShowNameText;
   $("gameThumbnailHint").checked=getSelectedRecognitionEngine()==="ocr"?false:!!draft.gameThumbnailHint;
@@ -478,6 +481,7 @@ async function restoreTaskFromTaskList(taskId){
         : task.showThumbnailHint===undefined?true:!!task.showThumbnailHint;
     }
     if(taskMode==="game"){
+      $("gameDescriptionPrompt").checked=task.promptMode==="description";
       $("gameSpeechRecognition").checked=Array.isArray(task.audioRequiredClasses)&&task.audioRequiredClasses.length>0;
       $("gameShowNameText").checked=task.recognitionEngine==="ocr"&&!!task.showNameText;
       $("gameThumbnailHint").checked=task.recognitionEngine==="ocr"
@@ -882,6 +886,7 @@ async function createGameModeQR(){
   updateLabelsFromDOM();
   const title=$("gameTitle").value.trim();
   const targets=getSelectedClassesInCurrentOrder();
+  const promptMode=$("gameDescriptionPrompt").checked?"description":"name";
   const speechRecognitionEnabled=$("gameSpeechRecognition").checked;
   const showNameText=getSelectedRecognitionEngine()==="ocr"&&$("gameShowNameText").checked;
   const showThumbnailHint=getSelectedRecognitionEngine()!=="ocr"&&$("gameThumbnailHint").checked;
@@ -889,7 +894,12 @@ async function createGameModeQR(){
   if(!title)return status("gameStatus","請輸入遊戲名稱或題目名稱。","err");
   if(!targets.length)return status("gameStatus","請至少勾選一項要尋找的物品。","err");
   if(!user)return status("gameStatus","請先登入教師帳號。","err");
+  const descriptions=getClassDescriptions(true);
   const thumbnails=getClassThumbnails(true);
+  if(promptMode==="description"){
+    const missingDescriptions=targets.filter(name=>!String(descriptions[name]||"").trim());
+    if(missingDescriptions.length)return status("gameStatus","說明文字出題需要先填寫每個勾選物品的說明：\n"+missingDescriptions.join("、"),"err");
+  }
   if(showThumbnailHint){
     const missingThumbnails=targets.filter(name=>!thumbnails[name]);
     if(missingThumbnails.length)return status("gameStatus","縮圖提示需要先上傳每個勾選物品的縮圖：\n"+missingThumbnails.join("、"),"err");
@@ -908,6 +918,7 @@ async function createGameModeQR(){
       classDescriptions:getClassDescriptions(false),
       classThumbnails:getClassThumbnails(false),
       audioRequiredClasses,
+      promptMode,
       speechRecognitionEnabled,
       showNameText,
       showThumbnailHint,
@@ -1063,7 +1074,7 @@ $("recognitionEngine").addEventListener("change",()=>{
   scheduleTeacherDraftSave();
 });
 syncRecognitionEngineUI();
-["evaluationDescriptionPrompt","evaluationSpeechRecognition","evaluationShowNameText","evaluationThumbnailHint","gameSpeechRecognition","gameShowNameText","gameThumbnailHint"].forEach(id=>{
+["evaluationDescriptionPrompt","evaluationSpeechRecognition","evaluationShowNameText","evaluationThumbnailHint","gameDescriptionPrompt","gameSpeechRecognition","gameShowNameText","gameThumbnailHint"].forEach(id=>{
   $(id).addEventListener("change",scheduleTeacherDraftSave);
 });
 $("classes").addEventListener("input",scheduleTeacherDraftSave);
