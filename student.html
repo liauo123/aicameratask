@@ -825,8 +825,8 @@ function isDescriptionPromptMode(){
 }
 
 function shouldShowTargetThumbnail(){
-  if(isOcrRecognition())return false;
   if(!task||!(isGameMode()||isEvaluationMode()))return false;
+  if(isOcrRecognition())return currentImagePassed;
   return task.showThumbnailHint===undefined?true:!!task.showThumbnailHint;
 }
 
@@ -865,7 +865,6 @@ function updateAdvancedTargetThumbnail(){
 }
 
 function updateTeachingTargetThumbnail(label){
-  if(isOcrRecognition())label="";
   updateThumbnailElement(
     "teachingTargetThumbnailTop",
     label,
@@ -1156,7 +1155,7 @@ async function loadTask(){
     task.classDescriptions=task.classDescriptions&&typeof task.classDescriptions==="object"
       ? task.classDescriptions
       : {};
-    task.classThumbnails=task.recognitionEngine!=="ocr"&&task.classThumbnails&&typeof task.classThumbnails==="object"
+    task.classThumbnails=task.classThumbnails&&typeof task.classThumbnails==="object"
       ? task.classThumbnails
       : {};
     task.audioRequiredClasses=Array.isArray(task.audioRequiredClasses)
@@ -1743,11 +1742,13 @@ function showNextClickTrial(resumeRound=false){
   }
   $("clickWaiting").classList.add("hidden");
   const useTextChoices=task.recognitionEngine==="ocr";
+  const promptThumbnail=String(task.classThumbnails?.[clickCurrentTarget]||"");
+  const hasPromptThumbnail=/^data:image\/jpeg;base64,/i.test(promptThumbnail);
   $("clickPromptInstruction").textContent=useTextChoices?"請點選這個文字":"請點選這個縮圖";
   $("clickPromptText").textContent=useTextChoices?clickCurrentTarget:"";
   $("clickPromptText").classList.toggle("hidden",!useTextChoices);
-  $("clickPromptImage").classList.toggle("hidden",useTextChoices);
-  if(!useTextChoices)$("clickPromptImage").src=task.classThumbnails[clickCurrentTarget];
+  $("clickPromptImage").classList.toggle("hidden",useTextChoices&&!hasPromptThumbnail);
+  if(!useTextChoices||hasPromptThumbnail)$("clickPromptImage").src=promptThumbnail;
   $("clickPrompt").classList.remove("hidden");
   const targets=$("clickTargets");
   targets.innerHTML="";
@@ -1758,14 +1759,16 @@ function showNextClickTrial(resumeRound=false){
     button.dataset.label=label;
     const name=document.createElement("span");
     name.textContent=label;
-    if(useTextChoices){
-      button.appendChild(name);
-    }else{
+    const thumbnail=String(task.classThumbnails?.[label]||"");
+    const hasThumbnail=/^data:image\/jpeg;base64,/i.test(thumbnail);
+    if(!useTextChoices||hasThumbnail){
       const image=document.createElement("img");
-      image.src=task.classThumbnails[label];
+      image.src=thumbnail;
       image.alt=label+"縮圖";
       image.decoding="async";
       button.append(image,name);
+    }else{
+      button.appendChild(name);
     }
     targets.appendChild(button);
   });
@@ -2401,6 +2404,8 @@ async function captureAndRecognize(){
       currentImageEvidenceDataURL=createOcrEvidenceDataURL(canvas);
       const capturedIndex=currentIndex;
       updateVerificationUI();
+      updateCurrentTargetThumbnail();
+      updateAdvancedTargetThumbnail();
       const successText=`辨識成功：${top.className}`;
       $("imageOverlay").textContent=successText;
       lastImageOverlayText=successText;
