@@ -826,7 +826,7 @@ function isDescriptionPromptMode(){
 
 function shouldShowTargetThumbnail(){
   if(!task||!(isGameMode()||isEvaluationMode()))return false;
-  if(isOcrRecognition())return currentImagePassed;
+  if(isOcrRecognition())return !!task.showThumbnailHint;
   return task.showThumbnailHint===undefined?true:!!task.showThumbnailHint;
 }
 
@@ -1164,7 +1164,7 @@ async function loadTask(){
     task.promptMode=task.promptMode==="description"?"description":"name";
     task.showNameText=task.recognitionEngine==="ocr"&&!!task.showNameText;
     task.showThumbnailHint=task.recognitionEngine==="ocr"
-      ? false
+      ? !!task.showThumbnailHint
       : task.showThumbnailHint===undefined?true:!!task.showThumbnailHint;
     task.speechRecognitionMode="browser";
     task.speechRecognitionLanguage="zh-TW";
