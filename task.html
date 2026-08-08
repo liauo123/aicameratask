@@ -11,7 +11,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
-:root{--b:#2563eb;--r:#dc2626;--m:#64748b;--surface:#fff;--surface-border:#dbe4ee;--teaching-bg:#eff6ff;--teaching-border:#93c5fd;--evaluation-bg:#ecfdf5;--evaluation-border:#86efac;--advanced-bg:#effcf9;--advanced-border:#5eead4;--game-bg:#faf5ff;--game-border:#c4b5fd;--click-bg:#fff8ed;--click-border:#fbbf24}
+:root{--b:#2563eb;--r:#dc2626;--m:#64748b;--surface:#fff;--surface-border:#dbe4ee;--teaching-bg:#eff6ff;--teaching-border:#93c5fd;--evaluation-bg:#ecfdf5;--evaluation-border:#86efac;--advanced-bg:#effcf9;--advanced-border:#5eead4;--game-bg:#faf5ff;--game-border:#c4b5fd;--click-bg:#fff8ed;--click-border:#fbbf24;--hanzi-bg:#fff1f2;--hanzi-border:#fb7185}
 *{box-sizing:border-box}
 body{margin:0;background:linear-gradient(180deg,#f6f9fd 0,#edf3f9 100%);font-family:"Noto Sans TC","Microsoft JhengHei",Arial,sans-serif;color:#172033;min-height:100vh}
 header{background:rgba(255,255,255,.96);border-bottom:1px solid #dbe5f0;box-shadow:0 4px 18px rgba(15,23,42,.07);padding:13px 20px;position:sticky;top:0;z-index:20;backdrop-filter:blur(10px)}
@@ -30,7 +30,7 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
 .status{padding:12px;border-radius:11px;background:#eff6ff;color:#1d4ed8;white-space:pre-wrap;margin-top:10px}
 .err{background:#fef2f2;color:#b91c1c}.hidden{display:none!important}
 .listHeader{align-items:center;margin-bottom:4px}.listHeader h2{margin:0;color:#17376b}.listHint{margin:8px 0 4px;padding:10px 12px;border-radius:10px;background:#f8fafc;border:1px solid #e5eaf0}
-.modeTabs{display:flex;gap:10px;overflow-x:auto;padding:8px 2px 5px;margin-top:10px;scrollbar-width:thin}.modeTab{flex:1 0 185px;border:2px solid transparent;white-space:nowrap;box-shadow:none}.modeTab.clickTab{background:#fef3c7;color:#92400e;border-color:#fbbf24}.modeTab.teachingTab{background:#dbeafe;color:#1d4ed8;border-color:#93c5fd}.modeTab.evaluationTab{background:#dcfce7;color:#166534;border-color:#86efac}.modeTab.gameTab{background:#ede9fe;color:#6d28d9;border-color:#c4b5fd}.modeTab[aria-selected="true"]{color:#fff;box-shadow:0 6px 15px rgba(15,23,42,.16)}.modeTab.clickTab[aria-selected="true"]{background:#d97706;border-color:#d97706}.modeTab.teachingTab[aria-selected="true"]{background:#2563eb;border-color:#2563eb}.modeTab.evaluationTab[aria-selected="true"]{background:#16a34a;border-color:#16a34a}.modeTab.gameTab[aria-selected="true"]{background:#7c3aed;border-color:#7c3aed}
+.modeTabs{display:flex;gap:10px;overflow-x:auto;padding:8px 2px 5px;margin-top:10px;scrollbar-width:thin}.modeTab{flex:1 0 185px;border:2px solid transparent;white-space:nowrap;box-shadow:none}.modeTab.clickTab{background:#fef3c7;color:#92400e;border-color:#fbbf24}.modeTab.hanziTab{background:#fee2e2;color:#991b1b;border-color:#fb7185}.modeTab.teachingTab{background:#dbeafe;color:#1d4ed8;border-color:#93c5fd}.modeTab.evaluationTab{background:#dcfce7;color:#166534;border-color:#86efac}.modeTab.gameTab{background:#ede9fe;color:#6d28d9;border-color:#c4b5fd}.modeTab[aria-selected="true"]{color:#fff;box-shadow:0 6px 15px rgba(15,23,42,.16)}.modeTab.clickTab[aria-selected="true"]{background:#ca8a04;border-color:#ca8a04}.modeTab.hanziTab[aria-selected="true"]{background:#dc2626;border-color:#dc2626}.modeTab.teachingTab[aria-selected="true"]{background:#2563eb;border-color:#2563eb}.modeTab.evaluationTab[aria-selected="true"]{background:#16a34a;border-color:#16a34a}.modeTab.gameTab[aria-selected="true"]{background:#7c3aed;border-color:#7c3aed}
 .task{border:1px solid #dbe4ee;border-radius:14px;padding:17px;margin:13px 0;background:rgba(255,255,255,.76);box-shadow:0 5px 14px rgba(15,23,42,.055)}
 .modeSection{position:relative;overflow:hidden;padding:18px;border-radius:17px;margin-top:18px}
 .modeSection::after{content:"";position:absolute;width:120px;height:120px;border-radius:50%;right:-56px;top:-58px;background:currentColor;opacity:.045;pointer-events:none}
@@ -39,14 +39,16 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
 .modeSection.advanced{background:var(--advanced-bg);border:1px solid var(--advanced-border)}
 .modeSection.game{background:var(--game-bg);border:1px solid var(--game-border)}
 .modeSection.click{background:var(--click-bg);border:1px solid var(--click-border)}
+.modeSection.hanzi{background:var(--hanzi-bg);border:1px solid var(--hanzi-border)}
 .modeTitle{margin:0 0 12px;padding-bottom:10px;border-bottom:2px solid}
 .modeSection.teaching .modeTitle{color:#1d4ed8;border-color:#93c5fd}
 .modeSection.evaluation .modeTitle{color:#166534;border-color:#86efac}
 .modeSection.advanced .modeTitle{color:#0f766e;border-color:#5eead4}
 .modeSection.game .modeTitle{color:#6d28d9;border-color:#c4b5fd}
 .modeSection.click .modeTitle{color:#92400e;border-color:#fbbf24}
-.task.teachingTask{border-left:5px solid #3b82f6}.task.evaluationTask{border-left:5px solid #22c55e}.task.advancedTask{border-left:5px solid #14b8a6}.task.gameTask{border-left:5px solid #8b5cf6}.task.clickTask{border-left:5px solid #f59e0b}
-.modeBadge{display:inline-flex;align-items:center;padding:4px 9px;border-radius:999px;font-size:12px;font-weight:900;margin-bottom:7px}.teachingTask .modeBadge{background:#dbeafe;color:#1d4ed8}.evaluationTask .modeBadge{background:#dcfce7;color:#166534}.advancedTask .modeBadge{background:#ccfbf1;color:#0f766e}.gameTask .modeBadge{background:#ede9fe;color:#6d28d9}.clickTask .modeBadge{background:#fef3c7;color:#92400e}
+.modeSection.hanzi .modeTitle{color:#991b1b;border-color:#fb7185}
+.task.teachingTask{border-left:5px solid #3b82f6}.task.evaluationTask{border-left:5px solid #22c55e}.task.advancedTask{border-left:5px solid #14b8a6}.task.gameTask{border-left:5px solid #8b5cf6}.task.clickTask{border-left:5px solid #f59e0b}.task.hanziTask{border-left:5px solid #dc2626}
+.modeBadge{display:inline-flex;align-items:center;padding:4px 9px;border-radius:999px;font-size:12px;font-weight:900;margin-bottom:7px}.teachingTask .modeBadge{background:#dbeafe;color:#1d4ed8}.evaluationTask .modeBadge{background:#dcfce7;color:#166534}.advancedTask .modeBadge{background:#ccfbf1;color:#0f766e}.gameTask .modeBadge{background:#ede9fe;color:#6d28d9}.clickTask .modeBadge{background:#fef3c7;color:#92400e}.hanziTask .modeBadge{background:#fee2e2;color:#991b1b}
 .gameState{display:inline-block;padding:5px 10px;border-radius:999px;background:#ddd6fe;color:#6d28d9;font-size:12px;font-weight:900;margin-top:6px}
 .playerRow{display:grid;grid-template-columns:.7fr 1fr 1fr auto;gap:8px;align-items:center;padding:9px;border-bottom:1px solid #ede9fe;font-size:14px}.playerRow:first-child{font-weight:900;background:#faf5ff;border-radius:10px}.playerActions{display:flex;gap:6px}.playerActions button{min-width:auto;padding:7px 10px}.rank1{background:#fef3c7}.rank2{background:#f1f5f9}.rank3{background:#ffedd5}
 .task+.task{margin-top:16px}
@@ -99,6 +101,7 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
     </div>
     <div class="modeTabs" role="tablist" aria-label="選擇任務模式">
       <button class="modeTab clickTab" type="button" data-mode="click" role="tab" aria-selected="true">簡易點選練習模式</button>
+      <button class="modeTab hanziTab" type="button" data-mode="hanzi" role="tab" aria-selected="false">國字練習模式</button>
       <button class="modeTab teachingTab" type="button" data-mode="teaching" role="tab" aria-selected="false">物品(文字)辨識教學模式</button>
       <button class="modeTab evaluationTab" type="button" data-mode="evaluation" role="tab" aria-selected="false">評量模式</button>
       <button class="modeTab gameTab" type="button" data-mode="game" role="tab" aria-selected="false">多人遊戲模式</button>
@@ -208,7 +211,7 @@ function applyModeFilter(){
   sections.forEach(section=>section.classList.toggle("hidden",section.dataset.mode!==activeMode));
   const oldEmpty=$("modeEmpty");if(oldEmpty)oldEmpty.remove();
   if(!sections.some(section=>section.dataset.mode===activeMode)){
-    const names={click:"簡易點選練習模式",teaching:"物品(文字)辨識教學模式",evaluation:"評量模式",game:"多人遊戲模式"};
+    const names={click:"簡易點選練習模式",teaching:"物品(文字)辨識教學模式",hanzi:"國字練習模式",evaluation:"評量模式",game:"多人遊戲模式"};
     const empty=document.createElement("div");empty.id="modeEmpty";empty.className="status";empty.textContent="目前沒有「"+names[activeMode]+"」資料。";
     $("taskList").appendChild(empty);
   }
@@ -229,7 +232,8 @@ async function render(docs){
   const gameDocs=newestFirst.filter(doc=>doc.data().taskMode==="game");
   const advancedDocs=newestFirst.filter(doc=>doc.data().taskMode==="advanced");
   const clickDocs=newestFirst.filter(doc=>doc.data().taskMode==="click");
-  const evaluationDocs=newestFirst.filter(doc=>!["teaching","advanced","game","click"].includes(doc.data().taskMode));
+  const hanziDocs=newestFirst.filter(doc=>doc.data().taskMode==="hanzi");
+  const evaluationDocs=newestFirst.filter(doc=>!["teaching","advanced","game","click","hanzi"].includes(doc.data().taskMode));
 
   const renderTeachingTask=doc=>{
     const t=doc.data();
@@ -422,12 +426,35 @@ async function render(docs){
     </div>`;
   };
 
+  const renderHanziTask=async doc=>{
+    const t=doc.data();let resultDocs=[],resultError="";
+    try{
+      const rs=await db.collection("taskResults").where("teacherId","==",user.uid).where("taskId","==",doc.id).get();
+      resultDocs=rs.docs.sort((a,b)=>Number(a.data().studentCode||999)-Number(b.data().studentCode||999));
+    }catch(e){resultError=e.message||String(e)}
+    const rows=resultDocs.map(r=>{
+      const d=r.data(),speech=[...new Set((d.incorrectAudioClasses||[]).filter(Boolean))];
+      const errors=speech.length?`語音：${speech.map(esc).join("、")}`:"";
+      return `<div class="rr"><span>${esc(d.studentName||"未命名")}</span><span>${Number(d.progress||0)}%</span><span>${d.status==="completed"?"完成":"進行中"}</span><span>${errors||"—"}</span></div>`;
+    }).join("");
+    const resultSection=resultError?`<div class="status err">${esc(resultError)}</div>`:`<div style="margin-top:12px"><b>學生完成度（${resultDocs.length} 人）</b><div class="rr"><b>學生</b><b>進度</b><b>狀態</b><b>辨識錯誤</b></div>${rows||'<div class="small" style="padding:10px">尚無學生紀錄</div>'}</div>`;
+    const settings=t.hanziSpeechEnabled?"逐項完整文字語音辨識":"教育部筆順練習連結";
+    const practiceText=Array.isArray(t.hanziTexts)&&t.hanziTexts.length?t.hanziTexts.join("、"):String(t.hanziText||"").trim()||(t.targetClasses||[]).join("");
+    return `<div class="task hanziTask"><div class="top"><div><span class="modeBadge">國字練習模式</span><div class="titleLine"><div class="title">${esc(t.title||"國字練習")}</div><button class="s restoreTeacherBtn" type="button" onclick="restoreTeacherPlatform('${doc.id}')">回復教師平台</button></div><div class="meta">練習文字：${esc(practiceText)}</div><div class="meta">練習方式：${settings}</div></div></div><div class="row" style="margin-top:12px"><button class="s" onclick="showQR('${doc.id}','${esc(t.title||"國字練習")}')">重新產生 QR</button><button class="s" onclick="exportTaskCSV('${doc.id}')">匯出結果 CSV</button><button class="d" onclick="delTask('${doc.id}')">完整刪除</button></div>${resultSection}</div>`;
+  };
+
   const sections=[];
 
   if(teachingDocs.length){
     sections.push('<section class="modeSection teaching" data-mode="teaching"><h2 class="modeTitle">物品(文字)辨識教學模式資訊</h2>');
     sections.push(teachingDocs.map(renderTeachingTask).join(""));
     sections.push('</section>');
+  }
+
+  if(hanziDocs.length){
+    sections.push('<section class="modeSection hanzi" data-mode="hanzi"><h2 class="modeTitle">國字練習模式</h2>');
+    const hanziHtml=await Promise.all(hanziDocs.map(renderHanziTask));
+    sections.push(hanziHtml.join(""));sections.push('</section>');
   }
 
   if(evaluationDocs.length){
