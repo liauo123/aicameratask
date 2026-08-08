@@ -246,6 +246,7 @@ body[data-mode-theme] .target-thumbnail,
 body[data-mode-theme] .speak-btn{border-color:var(--mode-border);color:var(--mode-text)}
 body[data-mode-theme] .target-thumbnail{box-shadow:0 5px 14px var(--mode-shadow)}
 body[data-mode-theme] .progress>div{background:var(--primary)}
+.hanzi-card{background:#fffbeb;border:2px solid #facc15}.hanzi-card h2{color:#854d0e;text-align:center}.hanzi-picker{display:grid;grid-template-columns:repeat(auto-fit,minmax(76px,1fr));gap:12px;margin-top:14px}.hanzi-char{min-height:76px;background:#fff;border:2px solid #facc15;color:#854d0e;font-size:34px;border-radius:16px}.hanzi-question-row{display:flex;align-items:center;justify-content:center;gap:12px;margin:10px}.hanzi-question{text-align:center;font-size:clamp(32px,10vw,64px);font-weight:900;color:#854d0e;line-height:1.35;word-break:break-all}.hanzi-prompt-icon{flex:0 0 46px}.hanzi-note{text-align:center;color:#713f12;line-height:1.6}.hanzi-copyright{margin-top:14px;padding:12px;border:1px solid #facc15;border-radius:12px;background:#fff;color:#713f12;font-size:.88rem;line-height:1.7}.hanzi-copyright a{color:#92400e;font-weight:800}.hanzi-stage-title{text-align:center;font-weight:900;color:#854d0e}.hanzi-speech{padding:18px;text-align:center;background:#fff7d6;border-radius:16px;margin-top:12px}
 .teaching-camera-card .overlay{left:8px;right:8px;bottom:8px}
 
 /* iPhone／iPad 響應式顯示：避免相機區過高把按鈕推出畫面 */
@@ -555,6 +556,27 @@ html,body{
     </div>
   </section>
 
+  <section id="hanziTaskCard" class="card hanzi-card hidden">
+    <h2 id="hanziTaskTitle">國字練習模式</h2>
+    <div id="hanziPracticeIntro" class="hanzi-note"></div>
+    <div id="hanziPicker" class="hanzi-picker"></div>
+    <div id="hanziCopyrightNotice" class="hanzi-copyright hidden">點選國字後，將開啟教育部《國字標準字體筆順學習網》。本系統僅提供網站連結；該網站頁面、文字、圖像與筆順內容的著作權及使用規範，均依教育部網站公告為準。<br><a href="https://stroke-order.learningweb.moe.edu.tw/" target="_blank" rel="noopener noreferrer">教育部國字標準字體筆順學習網</a></div>
+    <div id="hanziTestPanel" class="hidden">
+      <div class="progress-label"><b>測驗進度</b><span id="hanziProgressText">0 / 0</span></div>
+      <div class="progress"><div id="hanziProgressFill"></div></div>
+      <div class="hanzi-stage-title">請完成這個國字</div>
+      <div class="hanzi-question-row">
+        <div id="hanziQuestion" class="hanzi-question">—</div>
+        <button id="repeatHanziPromptBtn" class="speak-btn hanzi-prompt-icon" type="button" aria-label="播放名稱文字" title="播放名稱文字">🔊</button>
+      </div>
+      <div id="hanziSpeechPanel" class="hanzi-speech hidden">
+        <div class="hanzi-note">請按下辨識按鈕，完整念出畫面上的名稱文字。</div>
+        <button id="speakHanziBtn" class="voice-action full" type="button">開始語音辨識</button>
+      </div>
+      <div id="hanziStatus" class="status">等待作答。</div>
+    </div>
+  </section>
+
   <section id="completeCard" class="card hidden complete">
     <div id="completeIcon" class="icon">🎉</div>
     <h2 id="completeTitle">任務完成！</h2>
@@ -619,6 +641,7 @@ let currentImageEvidenceDataURL="",currentCompletionPending=false;
 let localIncorrectClasses=[],localIncorrectAudioClasses=[];
 let exitInProgress=false;
 let clickSequence=[],clickTrialIndex=0,clickRecords=[],clickTrialTimer=null,clickNextTimer=null,clickShownAt=0,clickTrialActive=false,clickCurrentTarget="",clickCurrentChoices=[];
+let hanziSpeechRecognition=null;
 
 const $=id=>document.getElementById(id);
 const numberButtons=[...document.querySelectorAll(".number-btn")];
@@ -788,12 +811,18 @@ function isClickMode(){
   return !!(task&&task.taskMode==="click");
 }
 
+function isHanziMode(){
+  return !!(task&&task.taskMode==="hanzi");
+}
+
 function isEvaluationMode(){
-  return !!(task&&!isTeachingMode()&&!isAdvancedMode()&&!isGameMode()&&!isClickMode());
+  return !!(task&&!isTeachingMode()&&!isAdvancedMode()&&!isGameMode()&&!isClickMode()&&!isHanziMode());
 }
 
 function applyTaskModeTheme(mode){
-  const themeKey=mode==="click"
+  const themeKey=mode==="hanzi"
+    ? "hanzi"
+    : mode==="click"
     ? "click"
     : mode==="teaching"
       ? "teaching"
@@ -804,7 +833,8 @@ function applyTaskModeTheme(mode){
     click:{primary:"#d97706",dark:"#b45309",soft:"#fff8ed",strong:"#fef3c7",border:"#fbbf24",text:"#92400e",shadow:"rgba(217,119,6,.22)"},
     teaching:{primary:"#2563eb",dark:"#1d4ed8",soft:"#f0f7ff",strong:"#dbeafe",border:"#93c5fd",text:"#1d4ed8",shadow:"rgba(37,99,235,.22)"},
     evaluation:{primary:"#16a34a",dark:"#15803d",soft:"#ecfdf5",strong:"#dcfce7",border:"#86efac",text:"#166534",shadow:"rgba(22,163,74,.22)"},
-    game:{primary:"#7c3aed",dark:"#6d28d9",soft:"#faf5ff",strong:"#ede9fe",border:"#c4b5fd",text:"#6d28d9",shadow:"rgba(124,58,237,.22)"}
+    game:{primary:"#7c3aed",dark:"#6d28d9",soft:"#faf5ff",strong:"#ede9fe",border:"#c4b5fd",text:"#6d28d9",shadow:"rgba(124,58,237,.22)"},
+    hanzi:{primary:"#ca8a04",dark:"#a16207",soft:"#fffbeb",strong:"#fef3c7",border:"#facc15",text:"#854d0e",shadow:"rgba(202,138,4,.22)"}
   };
   const theme=themes[themeKey];
   const root=document.documentElement;
@@ -1171,6 +1201,13 @@ async function loadTask(){
     task.clickDisplaySeconds=Math.min(8,Math.max(3,Number(task.clickDisplaySeconds||5)));
     task.clickRepeatCount=Math.min(5,Math.max(3,Number(task.clickRepeatCount||3)));
     task.clickSimultaneousCount=Math.min(3,Math.max(1,Number(task.clickSimultaneousCount||1)),task.targetClasses.length);
+    task.hanziWritingEnabled=false;
+    task.hanziSpeechEnabled=isHanziMode()&&!!task.hanziSpeechEnabled;
+    if(isHanziMode()&&task.hanziSpeechEnabled){
+      const savedTexts=Array.isArray(task.hanziTexts)?task.hanziTexts.map(text=>String(text).trim()).filter(Boolean):[];
+      if(savedTexts.length)task.targetClasses=savedTexts;
+      else if(String(task.hanziText||"").trim())task.targetClasses=[String(task.hanziText).trim()];
+    }
     stopOptionalAudioRecognition(false);
 
     if(isClickMode()){
@@ -1185,7 +1222,7 @@ async function loadTask(){
       metadata=detected.metadata;
     }
 
-    const typeName=isClickMode()?"隨機點選測驗":task.recognitionEngine==="coco-ssd"
+    const typeName=isHanziMode()?"國字練習":isClickMode()?"隨機點選測驗":task.recognitionEngine==="coco-ssd"
       ?"COCO-SSD 開放辨識"
       :task.recognitionEngine==="ocr"
         ?"OCR 文字辨識"
@@ -1195,7 +1232,9 @@ async function loadTask(){
     const audioNote=effectiveAudioRequiredClasses.length
       ? `｜${effectiveAudioRequiredClasses.length}項需要語音辨識`
       : "";
-    $("taskMeta").textContent=isClickMode()
+    $("taskMeta").textContent=isHanziMode()
+      ? `國字練習｜${task.hanziSpeechEnabled?"逐項完整文字語音辨識":"開啟教育部筆順練習"}`
+      : isClickMode()
       ? `隨機點選測驗｜同時 ${task.clickSimultaneousCount} 種｜每個物品 ${task.clickRepeatCount} 次｜每次最多 ${task.clickDisplaySeconds} 秒`
       : task.taskMode==="teaching"
       ? `專案類型：${typeName}｜教學模式：拍照後顯示名稱與說明`
@@ -1204,7 +1243,11 @@ async function loadTask(){
         : task.taskMode==="game"
           ? `多人尋物遊戲｜教師開始後，每位學生會收到不同的隨機物品順序${audioNote}`
           : `專案類型：${typeName}｜${task.promptMode==="description"?"說明文字語音出題":"物品名稱語音出題"}${audioNote}｜順序：${task.targetClasses.join(" → ")}`;
-    if(task.taskMode==="teaching"){
+    if(isHanziMode()&&!task.hanziSpeechEnabled){
+      $("joinCard").classList.add("hidden");
+      showHanziPracticePicker();
+      setStatus("loadStatus","國字練習載入成功，請點選要練習的字。","success");
+    }else if(task.taskMode==="teaching"){
       $("joinCard").classList.add("hidden");
       setStatus("loadStatus","教學模式載入成功，正在開啟鏡頭…","success");
       await startTeachingModeDirectly();
@@ -1218,7 +1261,7 @@ async function loadTask(){
       });
       $("selectedNumberText").textContent="尚未選擇編號";
       $("startBtn").disabled=true;
-      $("startBtn").textContent=isGameMode()?"送出加入申請":isClickMode()?"開始點選測驗":"開始任務";
+      $("startBtn").textContent=isGameMode()?"送出加入申請":isClickMode()?"開始點選測驗":isHanziMode()?"開始國字測驗":"開始任務";
 
       $("joinCard").classList.remove("hidden");
       if(isGameMode()){
@@ -1441,6 +1484,94 @@ async function startTeachingModeDirectly(){
   }
 }
 
+function showHanziPracticePicker(){
+  disableHanziCamera();
+  $("loadCard").classList.add("hidden");
+  $("hanziTaskCard").classList.remove("hidden");
+  $("hanziTestPanel").classList.add("hidden");
+  $("hanziPicker").classList.remove("hidden");
+  $("hanziCopyrightNotice").classList.remove("hidden");
+  $("hanziTaskTitle").textContent=task.title||"國字練習模式";
+  $("hanziPracticeIntro").textContent="請點選一個國字，開啟教育部《國字標準字體筆順學習網》的該字頁面。";
+  $("hanziPicker").innerHTML=task.targetClasses.map(char=>`<button class="hanzi-char" type="button" data-hanzi="${escapeHtml(char)}">${escapeHtml(char)}</button>`).join("");
+}
+
+function disableHanziCamera(){
+  stopImage();
+  ["imageStage","poseStage","audioStage","taskCard","clickTaskCard"].forEach(id=>$(id)?.classList.add("hidden"));
+}
+
+function renderHanziQuestion(){
+  const total=task.targetClasses.length;
+  $("hanziProgressText").textContent=`${currentIndex} / ${total}`;
+  $("hanziProgressFill").style.width=Math.round(currentIndex/total*100)+"%";
+  $("hanziQuestion").textContent=task.targetClasses[currentIndex]||"完成";
+  $("hanziSpeechPanel").classList.remove("hidden");
+  setStatus("hanziStatus","請按下按鈕並完整念出畫面上的文字。");
+  setTimeout(()=>speakHanziPrompt(false),300);
+}
+
+function speakHanziPrompt(showError=true){
+  const target=String(task&&task.targetClasses[currentIndex]||"").trim();
+  if(!target||finished)return;
+  if(!("speechSynthesis" in window)){
+    if(showError)setStatus("hanziStatus","此瀏覽器不支援語音提醒。","error");
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const utterance=new SpeechSynthesisUtterance(target);
+  utterance.lang="zh-TW";utterance.rate=.82;utterance.pitch=1;utterance.volume=1;
+  window.speechSynthesis.speak(utterance);
+}
+
+async function saveHanziProgress(done=false){
+  if(!resultRef)return;
+  await resultRef.update({
+    completedClasses:[...completed],incorrectClasses:[...new Set(localIncorrectClasses)],incorrectAudioClasses:[...new Set(localIncorrectAudioClasses)],
+    progress:Math.round(completed.length/task.targetClasses.length*100),attempts,status:done?"completed":"inProgress",
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp(),...(done?{completedAt:firebase.firestore.FieldValue.serverTimestamp()}:{})
+  });
+}
+
+async function completeHanziCharacter(){
+  const target=task.targetClasses[currentIndex];
+  completed.push(target);currentIndex++;
+  await saveHanziProgress(currentIndex>=task.targetClasses.length);
+  if(currentIndex>=task.targetClasses.length){
+    finished=true;$("hanziTaskCard").classList.add("hidden");$("completeCard").classList.remove("hidden");$("completeActions").classList.remove("hidden");
+    $("completeIcon").textContent="🎉";$("completeTitle").textContent="國字測驗完成！";$("rankDisplay").classList.add("hidden");$("completeMessage").textContent="已完成全部國字練習，結果已回傳教師端。";renderIncorrectSummary();return;
+  }
+  renderHanziQuestion();
+}
+
+function recognizeHanziSpeech(){
+  const SpeechRecognition=getBrowserSpeechRecognitionConstructor();
+  if(!SpeechRecognition)return setStatus("hanziStatus","此瀏覽器不支援語音辨識，請改用 Chrome 或 Safari。","error");
+  if("speechSynthesis" in window)window.speechSynthesis.cancel();
+  if(hanziSpeechRecognition){try{hanziSpeechRecognition.abort()}catch(e){}}
+  const recognition=new SpeechRecognition();hanziSpeechRecognition=recognition;recognition.lang="zh-TW";recognition.interimResults=false;recognition.maxAlternatives=3;
+  $("speakHanziBtn").disabled=true;setStatus("hanziStatus","正在聆聽，請念出畫面上的字…");
+  recognition.onresult=async event=>{attempts++;const alternatives=[...event.results[0]].map(item=>item.transcript);const target=task.targetClasses[currentIndex];
+    if(!alternatives.some(text=>speechMatchesTarget(text,target))){localIncorrectAudioClasses.push(target);playTaskErrorSound();showCaptureFeedback("failure","語音答錯了");setStatus("hanziStatus",`聽到「${alternatives[0]||""}」，請再試一次。`,"error");return}
+    playTaskSuccessSound();showCaptureFeedback("success","語音答對了");await completeHanziCharacter()};
+  recognition.onerror=event=>setStatus("hanziStatus","語音辨識失敗："+(event.error||"請再試一次"),"error");
+  recognition.onend=()=>{$("speakHanziBtn").disabled=false;if(hanziSpeechRecognition===recognition)hanziSpeechRecognition=null};recognition.start();
+}
+
+async function startHanziTest(){
+  if(!selectedStudentNumber)return setStatus("joinStatus","請先選擇學生編號。","error");
+  $("startBtn").disabled=true;setStatus("joinStatus","正在建立國字測驗紀錄…");
+  try{
+    disableHanziCamera();
+    const currentUser=await ensureAuth();
+    resultRef=await db.collection("taskResults").add({taskId,teacherId:task.teacherId||"",studentUid:currentUser.uid,studentName:"學生 "+selectedStudentNumber,studentCode:selectedStudentNumber,projectType:"hanzi",targetClasses:[...task.targetClasses],completedClasses:[],incorrectClasses:[],incorrectAudioClasses:[],progress:0,attempts:0,status:"inProgress",taskMode:"hanzi",startedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    currentIndex=0;completed=[];attempts=0;finished=false;localIncorrectClasses=[];localIncorrectAudioClasses=[];
+    $("loadCard").classList.add("hidden");$("joinCard").classList.add("hidden");$("hanziTaskCard").classList.remove("hidden");$("hanziPicker").classList.add("hidden");$("hanziTestPanel").classList.remove("hidden");
+    $("hanziCopyrightNotice").classList.add("hidden");
+    $("hanziTaskTitle").textContent=task.title||"國字測驗";$("hanziPracticeIntro").textContent="學生編號 "+selectedStudentNumber;renderHanziQuestion();
+  }catch(e){setStatus("joinStatus","開始國字測驗失敗：\n"+(e.message||e),"error");$("startBtn").disabled=false}
+}
+
 async function startTask(){
   if(task&&task.taskMode==="teaching"){
     await startTeachingModeDirectly();
@@ -1449,6 +1580,11 @@ async function startTask(){
 
   if(!selectedStudentNumber){
     setStatus("joinStatus","請先選擇學生編號。","error");
+    return;
+  }
+
+  if(isHanziMode()){
+    await startHanziTest();
     return;
   }
 
@@ -3132,7 +3268,7 @@ function renderIncorrectSummary(){
   }
   const lines=[];
   if(photoItems.length){
-    lines.push(`<div><span class="incorrect-summary-title">照片辨識錯誤：</span>${photoItems.map(escapeHtml).join("、")}</div>`);
+    lines.push(`<div><span class="incorrect-summary-title">${isHanziMode()?"書寫":"照片"}辨識錯誤：</span>${photoItems.map(escapeHtml).join("、")}</div>`);
   }
   if(audioItems.length){
     lines.push(`<div><span class="incorrect-summary-title">語音辨識錯誤：</span>${audioItems.map(escapeHtml).join("、")}</div>`);
@@ -3210,6 +3346,7 @@ function stopAll(preserveClickRound=false){
   poseStableClass="";
   poseStableCount=0;
   stopOptionalAudioRecognition(true);
+  if(hanziSpeechRecognition){try{hanziSpeechRecognition.abort()}catch(e){}hanziSpeechRecognition=null}
   stopAudio();
 }
 
@@ -3242,6 +3379,14 @@ $("loadBtn").onclick=loadTask;
 $("startBtn").onclick=()=>isGameMode()?requestGameJoin():startTask();
 $("captureBtn").onclick=captureAndRecognize;
 $("voiceRecognizeBtn").onclick=startOptionalAudioRecognition;
+$("repeatHanziPromptBtn").onclick=()=>speakHanziPrompt(true);
+$("speakHanziBtn").onclick=recognizeHanziSpeech;
+$("hanziPicker").addEventListener("click",event=>{
+  const button=event.target.closest("[data-hanzi]");if(!button)return;
+  const url=new URL("https://stroke-order.learningweb.moe.edu.tw/searchW.jsp");
+  url.searchParams.set("WORD",button.dataset.hanzi);
+  window.open(url.toString(),"_blank","noopener");
+});
 $("againBtn").onclick=repeatTask;
 $("endBtn").onclick=endTask;
 
