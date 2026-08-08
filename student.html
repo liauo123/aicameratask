@@ -639,6 +639,7 @@ let gameStartedLocally=false,gameModelPreparing=false,gameModelPromise=null,game
 let currentImagePassed=false,currentAudioPassed=true,currentImageConfidence=0,currentAudioConfidence=0;
 let currentImageEvidenceDataURL="",currentCompletionPending=false;
 let localIncorrectClasses=[],localIncorrectAudioClasses=[];
+let consecutiveWrongAttempts=0;
 let exitInProgress=false;
 let clickSequence=[],clickTrialIndex=0,clickRecords=[],clickTrialTimer=null,clickNextTimer=null,clickShownAt=0,clickTrialActive=false,clickCurrentTarget="",clickCurrentChoices=[];
 let hanziSpeechRecognition=null;
@@ -955,6 +956,36 @@ function resetCurrentVerification(){
   restoreCaptureButtonForCurrentQuestion();
 }
 
+async function skipEvaluationQuestionAfterFiveWrong(){
+  if(!isEvaluationMode()||finished||currentIndex>=task.targetClasses.length)return false;
+  const item=task.targetClasses[currentIndex];
+  consecutiveWrongAttempts=0;
+  completed.push(item);
+  currentIndex++;
+  resetCurrentVerification();
+  renderTask();
+  if(resultRef){
+    try{
+      await resultRef.update({
+        completedClasses:[...completed],
+        skippedClasses:firebase.firestore.FieldValue.arrayUnion(item),
+        progress:Math.round(completed.length/task.targetClasses.length*100),
+        attempts,
+        status:currentIndex>=task.targetClasses.length?"completed":"inProgress",
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+        ...(currentIndex>=task.targetClasses.length?{completedAt:firebase.firestore.FieldValue.serverTimestamp()}:{})
+      });
+    }catch(e){console.warn("評量跳題紀錄失敗",e)}
+  }
+  if(currentIndex>=task.targetClasses.length){
+    finishTask();
+  }else{
+    setStatus("recognitionStatus",`「${item}」已連續答錯 5 次，已進入下一題。`,"error");
+    prepareCurrentQuestionPrompt(true);
+  }
+  return true;
+}
+
 function updateVerificationUI(){
   const panel=$("audioVerification");
   const voiceButton=$("voiceRecognizeBtn");
@@ -1175,10 +1206,10 @@ async function loadTask(){
     task.recognitionEngine=["coco-ssd","ocr"].includes(task.recognitionEngine)
       ? task.recognitionEngine
       : "teachable-machine";
-    if(!isClickMode()&&task.recognitionEngine==="teachable-machine"&&!task.modelURL)throw new Error("任務沒有模型網址");
+    if(!isClickMode()&&!isHanziMode()&&task.recognitionEngine==="teachable-machine"&&!task.modelURL)throw new Error("任務沒有模型網址");
     if(!Array.isArray(task.targetClasses)||!task.targetClasses.length)throw new Error("任務沒有指定類別");
 
-    if(!isClickMode()&&task.recognitionEngine==="teachable-machine")task.modelURL=norm(task.modelURL);
+    if(!isClickMode()&&!isHanziMode()&&task.recognitionEngine==="teachable-machine")task.modelURL=norm(task.modelURL);
     task.threshold=Number(task.threshold||0.85);
     task.requiredConsecutiveFrames=Number(task.requiredConsecutiveFrames||10);
     gameTargetsShuffled=false;
@@ -1209,8 +1240,12 @@ async function loadTask(){
       else if(String(task.hanziText||"").trim())task.targetClasses=[String(task.hanziText).trim()];
     }
     stopOptionalAudioRecognition(false);
+    if(isHanziMode())disableHanziCamera();
 
-    if(isClickMode()){
+    if(isHanziMode()){
+      projectType="hanzi";
+      metadata={labels:[...task.targetClasses]};
+    }else if(isClickMode()){
       projectType="click";
       metadata={labels:[...task.targetClasses]};
     }else if(task.recognitionEngine==="coco-ssd"||task.recognitionEngine==="ocr"){
@@ -1497,7 +1532,7 @@ function showHanziPracticePicker(){
 }
 
 function disableHanziCamera(){
-  stopImage();
+  stopAll();
   ["imageStage","poseStage","audioStage","taskCard","clickTaskCard"].forEach(id=>$(id)?.classList.add("hidden"));
 }
 
@@ -1533,8 +1568,17 @@ async function saveHanziProgress(done=false){
   });
 }
 
-async function completeHanziCharacter(){
+async function completeHanziCharacter(skipped=false){
   const target=task.targetClasses[currentIndex];
+  if(skipped&&resultRef){
+    try{
+      await resultRef.update({
+        skippedClasses:firebase.firestore.FieldValue.arrayUnion(target),
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }catch(e){console.warn("國字跳題紀錄失敗",e)}
+  }
+  consecutiveWrongAttempts=0;
   completed.push(target);currentIndex++;
   await saveHanziProgress(currentIndex>=task.targetClasses.length);
   if(currentIndex>=task.targetClasses.length){
@@ -1552,7 +1596,16 @@ function recognizeHanziSpeech(){
   const recognition=new SpeechRecognition();hanziSpeechRecognition=recognition;recognition.lang="zh-TW";recognition.interimResults=false;recognition.maxAlternatives=3;
   $("speakHanziBtn").disabled=true;setStatus("hanziStatus","正在聆聽，請念出畫面上的字…");
   recognition.onresult=async event=>{attempts++;const alternatives=[...event.results[0]].map(item=>item.transcript);const target=task.targetClasses[currentIndex];
-    if(!alternatives.some(text=>speechMatchesTarget(text,target))){localIncorrectAudioClasses.push(target);playTaskErrorSound();showCaptureFeedback("failure","語音答錯了");setStatus("hanziStatus",`聽到「${alternatives[0]||""}」，請再試一次。`,"error");return}
+    if(!alternatives.some(text=>speechMatchesTarget(text,target))){
+      localIncorrectAudioClasses.push(target);consecutiveWrongAttempts++;playTaskErrorSound();showCaptureFeedback("failure","語音答錯了");
+      if(consecutiveWrongAttempts>=5){
+        setStatus("hanziStatus","已連續答錯 5 次，即將進入下一題。","error");
+        await new Promise(resolve=>setTimeout(resolve,850));
+        await completeHanziCharacter(true);
+        return;
+      }
+      setStatus("hanziStatus",`聽到「${alternatives[0]||""}」，請再試一次（${consecutiveWrongAttempts}/5）。`,"error");return
+    }
     playTaskSuccessSound();showCaptureFeedback("success","語音答對了");await completeHanziCharacter()};
   recognition.onerror=event=>setStatus("hanziStatus","語音辨識失敗："+(event.error||"請再試一次"),"error");
   recognition.onend=()=>{$("speakHanziBtn").disabled=false;if(hanziSpeechRecognition===recognition)hanziSpeechRecognition=null};recognition.start();
@@ -1565,7 +1618,7 @@ async function startHanziTest(){
     disableHanziCamera();
     const currentUser=await ensureAuth();
     resultRef=await db.collection("taskResults").add({taskId,teacherId:task.teacherId||"",studentUid:currentUser.uid,studentName:"學生 "+selectedStudentNumber,studentCode:selectedStudentNumber,projectType:"hanzi",targetClasses:[...task.targetClasses],completedClasses:[],incorrectClasses:[],incorrectAudioClasses:[],progress:0,attempts:0,status:"inProgress",taskMode:"hanzi",startedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
-    currentIndex=0;completed=[];attempts=0;finished=false;localIncorrectClasses=[];localIncorrectAudioClasses=[];
+    currentIndex=0;completed=[];attempts=0;finished=false;localIncorrectClasses=[];localIncorrectAudioClasses=[];consecutiveWrongAttempts=0;
     $("loadCard").classList.add("hidden");$("joinCard").classList.add("hidden");$("hanziTaskCard").classList.remove("hidden");$("hanziPicker").classList.add("hidden");$("hanziTestPanel").classList.remove("hidden");
     $("hanziCopyrightNotice").classList.add("hidden");
     $("hanziTaskTitle").textContent=task.title||"國字測驗";$("hanziPracticeIntro").textContent="學生編號 "+selectedStudentNumber;renderHanziQuestion();
@@ -1645,7 +1698,7 @@ async function startTask(){
       gamePlayerStatus="playing";
     }
 
-    currentIndex=0;completed=[];attempts=0;holdCount=0;finished=false;paused=false;taskSuccessAnimating=false;
+    currentIndex=0;completed=[];attempts=0;holdCount=0;finished=false;paused=false;taskSuccessAnimating=false;consecutiveWrongAttempts=0;
     localIncorrectClasses=[];localIncorrectAudioClasses=[];
     resetCurrentVerification();
     buildPredictionUI(labels);
@@ -2253,6 +2306,10 @@ function buildPredictionUI(labels){
 }
 
 async function startSelectedProject(){
+  if(isHanziMode()){
+    disableHanziCamera();
+    return;
+  }
   hideAllStages();
 
   if(projectType==="image"){
@@ -2565,6 +2622,8 @@ async function captureAndRecognize(){
       },850);
     }else{
       attempts++;
+      if(isEvaluationMode())consecutiveWrongAttempts++;
+      const shouldSkipQuestion=isEvaluationMode()&&consecutiveWrongAttempts>=5;
       showCaptureFeedback("failure","辨識失敗");
       playTaskErrorSound();
 
@@ -2588,13 +2647,23 @@ async function captureAndRecognize(){
       lastImageOverlayText=$("imageOverlay").textContent;
       setStatus(
         "recognitionStatus",
-        isAdvancedMode()
+        shouldSkipQuestion
+          ?"已連續答錯 5 次，即將進入下一題。"
+          :isAdvancedMode()
           ?"辨識錯誤，請再聽一次語音說明後重新拍照。"
           :isOcrRecognition()
             ?"沒有讀到指定文字，請靠近、對準後重新拍照。"
             :"辨識錯誤，請將指定物品放入框內後重新拍照。",
         "error"
       );
+
+      if(shouldSkipQuestion){
+        setTimeout(async()=>{
+          photoRecognizing=false;
+          await skipEvaluationQuestionAfterFiveWrong();
+        },850);
+        return;
+      }
 
       setTimeout(()=>{
         if(!finished){
@@ -2813,21 +2882,27 @@ function stopOptionalAudioRecognition(updateUI=true){
   if(updateUI)updateVerificationUI();
 }
 
-async function recordOptionalAudioFailure(target){
+async function recordOptionalAudioFailure(target,countTowardLimit=true){
   attempts++;
   if(target&&!localIncorrectAudioClasses.includes(target)){
     localIncorrectAudioClasses.push(target);
   }
-  if(!resultRef||!target)return;
-  try{
-    await resultRef.update({
-      attempts,
-      incorrectAudioClasses:firebase.firestore.FieldValue.arrayUnion(target),
-      updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-    });
-  }catch(e){
-    console.warn("語音辨識錯誤紀錄失敗",e);
+  if(resultRef&&target){
+    try{
+      await resultRef.update({
+        attempts,
+        incorrectAudioClasses:firebase.firestore.FieldValue.arrayUnion(target),
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }catch(e){
+      console.warn("語音辨識錯誤紀錄失敗",e);
+    }
   }
+  if(isEvaluationMode()&&countTowardLimit){
+    consecutiveWrongAttempts++;
+    if(consecutiveWrongAttempts>=5)return skipEvaluationQuestionAfterFiveWrong();
+  }
+  return false;
 }
 
 async function startOptionalAudioRecognition(){
@@ -2864,7 +2939,7 @@ async function startOptionalAudioRecognition(){
   updateVerificationUI();
   setVoiceResult(`正在聆聽，請說出「${target}」…`);
 
-  const failRecognition=async message=>{
+  const failRecognition=async(message,countTowardLimit=true)=>{
     if(settled)return;
     settled=true;
     stopOptionalAudioRecognition(false);
@@ -2872,7 +2947,7 @@ async function startOptionalAudioRecognition(){
     updateVerificationUI();
     showCaptureFeedback("failure","語音失敗");
     playTaskErrorSound();
-    await recordOptionalAudioFailure(target);
+    await recordOptionalAudioFailure(target,countTowardLimit);
   };
 
   recognition.onresult=event=>{
@@ -2921,7 +2996,7 @@ async function startOptionalAudioRecognition(){
       "network":"語音辨識服務連線失敗，請確認網路。",
       "no-speech":"沒有聽到語音，請靠近麥克風再試一次。"
     }[event.error]||"語音辨識失敗，請重新嘗試。";
-    failRecognition(message);
+    failRecognition(message,!['not-allowed','service-not-allowed','audio-capture','network'].includes(event.error));
   };
 
   recognition.onend=()=>{
@@ -2943,7 +3018,7 @@ async function startOptionalAudioRecognition(){
   try{
     recognition.start();
   }catch(e){
-    failRecognition("無法啟動語音辨識："+(e.message||e));
+    failRecognition("無法啟動語音辨識："+(e.message||e),false);
   }
 }
 
@@ -3152,6 +3227,7 @@ async function completeCurrent(confidence,evidenceCanvas,evidenceDataURL="",audi
   const item=task.targetClasses[currentIndex];
   const audioRequired=getEffectiveAudioRequiredClasses().includes(item);
 
+  consecutiveWrongAttempts=0;
   completed.push(item);
   currentIndex++;
   resetCurrentVerification();
