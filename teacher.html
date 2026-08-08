@@ -74,8 +74,9 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
 #advancedModeCard{background:#effcf9;border-color:#5eead4;color:#0f766e}
 .gameMode{background:#faf5ff;border-color:#c4b5fd;color:#6d28d9}
 .clickMode{background:#fff8ed;border-color:#fbbf24;color:#92400e}
+.hanziMode{background:#fff1f2;border-color:#fb7185;color:#9f1239}
 .modeCard input{color:var(--ink)}.modeCard .status{background:rgba(255,255,255,.66);color:inherit}
-.teachMode .p{background:#2563eb}.modeCard#createTaskCard .p{background:#16a34a}.modeCard#advancedModeCard .p{background:#0f766e}.gameMode .p{background:#7c3aed}.clickMode .p{background:#d97706}
+.teachMode .p{background:#2563eb}.modeCard#createTaskCard .p{background:#16a34a}.modeCard#advancedModeCard .p{background:#0f766e}.gameMode .p{background:#7c3aed}.clickMode .p{background:#d97706}.hanziMode .p{background:#dc2626}
 .gameHint{font-size:13px;line-height:1.7;color:#6d28d9;margin:-4px 0 10px}
 .clickHint{font-size:13px;line-height:1.7;color:#92400e;margin:-4px 0 10px}
 .removedMode{display:none!important}
@@ -113,8 +114,8 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
     <section class="card modelCard">
       <h2 id="modelHeading">載入辨識模型</h2>
       <select id="recognitionEngine" aria-label="選擇辨識方式">
-        <option value="teachable-machine">Teachable Machine 圖片辨識</option>
         <option value="ocr">OCR 文字辨識</option>
+        <option value="teachable-machine">Teachable Machine 圖片辨識</option>
       </select>
       <div id="teachableMachineFields">
         <input id="modelURL" placeholder="貼上 Image Model URL">
@@ -150,6 +151,17 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
         </div>
         <button id="createClickBtn" class="p" style="width:100%" disabled>產生簡易點選練習 QR</button>
         <div id="clickStatus" class="status">尚未建立。</div>
+      </section>
+
+      <section id="hanziModeCard" class="card modeCard hanziMode hidden">
+        <h2>國字練習模式</h2>
+        <div class="clickHint">未勾選時，可將已載入文字中的國字逐字連結教育部筆順練習；勾選語音辨識後，每一個文字項目會成為一題完整語音辨識。</div>
+        <input id="hanziTaskTitle" placeholder="國字練習任務名稱">
+        <div class="modeSettings">
+          <label class="modeSetting"><input id="hanziSpeechRecognition" type="checkbox">語音辨識</label>
+        </div>
+        <button id="createHanziBtn" class="p" style="width:100%" disabled>產生國字練習 QR</button>
+        <div id="hanziStatus" class="status">尚未建立。</div>
       </section>
 
       <section id="teachMode" class="card modeCard teachMode hidden">
@@ -269,6 +281,8 @@ function saveTeacherDraft(){
     gameSpeechRecognition:$("gameSpeechRecognition").checked,
     gameShowNameText:$("gameShowNameText").checked,
     gameThumbnailHint:$("gameThumbnailHint").checked,
+    hanziTaskTitle:$("hanziTaskTitle").value,
+    hanziSpeechRecognition:$("hanziSpeechRecognition").checked,
     clickTitle:$("clickTitle").value,
     clickDisplaySeconds:Number($("clickDisplaySeconds").value||5),
     clickRepeatCount:Number($("clickRepeatCount").value||3),
@@ -299,9 +313,11 @@ function restoreTeacherDraftBase(){
   const draft=readTeacherDraft();
   if(!draft)return false;
   restoringTeacherDraft=true;
-  $("recognitionEngine").value=draft.recognitionEngine==="ocr"?"ocr":"teachable-machine";
+  $("recognitionEngine").value=["ocr","hanzi"].includes(draft.recognitionEngine)?"ocr":"teachable-machine";
   $("modelURL").value=String(draft.modelURLInput||"");
-  $("ocrKeywords").value=String(draft.ocrKeywords||"");
+  $("ocrKeywords").value=String(draft.recognitionEngine==="hanzi"
+    ? draft.hanziKeywords||draft.hanziPracticeText||draft.ocrKeywords||""
+    : draft.ocrKeywords||"");
   syncRecognitionEngineUI();
   $("teachingTitle").value=String(draft.teachingTitle||"");
   $("taskTitle").value=String(draft.taskTitle||"");
@@ -315,6 +331,8 @@ function restoreTeacherDraftBase(){
   $("gameSpeechRecognition").checked=!!draft.gameSpeechRecognition;
   $("gameShowNameText").checked=getSelectedRecognitionEngine()==="ocr"&&!!draft.gameShowNameText;
   $("gameThumbnailHint").checked=!!draft.gameThumbnailHint;
+  $("hanziTaskTitle").value=String(draft.hanziTaskTitle||"");
+  $("hanziSpeechRecognition").checked=!!draft.hanziSpeechRecognition;
   $("clickTitle").value=String(draft.clickTitle||"");
   $("clickDisplaySeconds").value=String(Math.min(8,Math.max(3,Number(draft.clickDisplaySeconds||5))));
   $("clickRepeatCount").value=String(Math.min(5,Math.max(3,Number(draft.clickRepeatCount||3))));
@@ -363,7 +381,8 @@ auth.onAuthStateChanged(async u=>{user=u;if(u){$("authCard").classList.add("hidd
 $("loginBtn").onclick=async()=>{try{await auth.signInWithEmailAndPassword($("email").value.trim(),$("password").value)}catch(e){status("authStatus","登入失敗：\n"+e.message,"err")}};
 $("logoutBtn").onclick=()=>{saveTeacherDraft();auth.signOut()};
 function getSelectedRecognitionEngine(){
-  return $("recognitionEngine").value==="ocr"?"ocr":"teachable-machine";
+  const value=$("recognitionEngine").value;
+  return value==="ocr"?"ocr":"teachable-machine";
 }
 function getOcrKeywords(){
   const seen=new Set();
@@ -374,7 +393,8 @@ function getOcrKeywords(){
   });
 }
 function syncRecognitionEngineUI(){
-  const isOcr=getSelectedRecognitionEngine()==="ocr";
+  const engine=getSelectedRecognitionEngine();
+  const isOcr=engine==="ocr";
   $("teachableMachineFields").classList.toggle("hidden",isOcr);
   $("ocrFields").classList.toggle("hidden",!isOcr);
   $("evaluationNameTextSetting").classList.toggle("hidden",!isOcr);
@@ -389,15 +409,15 @@ function syncRecognitionEngineUI(){
     ? "需要點選的目標文字會顯示在學生畫面上方；有設定縮圖時會與文字一起出現，沒有縮圖時只顯示文字。1–3 個文字選項會隨機出現。"
     : "有縮圖的物品會顯示縮圖，沒有縮圖時只顯示名稱文字；1–3 種物品選項會隨機出現。點錯會顯示錯誤畫面與音效，教師端只保留答對、逾時與平均秒數摘要。";
   $("loadModelBtn").textContent=isOcr?"載入 OCR 文字辨識":"載入模型";
-  status("modelStatus",isOcr
-    ? "請輸入要辨識的文字，一行一項。"
-    : "尚未載入模型。");
+  status("modelStatus",isOcr?"請輸入要辨識的文字，一行一項。":"尚未載入模型。");
 }
 $("loadModelBtn").onclick=async()=>{
+  $("teachMode").classList.add("hidden");
   $("createTaskCard").classList.add("hidden");
   $("advancedModeCard").classList.add("hidden");
   $("gameModeCard").classList.add("hidden");
   $("clickModeCard").classList.add("hidden");
+  $("hanziModeCard").classList.add("hidden");
   const engine=getSelectedRecognitionEngine();
   modelURL=engine==="ocr"?"":$("modelURL").value.trim();
   if(engine==="teachable-machine"&&!modelURL)return status("modelStatus","請輸入模型網址。","err");
@@ -420,11 +440,13 @@ $("loadModelBtn").onclick=async()=>{
     $("createAdvancedBtn").disabled=false;
     $("createGameBtn").disabled=false;
     $("createClickBtn").disabled=false;
+    $("createHanziBtn").disabled=false;
     $("teachMode").classList.remove("hidden");
     $("advancedModeCard").classList.remove("hidden");
     $("createTaskCard").classList.remove("hidden");
     $("gameModeCard").classList.remove("hidden");
     $("clickModeCard").classList.remove("hidden");
+    $("hanziModeCard").classList.remove("hidden");
     status("modelStatus",engine==="ocr"
       ? "OCR 文字辨識已載入，共 "+labels.length+" 項文字。可拖拉調整順序並選擇性加入縮圖。"
       : "模型載入成功，共 "+labels.length+" 類。可拖拉或點擊加入縮圖。","ok");
@@ -442,7 +464,7 @@ async function restoreTaskFromTaskList(taskId){
     const task=snap.data()||{};
     if(task.teacherId&&task.teacherId!==user.uid)throw new Error("這不是目前登入教師建立的任務。");
 
-    const taskMode=["teaching","advanced","game","click"].includes(task.taskMode)
+    const taskMode=["teaching","advanced","game","click","hanzi"].includes(task.taskMode)
       ? task.taskMode
       : "evaluation";
     const savedDraft=readTeacherDraft();
@@ -459,16 +481,27 @@ async function restoreTaskFromTaskList(taskId){
     $("advancedModeCard").classList.add("hidden");
     $("gameModeCard").classList.add("hidden");
     $("clickModeCard").classList.add("hidden");
-    $("recognitionEngine").value=task.recognitionEngine==="ocr"?"ocr":"teachable-machine";
+    $("hanziModeCard").classList.add("hidden");
+    $("recognitionEngine").value=taskMode==="hanzi"
+      ? (task.modelURL?"teachable-machine":"ocr")
+      : task.recognitionEngine==="ocr"?"ocr":"teachable-machine";
     $("modelURL").value=String(task.modelURL||"");
-    $("ocrKeywords").value=task.recognitionEngine==="ocr"
-      ? (Array.isArray(task.targetClasses)?task.targetClasses.join("\n"):"")
+    $("ocrKeywords").value=taskMode==="hanzi"
+      ? (Array.isArray(task.hanziTexts)&&task.hanziTexts.length
+        ? task.hanziTexts.join("\n")
+        : String(task.hanziText||"")||(Array.isArray(task.targetClasses)?task.targetClasses.join("\n"):""))
+      : task.recognitionEngine==="ocr"&&Array.isArray(task.targetClasses)
+      ? task.targetClasses.join("\n")
       : "";
     syncRecognitionEngineUI();
     if(taskMode==="teaching")$("teachingTitle").value=String(task.title||"");
     if(taskMode==="evaluation")$("taskTitle").value=String(task.title||"");
     if(taskMode==="advanced")$("advancedTitle").value=String(task.title||"");
     if(taskMode==="game")$("gameTitle").value=String(task.title||"");
+    if(taskMode==="hanzi"){
+      $("hanziTaskTitle").value=String(task.title||"").replace(/^國字練習：/,"");
+      $("hanziSpeechRecognition").checked=!!task.hanziSpeechEnabled;
+    }
     if(taskMode==="evaluation"){
       $("evaluationDescriptionPrompt").checked=task.promptMode==="description";
       $("evaluationSpeechRecognition").checked=Array.isArray(task.audioRequiredClasses)&&task.audioRequiredClasses.length>0;
@@ -495,7 +528,7 @@ async function restoreTaskFromTaskList(taskId){
     restoringTeacherDraft=false;
 
     await $("loadModelBtn").onclick();
-    if(!model||!labels.length)throw new Error(task.recognitionEngine==="ocr"
+    if(!model||!labels.length)throw new Error(task.recognitionEngine==="ocr"||taskMode==="hanzi"
       ? "OCR 文字項目未能成功載入。"
       : "辨識模型未能成功載入，請確認模型網址及網路連線。");
 
@@ -549,7 +582,9 @@ async function restoreTaskFromTaskList(taskId){
     updateLabelsFromDOM();
     restoringTeacherDraft=false;
     saveTeacherDraft();
-    status("modelStatus",task.recognitionEngine==="ocr"
+    status("modelStatus",taskMode==="hanzi"
+      ? "國字練習設定已回復。"
+      : task.recognitionEngine==="ocr"
       ? "OCR 任務設定已回復。已載入文字項目、縮圖、說明及語音辨識勾選狀態。"
       : "任務設定已回復。已載入物品縮圖、說明及語音辨識勾選狀態。","ok");
     const cleanURL=new URL(location.href);
@@ -992,6 +1027,60 @@ $("createClickBtn").onclick=createClickModeQR;
 });
 updateClickRangeLabels();
 
+function getHanziCharacters(texts){
+  const seen=new Set();
+  return Array.from(texts.join("")).filter(char=>/\p{Script=Han}/u.test(char)&&!seen.has(char)&&seen.add(char));
+}
+
+async function createHanziModeQR(){
+  updateLabelsFromDOM();
+  const title=$("hanziTaskTitle").value.trim();
+  const hanziTexts=[...labels];
+  const chars=getHanziCharacters(hanziTexts);
+  if(!title)return status("hanziStatus","請輸入國字練習任務名稱。","err");
+  if(!hanziTexts.length||!chars.length)return status("hanziStatus","請先載入至少一個國字練習文字項目。","err");
+  if(!user)return status("hanziStatus","請先登入教師帳號。","err");
+  const speechEnabled=$("hanziSpeechRecognition").checked;
+  const targets=speechEnabled?hanziTexts:chars;
+  $("createHanziBtn").disabled=true;
+  status("hanziStatus","正在建立國字練習…");
+  try{
+    const ref=await db.collection("tasks").add({
+      teacherId:user.uid,
+      teacherEmail:user.email||"",
+      title,
+      modelURL,
+      recognitionEngine:"ocr",
+      ocrLanguages:["chi_tra","eng"],
+      ocrMatchMode:"contains",
+      targetClasses:targets,
+      hanziText:hanziTexts.join("\n"),
+      hanziTexts,
+      hanziWritingEnabled:false,
+      hanziSpeechEnabled:speechEnabled,
+      speechRecognitionMode:"browser",
+      speechRecognitionLanguage:"zh-TW",
+      orderMode:"fixed",
+      taskMode:"hanzi",
+      maxPlayers:15,
+      status:"active",
+      version:"3.2-hanzi-line-targets",
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    const detail=speechEnabled
+      ? `逐項語音辨識：${hanziTexts.join(" → ")}`
+      : "學生可逐字選擇並開啟教育部筆順練習。";
+    status("hanziStatus",`國字練習建立成功！\n${detail}\nTask ID：${ref.id}`,"ok");
+    showQR(ref.id,title);
+  }catch(e){
+    status("hanziStatus","建立國字練習失敗：\n"+(e.message||e),"err");
+  }finally{
+    $("createHanziBtn").disabled=false;
+  }
+}
+
+$("createHanziBtn").onclick=createHanziModeQR;
+
 $("createBtn").onclick=async()=>{
   const title=$("taskTitle").value.trim();
   const targets=getSelectedClassesInCurrentOrder();
@@ -1041,19 +1130,19 @@ $("createBtn").onclick=async()=>{
 };
 function studentURL(id){const base=new URL("student.html",location.href).toString(),u=new URL(base,location.href);u.searchParams.set("task",id);u.searchParams.set("v","2.6-optimized");return u.toString()}function showQR(id,title){const url=studentURL(id);$("qrTitle").textContent=title+"－QR Code";$("qrURL").textContent=url;$("qrCode").innerHTML="";new QRCode($("qrCode"),{text:url,width:260,height:260,correctLevel:QRCode.CorrectLevel.M});$("qrModal").classList.remove("hidden")}window.showQR=showQR;$("closeBtn").onclick=()=>$("qrModal").classList.add("hidden");$("copyBtn").onclick=()=>navigator.clipboard.writeText($("qrURL").textContent);
 
-["modelURL","ocrKeywords","teachingTitle","taskTitle","advancedTitle","gameTitle","clickTitle"].forEach(id=>{
+["modelURL","ocrKeywords","teachingTitle","taskTitle","advancedTitle","gameTitle","clickTitle","hanziTaskTitle"].forEach(id=>{
   $(id).addEventListener("input",scheduleTeacherDraftSave);
 });
 $("recognitionEngine").addEventListener("change",()=>{
   model=null;modelURL="";labels=[];classThumbnails={};
   $("classes").innerHTML="";
-  ["teachMode","createTaskCard","advancedModeCard","gameModeCard","clickModeCard"].forEach(id=>$(id).classList.add("hidden"));
-  ["createBtn","createAdvancedBtn","createGameBtn","createClickBtn"].forEach(id=>$(id).disabled=true);
+  ["teachMode","createTaskCard","advancedModeCard","gameModeCard","clickModeCard","hanziModeCard"].forEach(id=>$(id).classList.add("hidden"));
+  ["createBtn","createAdvancedBtn","createGameBtn","createClickBtn","createHanziBtn"].forEach(id=>$(id).disabled=true);
   syncRecognitionEngineUI();
   scheduleTeacherDraftSave();
 });
 syncRecognitionEngineUI();
-["evaluationDescriptionPrompt","evaluationSpeechRecognition","evaluationShowNameText","evaluationThumbnailHint","gameDescriptionPrompt","gameSpeechRecognition","gameShowNameText","gameThumbnailHint"].forEach(id=>{
+["evaluationDescriptionPrompt","evaluationSpeechRecognition","evaluationShowNameText","evaluationThumbnailHint","gameDescriptionPrompt","gameSpeechRecognition","gameShowNameText","gameThumbnailHint","hanziSpeechRecognition"].forEach(id=>{
   $(id).addEventListener("change",scheduleTeacherDraftSave);
 });
 $("classes").addEventListener("input",scheduleTeacherDraftSave);
