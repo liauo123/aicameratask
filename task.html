@@ -342,7 +342,7 @@ async function render(docs){
       const errorCount=Number.isFinite(storedErrorCount)
         ? Math.max(0,storedErrorCount)
         : (incorrectItems.length||incorrectAudioItems.length)?1:0;
-      const hasVisibleError=errorCount>1;
+      const hasVisibleError=errorCount>2;
       const incorrectText=[
         hasVisibleError&&incorrectItems.length?`照片：${incorrectItems.map(esc).join("、")}`:"",
         hasVisibleError&&incorrectAudioItems.length?`語音：${incorrectAudioItems.map(esc).join("、")}`:"",
@@ -449,7 +449,7 @@ async function render(docs){
       const skipped=Array.isArray(d.skippedClasses)?[...new Set(d.skippedClasses.filter(Boolean))]:[];
       const storedErrorCount=Number(d.errorCount);
       const errorCount=Number.isFinite(storedErrorCount)?Math.max(0,storedErrorCount):(speech.length?1:0);
-      const hasVisibleError=errorCount>1;
+      const hasVisibleError=errorCount>2;
       const errors=[
         hasVisibleError&&speech.length?`語音：${speech.map(esc).join("、")}`:"",
         skipped.length
