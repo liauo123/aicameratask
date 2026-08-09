@@ -59,7 +59,7 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
 .meta,.small{font-size:13px;color:var(--m);line-height:1.6}
 .badge{padding:4px 8px;border-radius:999px;background:#dbeafe;color:#1d4ed8;font-size:12px;font-weight:800}
 .rr{display:grid;grid-template-columns:1.2fr .7fr .7fr 1.2fr;gap:8px;padding:9px;border-bottom:1px solid #e2e8f0;font-size:14px}
-.rr.hasAnyError{background:#fff7ed;border-left:4px solid #f97316}.rr.hasFiveWrong{background:#fff1f2;border-left:4px solid #dc2626}.lowErrorMark,.errorCountMark,.fiveWrongMark{display:inline-block;margin-top:5px;padding:4px 7px;border-radius:7px;font-weight:900;line-height:1.5}.lowErrorMark{background:#f3f4f6;color:#111827;border:1px solid #111827}.errorCountMark{background:#ffedd5;color:#c2410c;border:1px solid #fdba74}.fiveWrongMark{background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5}
+.rr.hasAnyError{background:#fff7ed;border-left:4px solid #f97316}.rr.hasFiveWrong{background:#fff1f2;border-left:4px solid #dc2626}.lowErrorMark,.errorCountMark,.fiveWrongMark{display:inline-block;margin-top:5px;padding:4px 7px;border-radius:7px;font-weight:900;line-height:1.5}.lowErrorMark{background:#f3f4f6;color:#111827;border:none}.errorCountMark{background:#ffedd5;color:#c2410c;border:1px solid #fdba74}.fiveWrongMark{background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5}
 .clickRecord{margin-top:8px;padding:9px 11px;border-radius:10px;background:#fff;border:1px solid #fde68a;font-size:13px;line-height:1.75}.clickRecord b{color:#92400e}
 .modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:20px;z-index:99}
 .box{background:var(--surface);border:1px solid var(--surface-border);padding:22px;border-radius:18px;text-align:center;max-width:390px;width:100%;box-shadow:0 20px 55px rgba(15,23,42,.24)}
@@ -691,6 +691,51 @@ function timestampText(value){
   }catch(e){return ""}
 }
 
+function csvErrorRange(data,min,max){
+  const inRange=count=>count>=min&&(max===Infinity||count<=max);
+  const formatEntries=(field,label)=>{
+    const source=data&&data[field];
+    if(!source||typeof source!=="object"||Array.isArray(source))return {text:"",names:[]};
+    const entries=Object.entries(source)
+      .map(([name,count])=>[String(name).trim(),Math.max(0,Number(count)||0)])
+      .filter(([name,count])=>name&&inRange(count));
+    return {
+      text:entries.length?`${label}${entries.map(([name,count])=>`${name}（${count} 次）`).join("、")}`:"",
+      names:entries.map(([name])=>name)
+    };
+  };
+  const hasTypedCounts=data&&(
+    data.imageItemErrorCounts&&typeof data.imageItemErrorCounts==="object"||
+    data.audioItemErrorCounts&&typeof data.audioItemErrorCounts==="object"
+  );
+  const parts=[];
+  const listed=new Set();
+  if(hasTypedCounts){
+    const image=formatEntries("imageItemErrorCounts","拍照辨識：");
+    const audio=formatEntries("audioItemErrorCounts","語音辨識：");
+    if(image.text)parts.push(image.text);
+    if(audio.text)parts.push(audio.text);
+    [...image.names,...audio.names].forEach(name=>listed.add(name));
+  }else{
+    const all=formatEntries("itemErrorCounts","");
+    if(all.text)parts.push(all.text);
+    all.names.forEach(name=>listed.add(name));
+    if(!all.text){
+      const legacyItems=[...new Set([...(data.incorrectClasses||[]),...(data.incorrectAudioClasses||[])].filter(Boolean).map(String))];
+      const total=Math.max(0,Number(data.errorCount)||0);
+      if(legacyItems.length===1&&inRange(total)){
+        parts.push(`${legacyItems[0]}（${total} 次）`);
+        listed.add(legacyItems[0]);
+      }
+    }
+  }
+  if(min>=5&&Array.isArray(data&&data.skippedClasses)){
+    const skipped=[...new Set(data.skippedClasses.filter(Boolean).map(String))].filter(name=>!listed.has(name));
+    if(skipped.length)parts.push(`其他：${skipped.map(name=>`${name}（5 次以上）`).join("、")}`);
+  }
+  return parts.join("；");
+}
+
 window.exportTaskCSV=async taskId=>{
   try{
     const [taskSnap,resultDocs]=await Promise.all([
@@ -700,13 +745,14 @@ window.exportTaskCSV=async taskId=>{
     if(!resultDocs.length){alert("此任務目前沒有學生結果可以匯出。");return}
     const title=taskSnap.exists?(taskSnap.data().title||"任務結果"):"任務結果";
     const sorted=[...resultDocs].sort((a,b)=>Number(a.data().studentCode||999)-Number(b.data().studentCode||999));
-    const header=["任務名稱","學生編號","學生名稱","完成進度","狀態","錯誤次數","辨識錯誤項目","遊戲名次","點選答對次數","點選逾時次數","平均點選時間(秒)","開始時間","完成時間"];
+    const header=["任務名稱","學生編號","學生名稱","完成進度","狀態","錯誤次數","錯誤 1～2 次","錯誤 3～4 次","錯誤 5 次以上","辨識錯誤項目","遊戲名次","點選答對次數","點選逾時次數","平均點選時間(秒)","開始時間","完成時間"];
     const rows=sorted.map(doc=>{
       const data=doc.data();
       const incorrect=Array.isArray(data.incorrectClasses)?[...new Set(data.incorrectClasses.filter(Boolean))].join("、"):"";
       return [
         title,data.studentCode||"",data.studentName||"",`${Number(data.progress||0)}%`,
-        data.status==="completed"?"完成":"進行中",Number(data.attempts||0),incorrect,
+        data.status==="completed"?"完成":"進行中",Number(data.attempts||0),
+        csvErrorRange(data,1,2),csvErrorRange(data,3,4),csvErrorRange(data,5,Infinity),incorrect,
         data.gameRank?`第 ${data.gameRank} 名`:"",Number(data.clickCorrectCount||0),Number(data.clickMissCount||0),
         Number(data.clickAverageReactionMs||0)?(Number(data.clickAverageReactionMs)/1000).toFixed(2):"",timestampText(data.startedAt),timestampText(data.completedAt)
       ].map(csvValue).join(",");
