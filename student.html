@@ -49,6 +49,13 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
 .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
 .recognition-actions{display:flex;justify-content:center;align-items:center}
 .recognition-actions button{width:min(100%,320px);flex:0 1 320px}
+.round-action-btn{width:64px;height:64px;min-height:64px;border-radius:50%;padding:0;font-size:30px;display:grid;place-items:center;line-height:1}
+.recognition-actions .round-action-btn{width:64px;height:64px;min-height:64px;flex:0 0 64px;padding:0;font-size:30px}.hanzi-speech .round-action-btn{margin:12px auto 0}.advanced-prompt-speaker{flex:0 0 46px}
+.mic-action-btn{background:linear-gradient(145deg,#fff1f2,#fecdd3);color:#be123c;border:2px solid #fda4af;box-shadow:0 7px 0 #e11d48,0 11px 19px rgba(190,24,93,.24)}
+.mic-action-btn:active{background:linear-gradient(145deg,#ffe4e6,#fda4af);transform:translateY(5px);box-shadow:0 2px 0 #be123c,0 5px 10px rgba(190,24,93,.2)}
+.camera-action-btn{background:linear-gradient(145deg,#fffde7,#fde68a);color:#92400e;border:2px solid #facc15;box-shadow:0 7px 0 #d97706,0 11px 19px rgba(180,83,9,.24)}
+.camera-action-btn:active{background:linear-gradient(145deg,#fef9c3,#fcd34d);transform:translateY(5px);box-shadow:0 2px 0 #b45309,0 5px 10px rgba(180,83,9,.2)}
+.mic-action-btn:disabled,.camera-action-btn:disabled{opacity:.55;transform:none;box-shadow:0 4px 0 #94a3b8,0 7px 12px rgba(15,23,42,.14);cursor:not-allowed}
 
 .number-select-title{
   margin:8px 0 12px;
@@ -463,8 +470,8 @@ html,body{
         <div class="target-question-row">
           <img id="advancedTargetThumbnail" class="target-thumbnail hidden" alt="進階評量題目縮圖" decoding="async">
           <strong>🔊 語音題目</strong>
+          <button id="repeatAdvancedPromptBtn" class="speak-btn advanced-prompt-speaker" type="button" aria-label="重複聽說明" title="重複聽說明">🔊</button>
         </div>
-        <button id="repeatAdvancedPromptBtn" class="primary full" type="button">重複聽說明</button>
       </div>
     </div>
 
@@ -522,8 +529,8 @@ html,body{
     <div id="predictionList" class="prediction"></div>
 
     <div class="row recognition-actions">
-      <button id="captureBtn" class="primary hidden">拍照辨識</button>
-      <button id="voiceRecognizeBtn" class="voice-action hidden" type="button">語音辨識</button>
+      <button id="captureBtn" class="round-action-btn camera-action-btn hidden" type="button" aria-label="拍照辨識" title="拍照辨識">📷</button>
+      <button id="voiceRecognizeBtn" class="round-action-btn mic-action-btn hidden" type="button" aria-label="開始語音辨識" title="開始語音辨識">🎤</button>
     </div>
 
     <div id="audioVerification" class="audio-verification hidden">
@@ -571,7 +578,7 @@ html,body{
       </div>
       <div id="hanziSpeechPanel" class="hanzi-speech hidden">
         <div class="hanzi-note">請按下辨識按鈕，完整念出畫面上的名稱文字。</div>
-        <button id="speakHanziBtn" class="voice-action full" type="button">開始語音辨識</button>
+        <button id="speakHanziBtn" class="round-action-btn mic-action-btn" type="button" aria-label="開始語音辨識" title="開始語音辨識">🎤</button>
       </div>
       <div id="hanziStatus" class="status">等待作答。</div>
     </div>
@@ -640,6 +647,7 @@ let currentImagePassed=false,currentAudioPassed=true,currentImageConfidence=0,cu
 let currentImageEvidenceDataURL="",currentCompletionPending=false;
 let localIncorrectClasses=[],localIncorrectAudioClasses=[];
 let consecutiveWrongAttempts=0;
+let totalErrorCount=0;
 let exitInProgress=false;
 let clickSequence=[],clickTrialIndex=0,clickRecords=[],clickTrialTimer=null,clickNextTimer=null,clickShownAt=0,clickTrialActive=false,clickCurrentTarget="",clickCurrentChoices=[];
 let hanziSpeechRecognition=null;
@@ -971,6 +979,7 @@ async function skipEvaluationQuestionAfterFiveWrong(){
         skippedClasses:firebase.firestore.FieldValue.arrayUnion(item),
         progress:Math.round(completed.length/task.targetClasses.length*100),
         attempts,
+        errorCount:totalErrorCount,
         status:currentIndex>=task.targetClasses.length?"completed":"inProgress",
         updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
         ...(currentIndex>=task.targetClasses.length?{completedAt:firebase.firestore.FieldValue.serverTimestamp()}:{})
@@ -1563,7 +1572,7 @@ async function saveHanziProgress(done=false){
   if(!resultRef)return;
   await resultRef.update({
     completedClasses:[...completed],incorrectClasses:[...new Set(localIncorrectClasses)],incorrectAudioClasses:[...new Set(localIncorrectAudioClasses)],
-    progress:Math.round(completed.length/task.targetClasses.length*100),attempts,status:done?"completed":"inProgress",
+    progress:Math.round(completed.length/task.targetClasses.length*100),attempts,errorCount:totalErrorCount,status:done?"completed":"inProgress",
     updatedAt:firebase.firestore.FieldValue.serverTimestamp(),...(done?{completedAt:firebase.firestore.FieldValue.serverTimestamp()}:{})
   });
 }
@@ -1597,7 +1606,17 @@ function recognizeHanziSpeech(){
   $("speakHanziBtn").disabled=true;setStatus("hanziStatus","正在聆聽，請念出畫面上的字…");
   recognition.onresult=async event=>{attempts++;const alternatives=[...event.results[0]].map(item=>item.transcript);const target=task.targetClasses[currentIndex];
     if(!alternatives.some(text=>speechMatchesTarget(text,target))){
-      localIncorrectAudioClasses.push(target);consecutiveWrongAttempts++;playTaskErrorSound();showCaptureFeedback("failure","語音答錯了");
+      localIncorrectAudioClasses.push(target);consecutiveWrongAttempts++;totalErrorCount++;playTaskErrorSound();showCaptureFeedback("failure","語音答錯了");
+      if(resultRef){
+        try{
+          await resultRef.update({
+            attempts,
+            errorCount:totalErrorCount,
+            incorrectAudioClasses:firebase.firestore.FieldValue.arrayUnion(target),
+            updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+          });
+        }catch(e){console.warn("國字語音錯誤紀錄失敗",e)}
+      }
       if(consecutiveWrongAttempts>=5){
         setStatus("hanziStatus","已連續答錯 5 次，即將進入下一題。","error");
         await new Promise(resolve=>setTimeout(resolve,850));
@@ -1617,8 +1636,8 @@ async function startHanziTest(){
   try{
     disableHanziCamera();
     const currentUser=await ensureAuth();
-    resultRef=await db.collection("taskResults").add({taskId,teacherId:task.teacherId||"",studentUid:currentUser.uid,studentName:"學生 "+selectedStudentNumber,studentCode:selectedStudentNumber,projectType:"hanzi",targetClasses:[...task.targetClasses],completedClasses:[],incorrectClasses:[],incorrectAudioClasses:[],progress:0,attempts:0,status:"inProgress",taskMode:"hanzi",startedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
-    currentIndex=0;completed=[];attempts=0;finished=false;localIncorrectClasses=[];localIncorrectAudioClasses=[];consecutiveWrongAttempts=0;
+    resultRef=await db.collection("taskResults").add({taskId,teacherId:task.teacherId||"",studentUid:currentUser.uid,studentName:"學生 "+selectedStudentNumber,studentCode:selectedStudentNumber,projectType:"hanzi",targetClasses:[...task.targetClasses],completedClasses:[],incorrectClasses:[],incorrectAudioClasses:[],progress:0,attempts:0,errorCount:0,status:"inProgress",taskMode:"hanzi",startedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    currentIndex=0;completed=[];attempts=0;totalErrorCount=0;finished=false;localIncorrectClasses=[];localIncorrectAudioClasses=[];consecutiveWrongAttempts=0;
     $("loadCard").classList.add("hidden");$("joinCard").classList.add("hidden");$("hanziTaskCard").classList.remove("hidden");$("hanziPicker").classList.add("hidden");$("hanziTestPanel").classList.remove("hidden");
     $("hanziCopyrightNotice").classList.add("hidden");
     $("hanziTaskTitle").textContent=task.title||"國字測驗";$("hanziPracticeIntro").textContent="學生編號 "+selectedStudentNumber;renderHanziQuestion();
@@ -1680,6 +1699,7 @@ async function startTask(){
         incorrectAudioClasses:[],
         progress:0,
         attempts:0,
+        errorCount:0,
         status:"inProgress",
         taskMode:task.taskMode||"task",
         gamePlayerId:isGameMode()?selectedStudentNumber:"",
@@ -1698,7 +1718,7 @@ async function startTask(){
       gamePlayerStatus="playing";
     }
 
-    currentIndex=0;completed=[];attempts=0;holdCount=0;finished=false;paused=false;taskSuccessAnimating=false;consecutiveWrongAttempts=0;
+    currentIndex=0;completed=[];attempts=0;totalErrorCount=0;holdCount=0;finished=false;paused=false;taskSuccessAnimating=false;consecutiveWrongAttempts=0;
     localIncorrectClasses=[];localIncorrectAudioClasses=[];
     resetCurrentVerification();
     buildPredictionUI(labels);
@@ -2441,7 +2461,10 @@ async function startImage(){
   );
 
   $("captureBtn").classList.remove("hidden");
-  $("captureBtn").textContent=isOcrRecognition()?"拍照辨識文字":"拍照辨識";
+  $("captureBtn").textContent="📷";
+  const captureLabel=isOcrRecognition()?"拍照辨識文字":"拍照辨識";
+  $("captureBtn").setAttribute("aria-label",captureLabel);
+  $("captureBtn").title=captureLabel;
   const guideText=$("imageStage").querySelector(".guide span");
   if(guideText)guideText.textContent=isOcrRecognition()?"請將文字放入框內":"請將物品放入框內";
 
@@ -2622,6 +2645,7 @@ async function captureAndRecognize(){
       },850);
     }else{
       attempts++;
+      totalErrorCount++;
       if(isEvaluationMode())consecutiveWrongAttempts++;
       const shouldSkipQuestion=isEvaluationMode()&&consecutiveWrongAttempts>=5;
       showCaptureFeedback("failure","辨識失敗");
@@ -2635,6 +2659,7 @@ async function captureAndRecognize(){
         try{
           await resultRef.update({
             attempts,
+            errorCount:totalErrorCount,
             incorrectClasses:firebase.firestore.FieldValue.arrayUnion(target),
             updatedAt:firebase.firestore.FieldValue.serverTimestamp()
           });
@@ -2884,6 +2909,7 @@ function stopOptionalAudioRecognition(updateUI=true){
 
 async function recordOptionalAudioFailure(target,countTowardLimit=true){
   attempts++;
+  if(countTowardLimit)totalErrorCount++;
   if(target&&!localIncorrectAudioClasses.includes(target)){
     localIncorrectAudioClasses.push(target);
   }
@@ -2891,6 +2917,7 @@ async function recordOptionalAudioFailure(target,countTowardLimit=true){
     try{
       await resultRef.update({
         attempts,
+        errorCount:totalErrorCount,
         incorrectAudioClasses:firebase.firestore.FieldValue.arrayUnion(target),
         updatedAt:firebase.firestore.FieldValue.serverTimestamp()
       });
@@ -3258,6 +3285,7 @@ async function completeCurrent(confidence,evidenceCanvas,evidenceDataURL="",audi
         completedClasses:[...completed],
         progress,
         attempts,
+        errorCount:totalErrorCount,
         status:currentIndex>=task.targetClasses.length?"completed":"inProgress",
         updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
         ...(currentIndex>=task.targetClasses.length?{completedAt:firebase.firestore.FieldValue.serverTimestamp()}:{})
