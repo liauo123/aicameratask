@@ -1008,6 +1008,22 @@ async function skipEvaluationQuestionAfterFiveWrong(){
   return true;
 }
 
+function continueEvaluationWithAudioAfterFivePhotoWrong(){
+  if(!isEvaluationMode()||!isOptionalAudioRequired()||finished||currentIndex>=task.targetClasses.length)return false;
+  consecutiveWrongAttempts=0;
+  photoRecognizing=false;
+  currentImagePassed=true;
+  currentImageConfidence=0;
+  currentImageEvidenceDataURL="";
+  updateVerificationUI();
+  const message="拍照辨識已連續答錯 5 次，請按麥克風按鈕進行語音辨識。";
+  $("imageOverlay").textContent=message;
+  lastImageOverlayText=message;
+  setStatus("recognitionStatus",message,"error");
+  setVoiceResult("請按按鈕並說出物品名稱。");
+  return true;
+}
+
 function updateVerificationUI(){
   const panel=$("audioVerification");
   const voiceButton=$("voiceRecognizeBtn");
@@ -2668,6 +2684,7 @@ async function captureAndRecognize(){
       addItemError(target,"image");
       if(isEvaluationMode())consecutiveWrongAttempts++;
       const shouldSkipQuestion=isEvaluationMode()&&consecutiveWrongAttempts>=5;
+      const shouldContinueToAudio=shouldSkipQuestion&&isOptionalAudioRequired();
       showCaptureFeedback("failure","辨識失敗");
       playTaskErrorSound();
 
@@ -2695,7 +2712,9 @@ async function captureAndRecognize(){
       lastImageOverlayText=$("imageOverlay").textContent;
       setStatus(
         "recognitionStatus",
-        shouldSkipQuestion
+        shouldContinueToAudio
+          ?"拍照辨識已連續答錯 5 次，即將進行語音辨識。"
+          :shouldSkipQuestion
           ?"已連續答錯 5 次，即將進入下一題。"
           :isAdvancedMode()
           ?"辨識錯誤，請再聽一次語音說明後重新拍照。"
@@ -2708,7 +2727,11 @@ async function captureAndRecognize(){
       if(shouldSkipQuestion){
         setTimeout(async()=>{
           photoRecognizing=false;
-          await skipEvaluationQuestionAfterFiveWrong();
+          if(shouldContinueToAudio){
+            continueEvaluationWithAudioAfterFivePhotoWrong();
+          }else{
+            await skipEvaluationQuestionAfterFiveWrong();
+          }
         },850);
         return;
       }
