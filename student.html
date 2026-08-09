@@ -648,12 +648,22 @@ let currentImageEvidenceDataURL="",currentCompletionPending=false;
 let localIncorrectClasses=[],localIncorrectAudioClasses=[];
 let consecutiveWrongAttempts=0;
 let totalErrorCount=0;
+let itemErrorCounts={};
+let imageItemErrorCounts={},audioItemErrorCounts={};
 let exitInProgress=false;
 let clickSequence=[],clickTrialIndex=0,clickRecords=[],clickTrialTimer=null,clickNextTimer=null,clickShownAt=0,clickTrialActive=false,clickCurrentTarget="",clickCurrentChoices=[];
 let hanziSpeechRecognition=null;
 
 const $=id=>document.getElementById(id);
 const numberButtons=[...document.querySelectorAll(".number-btn")];
+
+function addItemError(target,type=""){
+  const item=String(target||"").trim();
+  if(!item)return;
+  itemErrorCounts[item]=Math.max(0,Number(itemErrorCounts[item])||0)+1;
+  const typedCounts=type==="image"?imageItemErrorCounts:type==="audio"?audioItemErrorCounts:null;
+  if(typedCounts)typedCounts[item]=Math.max(0,Number(typedCounts[item])||0)+1;
+}
 
 function setStatus(id,msg,type=""){
   const el=$(id);el.textContent=msg;el.className="status"+(type?" "+type:"");el.classList.remove("hidden");
@@ -980,6 +990,9 @@ async function skipEvaluationQuestionAfterFiveWrong(){
         progress:Math.round(completed.length/task.targetClasses.length*100),
         attempts,
         errorCount:totalErrorCount,
+        itemErrorCounts:{...itemErrorCounts},
+        imageItemErrorCounts:{...imageItemErrorCounts},
+        audioItemErrorCounts:{...audioItemErrorCounts},
         status:currentIndex>=task.targetClasses.length?"completed":"inProgress",
         updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
         ...(currentIndex>=task.targetClasses.length?{completedAt:firebase.firestore.FieldValue.serverTimestamp()}:{})
@@ -1572,7 +1585,7 @@ async function saveHanziProgress(done=false){
   if(!resultRef)return;
   await resultRef.update({
     completedClasses:[...completed],incorrectClasses:[...new Set(localIncorrectClasses)],incorrectAudioClasses:[...new Set(localIncorrectAudioClasses)],
-    progress:Math.round(completed.length/task.targetClasses.length*100),attempts,errorCount:totalErrorCount,status:done?"completed":"inProgress",
+    progress:Math.round(completed.length/task.targetClasses.length*100),attempts,errorCount:totalErrorCount,itemErrorCounts:{...itemErrorCounts},imageItemErrorCounts:{...imageItemErrorCounts},audioItemErrorCounts:{...audioItemErrorCounts},status:done?"completed":"inProgress",
     updatedAt:firebase.firestore.FieldValue.serverTimestamp(),...(done?{completedAt:firebase.firestore.FieldValue.serverTimestamp()}:{})
   });
 }
@@ -1606,12 +1619,15 @@ function recognizeHanziSpeech(){
   $("speakHanziBtn").disabled=true;setStatus("hanziStatus","正在聆聽，請念出畫面上的字…");
   recognition.onresult=async event=>{attempts++;const alternatives=[...event.results[0]].map(item=>item.transcript);const target=task.targetClasses[currentIndex];
     if(!alternatives.some(text=>speechMatchesTarget(text,target))){
-      localIncorrectAudioClasses.push(target);consecutiveWrongAttempts++;totalErrorCount++;playTaskErrorSound();showCaptureFeedback("failure","語音答錯了");
+      localIncorrectAudioClasses.push(target);consecutiveWrongAttempts++;totalErrorCount++;addItemError(target,"audio");playTaskErrorSound();showCaptureFeedback("failure","語音答錯了");
       if(resultRef){
         try{
           await resultRef.update({
             attempts,
             errorCount:totalErrorCount,
+            itemErrorCounts:{...itemErrorCounts},
+            imageItemErrorCounts:{...imageItemErrorCounts},
+            audioItemErrorCounts:{...audioItemErrorCounts},
             incorrectAudioClasses:firebase.firestore.FieldValue.arrayUnion(target),
             updatedAt:firebase.firestore.FieldValue.serverTimestamp()
           });
@@ -1636,8 +1652,8 @@ async function startHanziTest(){
   try{
     disableHanziCamera();
     const currentUser=await ensureAuth();
-    resultRef=await db.collection("taskResults").add({taskId,teacherId:task.teacherId||"",studentUid:currentUser.uid,studentName:"學生 "+selectedStudentNumber,studentCode:selectedStudentNumber,projectType:"hanzi",targetClasses:[...task.targetClasses],completedClasses:[],incorrectClasses:[],incorrectAudioClasses:[],progress:0,attempts:0,errorCount:0,status:"inProgress",taskMode:"hanzi",startedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
-    currentIndex=0;completed=[];attempts=0;totalErrorCount=0;finished=false;localIncorrectClasses=[];localIncorrectAudioClasses=[];consecutiveWrongAttempts=0;
+    resultRef=await db.collection("taskResults").add({taskId,teacherId:task.teacherId||"",studentUid:currentUser.uid,studentName:"學生 "+selectedStudentNumber,studentCode:selectedStudentNumber,projectType:"hanzi",targetClasses:[...task.targetClasses],completedClasses:[],incorrectClasses:[],incorrectAudioClasses:[],progress:0,attempts:0,errorCount:0,itemErrorCounts:{},imageItemErrorCounts:{},audioItemErrorCounts:{},status:"inProgress",taskMode:"hanzi",startedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    currentIndex=0;completed=[];attempts=0;totalErrorCount=0;itemErrorCounts={};imageItemErrorCounts={};audioItemErrorCounts={};finished=false;localIncorrectClasses=[];localIncorrectAudioClasses=[];consecutiveWrongAttempts=0;
     $("loadCard").classList.add("hidden");$("joinCard").classList.add("hidden");$("hanziTaskCard").classList.remove("hidden");$("hanziPicker").classList.add("hidden");$("hanziTestPanel").classList.remove("hidden");
     $("hanziCopyrightNotice").classList.add("hidden");
     $("hanziTaskTitle").textContent=task.title||"國字測驗";$("hanziPracticeIntro").textContent="學生編號 "+selectedStudentNumber;renderHanziQuestion();
@@ -1700,6 +1716,9 @@ async function startTask(){
         progress:0,
         attempts:0,
         errorCount:0,
+        itemErrorCounts:{},
+        imageItemErrorCounts:{},
+        audioItemErrorCounts:{},
         status:"inProgress",
         taskMode:task.taskMode||"task",
         gamePlayerId:isGameMode()?selectedStudentNumber:"",
@@ -1718,7 +1737,7 @@ async function startTask(){
       gamePlayerStatus="playing";
     }
 
-    currentIndex=0;completed=[];attempts=0;totalErrorCount=0;holdCount=0;finished=false;paused=false;taskSuccessAnimating=false;consecutiveWrongAttempts=0;
+    currentIndex=0;completed=[];attempts=0;totalErrorCount=0;itemErrorCounts={};imageItemErrorCounts={};audioItemErrorCounts={};holdCount=0;finished=false;paused=false;taskSuccessAnimating=false;consecutiveWrongAttempts=0;
     localIncorrectClasses=[];localIncorrectAudioClasses=[];
     resetCurrentVerification();
     buildPredictionUI(labels);
@@ -2646,6 +2665,7 @@ async function captureAndRecognize(){
     }else{
       attempts++;
       totalErrorCount++;
+      addItemError(target,"image");
       if(isEvaluationMode())consecutiveWrongAttempts++;
       const shouldSkipQuestion=isEvaluationMode()&&consecutiveWrongAttempts>=5;
       showCaptureFeedback("failure","辨識失敗");
@@ -2660,6 +2680,9 @@ async function captureAndRecognize(){
           await resultRef.update({
             attempts,
             errorCount:totalErrorCount,
+            itemErrorCounts:{...itemErrorCounts},
+            imageItemErrorCounts:{...imageItemErrorCounts},
+            audioItemErrorCounts:{...audioItemErrorCounts},
             incorrectClasses:firebase.firestore.FieldValue.arrayUnion(target),
             updatedAt:firebase.firestore.FieldValue.serverTimestamp()
           });
@@ -2909,7 +2932,7 @@ function stopOptionalAudioRecognition(updateUI=true){
 
 async function recordOptionalAudioFailure(target,countTowardLimit=true){
   attempts++;
-  if(countTowardLimit)totalErrorCount++;
+  if(countTowardLimit){totalErrorCount++;addItemError(target,"audio")}
   if(target&&!localIncorrectAudioClasses.includes(target)){
     localIncorrectAudioClasses.push(target);
   }
@@ -2918,6 +2941,9 @@ async function recordOptionalAudioFailure(target,countTowardLimit=true){
       await resultRef.update({
         attempts,
         errorCount:totalErrorCount,
+        itemErrorCounts:{...itemErrorCounts},
+        imageItemErrorCounts:{...imageItemErrorCounts},
+        audioItemErrorCounts:{...audioItemErrorCounts},
         incorrectAudioClasses:firebase.firestore.FieldValue.arrayUnion(target),
         updatedAt:firebase.firestore.FieldValue.serverTimestamp()
       });
@@ -3286,6 +3312,9 @@ async function completeCurrent(confidence,evidenceCanvas,evidenceDataURL="",audi
         progress,
         attempts,
         errorCount:totalErrorCount,
+        itemErrorCounts:{...itemErrorCounts},
+        imageItemErrorCounts:{...imageItemErrorCounts},
+        audioItemErrorCounts:{...audioItemErrorCounts},
         status:currentIndex>=task.targetClasses.length?"completed":"inProgress",
         updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
         ...(currentIndex>=task.targetClasses.length?{completedAt:firebase.firestore.FieldValue.serverTimestamp()}:{})
