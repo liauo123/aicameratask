@@ -567,7 +567,7 @@ html,body{
     <h2 id="hanziTaskTitle">國字練習模式</h2>
     <div id="hanziPracticeIntro" class="hanzi-note"></div>
     <div id="hanziPicker" class="hanzi-picker"></div>
-    <div id="hanziCopyrightNotice" class="hanzi-copyright hidden">點選國字後，將開啟教育部《國字標準字體筆順學習網》。本系統僅提供網站連結；該網站頁面、文字、圖像與筆順內容的著作權及使用規範，均依教育部網站公告為準。<br><a href="https://stroke-order.learningweb.moe.edu.tw/" target="_blank" rel="noopener noreferrer">教育部國字標準字體筆順學習網</a></div>
+    <div id="hanziCopyrightNotice" class="hanzi-copyright hidden">點選中文字後，將開啟教育部《國字標準字體筆順學習網》；點選英文字母後，將開啟 Tiny Steps 英文字母描寫練習。本系統僅提供網站連結；外部網站頁面、文字、圖像與書寫內容的著作權及使用規範，均依各網站公告為準。<br><a href="https://stroke-order.learningweb.moe.edu.tw/" target="_blank" rel="noopener noreferrer">教育部國字標準字體筆順學習網</a>｜<a href="https://tinystepslearning.com/free-letter-tracing-game-for-kids" target="_blank" rel="noopener noreferrer">Tiny Steps 英文字母描寫練習</a></div>
     <div id="hanziTestPanel" class="hidden">
       <div class="progress-label"><b>測驗進度</b><span id="hanziProgressText">0 / 0</span></div>
       <div class="progress"><div id="hanziProgressFill"></div></div>
@@ -1306,7 +1306,7 @@ async function loadTask(){
       ? `｜${effectiveAudioRequiredClasses.length}項需要語音辨識`
       : "";
     $("taskMeta").textContent=isHanziMode()
-      ? `國字練習｜${task.hanziSpeechEnabled?"逐項完整文字語音辨識":"開啟教育部筆順練習"}`
+      ? `國字練習｜${task.hanziSpeechEnabled?"逐項完整文字語音辨識":"開啟中英文書寫練習"}`
       : isClickMode()
       ? `隨機點選測驗｜同時 ${task.clickSimultaneousCount} 種｜每個物品 ${task.clickRepeatCount} 次｜每次最多 ${task.clickDisplaySeconds} 秒`
       : task.taskMode==="teaching"
@@ -1319,7 +1319,7 @@ async function loadTask(){
     if(isHanziMode()&&!task.hanziSpeechEnabled){
       $("joinCard").classList.add("hidden");
       showHanziPracticePicker();
-      setStatus("loadStatus","國字練習載入成功，請點選要練習的字。","success");
+      setStatus("loadStatus","練習載入成功，請點選要練習的中文字或英文字母。","success");
     }else if(task.taskMode==="teaching"){
       $("joinCard").classList.add("hidden");
       setStatus("loadStatus","教學模式載入成功，正在開啟鏡頭…","success");
@@ -1565,7 +1565,7 @@ function showHanziPracticePicker(){
   $("hanziPicker").classList.remove("hidden");
   $("hanziCopyrightNotice").classList.remove("hidden");
   $("hanziTaskTitle").textContent=task.title||"國字練習模式";
-  $("hanziPracticeIntro").textContent="請點選一個國字，開啟教育部《國字標準字體筆順學習網》的該字頁面。";
+  $("hanziPracticeIntro").textContent="請點選中文字或英文字母，開啟對應的書寫練習頁面。";
   $("hanziPicker").innerHTML=task.targetClasses.map(char=>`<button class="hanzi-char" type="button" data-hanzi="${escapeHtml(char)}">${escapeHtml(char)}</button>`).join("");
 }
 
@@ -3595,9 +3595,23 @@ $("repeatHanziPromptBtn").onclick=()=>speakHanziPrompt(true);
 $("speakHanziBtn").onclick=recognizeHanziSpeech;
 $("hanziPicker").addEventListener("click",event=>{
   const button=event.target.closest("[data-hanzi]");if(!button)return;
-  const url=new URL("https://stroke-order.learningweb.moe.edu.tw/searchW.jsp");
-  url.searchParams.set("WORD",button.dataset.hanzi);
-  window.open(url.toString(),"_blank","noopener");
+  const character=String(button.dataset.hanzi||"");
+  if(/^[A-Za-z]$/.test(character)){
+    const pair=character.toUpperCase().charCodeAt(0)-65;
+    const step=character===character.toLowerCase()?1:0;
+    const url=new URL("https://tinystepslearning.com/free-letter-tracing-game-for-kids");
+    url.searchParams.set("fs","1");
+    url.searchParams.set("level","1");
+    url.searchParams.set("pair",String(pair));
+    url.searchParams.set("step",String(step));
+    window.open(url.toString(),"_blank","noopener");
+    return;
+  }
+  if(/^\p{Script=Han}$/u.test(character)){
+    const url=new URL("https://stroke-order.learningweb.moe.edu.tw/searchW.jsp");
+    url.searchParams.set("WORD",character);
+    window.open(url.toString(),"_blank","noopener");
+  }
 });
 $("againBtn").onclick=repeatTask;
 $("endBtn").onclick=endTask;
