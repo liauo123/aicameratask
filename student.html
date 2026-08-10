@@ -1479,7 +1479,7 @@ async function loadTask(){
       });
       $("selectedNumberText").textContent="尚未選擇編號";
       $("startBtn").disabled=true;
-      $("startBtn").textContent=isGameMode()?"送出加入申請":isClickMode()?"開始點選測驗":isHanziMode()?"開始國字測驗":"開始任務";
+      $("startBtn").textContent=isGameMode()?"送出加入申請":isClickMode()?"開始點選測驗":isHanziMode()?"開始文字測試":"開始任務";
 
       $("joinCard").classList.remove("hidden");
       if(isGameMode()){
@@ -2035,11 +2035,23 @@ function clearClickTimers(preserveRound=false){
 }
 
 function speakClickLabel(label){
-  if(!label||!("speechSynthesis" in window))return;
+  if(!label||!("speechSynthesis" in window))return Promise.resolve();
   window.speechSynthesis.cancel();
   const utterance=new SpeechSynthesisUtterance(label);
   utterance.lang="zh-TW";utterance.rate=.9;utterance.pitch=1;utterance.volume=1;
-  window.speechSynthesis.speak(utterance);
+  return new Promise(resolve=>{
+    let settled=false;
+    const fallbackTimer=setTimeout(finish,8000);
+    function finish(){
+      if(settled)return;
+      settled=true;
+      clearTimeout(fallbackTimer);
+      resolve();
+    }
+    utterance.onend=finish;
+    utterance.onerror=finish;
+    try{window.speechSynthesis.speak(utterance)}catch(e){finish()}
+  });
 }
 
 function updateClickProgress(){
@@ -2121,11 +2133,14 @@ async function finishClickMode(){
   $("incorrectSummary").classList.add("hidden");
 }
 
-async function finishClickRound(timedOut=false){
+async function finishClickRound(timedOut=false,speechFinished=null){
   if(!clickTrialActive)return;
   clickTrialActive=false;
   if(clickTrialTimer)clearTimeout(clickTrialTimer);
   clickTrialTimer=null;
+  if(speechFinished){
+    try{await speechFinished}catch(e){}
+  }
   if(timedOut){
     clickRecords.push({
       sequence:clickRecords.length+1,
@@ -2147,7 +2162,7 @@ async function finishClickRound(timedOut=false){
   }
   $("clickWaiting").textContent=timedOut?"時間到，準備下一個物品…":"很好！準備下一個物品…";
   $("clickWaiting").classList.remove("hidden");
-  clickNextTimer=setTimeout(showNextClickTrial,850);
+  clickNextTimer=setTimeout(showNextClickTrial,timedOut?850:300);
 }
 
 function showNextClickTrial(resumeRound=false){
@@ -2279,10 +2294,10 @@ $("clickTargets").addEventListener("click",event=>{
   });
   button.remove();
   updateClickProgress();
-  speakClickLabel(label);
+  const speechFinished=speakClickLabel(label);
   playTaskSuccessSound();
   showClickFeedback();
-  finishClickRound(false);
+  finishClickRound(false,speechFinished);
 });
 
 async function loadSelectedModel(){
@@ -3520,6 +3535,16 @@ function beginStudentExitAndCloseTab(){
   requestStudentTabClose();
 }
 
+function confirmStudentLeave(event){
+  if(event){
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  if(exitInProgress)return;
+  if(!window.confirm("確定要離開目前任務嗎？"))return;
+  endTask();
+}
+
 function processPredictions(predictions,evidenceCanvas){
   predictions.forEach(item=>{
     const row=predictionRows[item.className];
@@ -4003,10 +4028,7 @@ $("endBtn").addEventListener("pointerdown",beginStudentExitAndCloseTab,{capture:
 $("endBtn").addEventListener("touchstart",beginStudentExitAndCloseTab,{capture:true,passive:true});
 $("endBtn").addEventListener("click",beginStudentExitAndCloseTab,{capture:true});
 $("endBtn").onclick=endTask;
-$("leaveTaskBtn").addEventListener("pointerdown",beginStudentExitAndCloseTab,{capture:true});
-$("leaveTaskBtn").addEventListener("touchstart",beginStudentExitAndCloseTab,{capture:true,passive:true});
-$("leaveTaskBtn").addEventListener("click",beginStudentExitAndCloseTab,{capture:true});
-$("leaveTaskBtn").onclick=endTask;
+$("leaveTaskBtn").addEventListener("click",confirmStudentLeave);
 
 function refreshLeaveTaskButton(){
   const activeCardIds=["gameWaitingCard","taskCard","clickTaskCard","hanziTaskCard"];
