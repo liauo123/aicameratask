@@ -665,6 +665,7 @@ const numberButtons=[...document.querySelectorAll(".number-btn")];
 const trackedMicrophoneTracks=new Set();
 const trackedCameraTracks=new Set();
 let microphoneStreamTrackerInstalled=false;
+let mediaRequestsBlocked=false;
 
 function rememberMicrophoneStream(stream){
   if(!stream||!stream.getAudioTracks)return stream;
@@ -694,12 +695,14 @@ function installMicrophoneStreamTracker(){
   try{
     const originalGetUserMedia=mediaDevices.getUserMedia.bind(mediaDevices);
     const trackedGetUserMedia=async constraints=>{
+      if(mediaRequestsBlocked||exitInProgress)throw new Error("頁面正在離開，已停止相機與麥克風。");
       const stream=await originalGetUserMedia(constraints);
       if(constraints&&constraints.audio)rememberMicrophoneStream(stream);
       if(constraints&&constraints.video)rememberCameraStream(stream);
-      if(exitInProgress){
+      if(mediaRequestsBlocked||exitInProgress){
         stopTrackedMicrophoneTracks();
         stopTrackedCameraTracks();
+        throw new Error("頁面正在離開，已停止相機與麥克風。");
       }
       return stream;
     };
@@ -3378,6 +3381,7 @@ function beginStudentExitMicrophoneShutdown(){
 }
 
 function beginStudentExitDeviceShutdown(){
+  mediaRequestsBlocked=true;
   const microphoneShutdown=beginStudentExitMicrophoneShutdown();
   stopAll();
   stopTrackedCameraTracks();
