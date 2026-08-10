@@ -3417,6 +3417,13 @@ function detachAudioRecognizerStream(recognizer){
   try{extractor.stream=null}catch(e){}
 }
 
+function releaseStudentMicrophoneForBackground(){
+  const recognizer=activeAudioRecognizer||(projectType==="audio"?model:null);
+  pauseStudentMicrophone();
+  detachAudioRecognizerStream(recognizer);
+  stopTrackedMicrophoneTracks();
+}
+
 async function shutdownStudentMicrophoneForExit(){
   const recognitions=[browserSpeechRecognition,hanziSpeechRecognition].filter(Boolean);
   const recognizer=activeAudioRecognizer||(projectType==="audio"?model:null);
@@ -3847,7 +3854,7 @@ function stopAll(preserveClickRound=false){
 }
 
 function pauseStudentPageForBackground(){
-  pauseStudentMicrophone();
+  releaseStudentMicrophoneForBackground();
   if(pageAutoPaused||finished||!task||paused)return;
   pageAutoPaused=true;
   stopAll(isClickMode());
@@ -3962,9 +3969,30 @@ function handleStudentPageVisibility(){
   resumeStudentPageFromBackground();
 }
 
+function handleStudentPageExit(event){
+  pauseStudentPageForBackground();
+  beginStudentExitDeviceShutdown();
+  if(!event||!event.persisted)stopGameListeners();
+}
+
+async function handleStudentPageRestore(event){
+  if(!event.persisted||finished||exitInProgress)return;
+  const pendingShutdown=exitMicrophoneShutdownPromise;
+  if(pendingShutdown){
+    try{await pendingShutdown}catch(e){}
+  }
+  exitMicrophoneShutdownPromise=null;
+  mediaRequestsBlocked=false;
+  if(!task||paused)return;
+  pageAutoPaused=true;
+  resumeStudentPageFromBackground();
+}
+
 document.addEventListener("visibilitychange",handleStudentPageVisibility,true);
 document.addEventListener("webkitvisibilitychange",handleStudentPageVisibility,true);
 window.addEventListener("visibilitychange",handleStudentPageVisibility,true);
+window.addEventListener("pagehide",handleStudentPageExit,true);
+window.addEventListener("pageshow",handleStudentPageRestore,true);
 
 window.addEventListener("blur",()=>{
   const pauseIfNeeded=()=>{
@@ -3984,11 +4012,10 @@ window.addEventListener("focus",()=>{
   }
   resumeStudentPageFromBackground();
 });
-window.addEventListener("pagehide",()=>{stopAll();stopGameListeners()});
 window.addEventListener("freeze",stopAll);
 document.addEventListener("freeze",stopAll,true);
 document.addEventListener("pause",stopAll,true);
-window.addEventListener("beforeunload",()=>{stopAll();stopGameListeners()});
+window.addEventListener("beforeunload",handleStudentPageExit,true);
 
 taskId=new URLSearchParams(location.search).get("task")||"";
 $("taskIdInput").value=taskId;
