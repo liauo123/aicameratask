@@ -102,7 +102,7 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
     </div>
     <div class="modeTabs" role="tablist" aria-label="選擇任務模式">
       <button class="modeTab clickTab" type="button" data-mode="click" role="tab" aria-selected="true">簡易點選練習模式</button>
-      <button class="modeTab hanziTab" type="button" data-mode="hanzi" role="tab" aria-selected="false">國字練習模式</button>
+      <button class="modeTab hanziTab" type="button" data-mode="hanzi" role="tab" aria-selected="false">文字練習模式</button>
       <button class="modeTab teachingTab" type="button" data-mode="teaching" role="tab" aria-selected="false">物品(文字)辨識教學模式</button>
       <button class="modeTab evaluationTab" type="button" data-mode="evaluation" role="tab" aria-selected="false">評量模式</button>
       <button class="modeTab gameTab" type="button" data-mode="game" role="tab" aria-selected="false">多人遊戲模式</button>
@@ -240,7 +240,7 @@ function applyModeFilter(){
   sections.forEach(section=>section.classList.toggle("hidden",section.dataset.mode!==activeMode));
   const oldEmpty=$("modeEmpty");if(oldEmpty)oldEmpty.remove();
   if(!sections.some(section=>section.dataset.mode===activeMode)){
-    const names={click:"簡易點選練習模式",teaching:"物品(文字)辨識教學模式",hanzi:"國字練習模式",evaluation:"評量模式",game:"多人遊戲模式"};
+    const names={click:"簡易點選練習模式",teaching:"物品(文字)辨識教學模式",hanzi:"文字練習模式",evaluation:"評量模式",game:"多人遊戲模式"};
     const empty=document.createElement("div");empty.id="modeEmpty";empty.className="status";empty.textContent="目前沒有「"+names[activeMode]+"」資料。";
     $("taskList").appendChild(empty);
   }
@@ -490,9 +490,9 @@ async function render(docs){
       return `<div class="rr${fiveOrMore.length?" hasFiveWrong":twoOnly.length||threeToFour.length?" hasAnyError":""}"><span>${esc(d.studentName||"未命名")}</span><span>${Number(d.progress||0)}%</span><span>${d.status==="completed"?"完成":"進行中"}</span><span>${errors||"—"}</span></div>`;
     }).join("");
     const resultSection=resultError?`<div class="status err">${esc(resultError)}</div>`:`<div style="margin-top:12px"><b>學生完成度（${resultDocs.length} 人）</b><div class="rr"><b>學生</b><b>進度</b><b>狀態</b><b>辨識錯誤</b></div>${rows||'<div class="small" style="padding:10px">尚無學生紀錄</div>'}</div>`;
-    const settings=t.hanziSpeechEnabled?"逐項完整文字語音辨識":"教育部筆順練習連結";
+    const settings=t.hanziSpeechEnabled?"逐項完整文字語音辨識":"中英文書寫練習連結";
     const practiceText=Array.isArray(t.hanziTexts)&&t.hanziTexts.length?t.hanziTexts.join("、"):String(t.hanziText||"").trim()||(t.targetClasses||[]).join("");
-    return `<div class="task hanziTask"><div class="top"><div><span class="modeBadge">國字練習模式</span><div class="titleLine"><div class="title">${esc(t.title||"國字練習")}</div><button class="s restoreTeacherBtn" type="button" onclick="restoreTeacherPlatform('${doc.id}')">回復教師平台</button></div><div class="meta">練習文字：${esc(practiceText)}</div><div class="meta">練習方式：${settings}</div></div></div><div class="row" style="margin-top:12px"><button class="s" onclick="showQR('${doc.id}','${esc(t.title||"國字練習")}')">重新產生 QR</button><button class="s" onclick="exportTaskCSV('${doc.id}')">匯出結果 CSV</button><button class="d" onclick="delTask('${doc.id}')">完整刪除</button></div>${resultSection}</div>`;
+    return `<div class="task hanziTask"><div class="top"><div><span class="modeBadge">文字練習模式</span><div class="titleLine"><div class="title">${esc(t.title||"國字練習")}</div><button class="s restoreTeacherBtn" type="button" onclick="restoreTeacherPlatform('${doc.id}')">回復教師平台</button></div><div class="meta">練習文字：${esc(practiceText)}</div><div class="meta">練習方式：${settings}</div></div></div><div class="row" style="margin-top:12px"><button class="s" onclick="showQR('${doc.id}','${esc(t.title||"國字練習")}')">重新產生 QR</button><button class="s" onclick="exportTaskCSV('${doc.id}')">匯出結果 CSV</button><button class="d" onclick="delTask('${doc.id}')">完整刪除</button></div>${resultSection}</div>`;
   };
 
   const sections=[];
@@ -504,7 +504,7 @@ async function render(docs){
   }
 
   if(hanziDocs.length){
-    sections.push('<section class="modeSection hanzi" data-mode="hanzi"><h2 class="modeTitle">國字練習模式</h2>');
+    sections.push('<section class="modeSection hanzi" data-mode="hanzi"><h2 class="modeTitle">文字練習模式</h2>');
     const hanziHtml=await Promise.all(hanziDocs.map(renderHanziTask));
     sections.push(hanziHtml.join(""));sections.push('</section>');
   }
