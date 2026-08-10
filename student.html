@@ -658,6 +658,53 @@ let hanziSpeechRecognition=null,hanziSpeechStarting=false;
 
 const $=id=>document.getElementById(id);
 const numberButtons=[...document.querySelectorAll(".number-btn")];
+const trackedMicrophoneTracks=new Set();
+let microphoneStreamTrackerInstalled=false;
+
+function rememberMicrophoneStream(stream){
+  if(!stream||!stream.getAudioTracks)return stream;
+  stream.getAudioTracks().forEach(track=>{
+    trackedMicrophoneTracks.add(track);
+    if(track.addEventListener){
+      track.addEventListener("ended",()=>trackedMicrophoneTracks.delete(track),{once:true});
+    }
+  });
+  return stream;
+}
+
+function installMicrophoneStreamTracker(){
+  const mediaDevices=navigator.mediaDevices;
+  if(!mediaDevices||!mediaDevices.getUserMedia||microphoneStreamTrackerInstalled)return;
+  try{
+    const originalGetUserMedia=mediaDevices.getUserMedia.bind(mediaDevices);
+    const trackedGetUserMedia=async constraints=>{
+      const stream=await originalGetUserMedia(constraints);
+      if(constraints&&constraints.audio)rememberMicrophoneStream(stream);
+      return stream;
+    };
+    mediaDevices.getUserMedia=trackedGetUserMedia;
+    if(mediaDevices.getUserMedia!==trackedGetUserMedia){
+      Object.defineProperty(mediaDevices,"getUserMedia",{
+        configurable:true,
+        writable:true,
+        value:trackedGetUserMedia
+      });
+    }
+    microphoneStreamTrackerInstalled=mediaDevices.getUserMedia===trackedGetUserMedia;
+    if(!microphoneStreamTrackerInstalled)throw new Error("瀏覽器不允許包裝 getUserMedia");
+  }catch(e){
+    console.warn("麥克風音軌追蹤無法安裝，改用辨識器停止流程。",e);
+  }
+}
+
+function stopTrackedMicrophoneTracks(){
+  trackedMicrophoneTracks.forEach(track=>{
+    try{if(track.readyState!=="ended")track.stop()}catch(e){}
+  });
+  trackedMicrophoneTracks.clear();
+}
+
+installMicrophoneStreamTracker();
 
 function addItemError(target,type=""){
   const item=String(target||"").trim();
@@ -3015,6 +3062,7 @@ function stopOptionalAudioRecognition(updateUI=true){
   if(browserSpeechRecognition){
     const recognition=browserSpeechRecognition;
     browserSpeechRecognition=null;
+    try{recognition.stop()}catch(e){}
     try{recognition.abort()}catch(e){}
   }
   if(updateUI)updateVerificationUI();
@@ -3246,10 +3294,12 @@ function pauseStudentMicrophone(){
       recognition.onresult=null;
       recognition.onerror=null;
       recognition.onend=null;
+      try{recognition.stop()}catch(e){}
       recognition.abort();
     }catch(e){}
   }
   stopAudio();
+  stopTrackedMicrophoneTracks();
 }
 
 function processPredictions(predictions,evidenceCanvas){
@@ -3735,6 +3785,7 @@ function handleStudentPageVisibility(){
 
 document.addEventListener("visibilitychange",handleStudentPageVisibility,true);
 document.addEventListener("webkitvisibilitychange",handleStudentPageVisibility,true);
+window.addEventListener("visibilitychange",handleStudentPageVisibility,true);
 
 window.addEventListener("blur",()=>{
   const pauseIfNeeded=()=>{
@@ -3756,6 +3807,8 @@ window.addEventListener("focus",()=>{
 });
 window.addEventListener("pagehide",()=>{stopAll();stopGameListeners()});
 window.addEventListener("freeze",stopAll);
+document.addEventListener("freeze",stopAll,true);
+document.addEventListener("pause",stopAll,true);
 window.addEventListener("beforeunload",()=>{stopAll();stopGameListeners()});
 
 taskId=new URLSearchParams(location.search).get("task")||"";
