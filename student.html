@@ -3997,13 +3997,12 @@ window.addEventListener("pageshow",handleStudentPageRestore,true);
 window.addEventListener("blur",()=>{
   const pauseIfNeeded=()=>{
     pageBlurCheckTimer=null;
-    const microphoneStarting=optionalAudioStarting||hanziSpeechStarting||audioStarting;
-    const microphoneActive=optionalAudioListening||!!hanziSpeechRecognition||audioListening;
-    const permissionPromptOpening=microphoneStarting&&!document.hidden&&Date.now()-microphoneStartRequestedAt<1500;
-    if(document.hidden||(microphoneActive&&!permissionPromptOpening))pauseStudentPageForBackground();
+    if(document.hidden||document.visibilityState==="hidden"||document.webkitHidden){
+      pauseStudentPageForBackground();
+    }
   };
-  pauseIfNeeded();
-  pageBlurCheckTimer=setTimeout(pauseIfNeeded,120);
+  if(pageBlurCheckTimer)clearTimeout(pageBlurCheckTimer);
+  pageBlurCheckTimer=setTimeout(pauseIfNeeded,250);
 });
 window.addEventListener("focus",()=>{
   if(pageBlurCheckTimer){
