@@ -621,12 +621,13 @@ let browserSpeechRecognition=null,optionalAudioListening=false,optionalAudioStar
 let resultRef=null,currentIndex=0,completed=[],attempts=0,holdCount=0,finished=false,paused=false;
 let imageStream=null;
 let poseWebcam=null,poseCtx=null,poseRaf=null,posePredicting=false,poseVideoStream=null,poseVideo=null;
-let audioListening=false,audioStarting=false,audioStopPromise=null;
+let audioListening=false,audioStarting=false,audioStopPromise=null,activeAudioRecognizer=null;
 let predictionRows={};
 
 const POSE_INTERVAL=210;             // 姿勢約 4.8 次/秒
 const POSE_STABLE_INTERVAL=320;      // 姿勢結果穩定後約 3.1 次/秒
 let pageAutoPaused=false;
+let pageBlurCheckTimer=null;
 let lastImageOverlayText="";
 let lastPoseOverlayText="";
 let lastTeachingClass="";
@@ -2209,6 +2210,7 @@ async function loadSelectedModel(){
     model=await tmPose.load(task.modelURL+"model.json",task.modelURL+"metadata.json");
   }else if(projectType==="audio"){
     model=await createAudioRecognizer(task.modelURL);
+    activeAudioRecognizer=model;
   }else{
     throw new Error("不支援的專案類型");
   }
@@ -3163,11 +3165,13 @@ async function startOptionalAudioRecognition(){
 }
 
 async function startAudio(){
+  const recognizer=activeAudioRecognizer||model;
+  if(!recognizer||!recognizer.listen)throw new Error("音訊辨識模型尚未準備完成");
   audioListening=true;
   audioStarting=true;
   setStatus("recognitionStatus","麥克風已啟動，請發出指定聲音。","success");
   try{
-    await model.listen(result=>{
+    await recognizer.listen(result=>{
       if(finished||paused||!audioListening)return;
       const labels=getModelLabels();
       const predictions=labels.map((className,i)=>({className,probability:result.scores[i]||0}));
@@ -3187,12 +3191,32 @@ async function startAudio(){
 }
 function stopAudio(){
   audioListening=false;
-  if(model&&model.stopListening&&!audioStopPromise){
+  audioStarting=false;
+  const recognizer=activeAudioRecognizer||(projectType==="audio"?model:null);
+  if(recognizer&&recognizer.stopListening&&!audioStopPromise){
     try{
-      const pending=Promise.resolve(model.stopListening()).catch(()=>{});
+      const pending=Promise.resolve(recognizer.stopListening()).catch(()=>{});
       audioStopPromise=pending;
       pending.finally(()=>{if(audioStopPromise===pending)audioStopPromise=null});
     }catch(e){}
+  }
+  const extractor=recognizer&&recognizer.audioDataExtractor;
+  if(extractor){
+    if(extractor.frameIntervalTask!=null){
+      clearInterval(extractor.frameIntervalTask);
+      extractor.frameIntervalTask=null;
+    }
+    try{if(extractor.analyser)extractor.analyser.disconnect()}catch(e){}
+    if(extractor.stream&&extractor.stream.getAudioTracks){
+      extractor.stream.getAudioTracks().forEach(track=>{try{track.stop()}catch(e){}});
+    }
+    try{
+      if(extractor.audioContext&&extractor.audioContext.state!=="closed"){
+        const closing=extractor.audioContext.close();
+        if(closing&&closing.catch)closing.catch(()=>{});
+      }
+    }catch(e){}
+    try{recognizer.streaming=false}catch(e){}
   }
 }
 
@@ -3563,6 +3587,7 @@ function endTask(){
   predictionRows={};
   resultRef=null;
   metadata=null;
+  activeAudioRecognizer=null;
   model=null;
   if(ocrWorker){
     try{ocrWorker.terminate()}catch(e){}
@@ -3693,11 +3718,22 @@ document.addEventListener("visibilitychange",()=>{
 });
 
 window.addEventListener("blur",()=>{
-  const microphoneStarting=optionalAudioStarting||hanziSpeechStarting||audioStarting;
-  const microphoneActive=optionalAudioListening||!!hanziSpeechRecognition||audioListening;
-  if(microphoneActive&&!microphoneStarting)pauseStudentPageForBackground();
+  const pauseIfNeeded=()=>{
+    pageBlurCheckTimer=null;
+    const microphoneStarting=optionalAudioStarting||hanziSpeechStarting||audioStarting;
+    const microphoneActive=optionalAudioListening||!!hanziSpeechRecognition||audioListening;
+    if(document.hidden||(microphoneActive&&!microphoneStarting))pauseStudentPageForBackground();
+  };
+  pauseIfNeeded();
+  pageBlurCheckTimer=setTimeout(pauseIfNeeded,120);
 });
-window.addEventListener("focus",resumeStudentPageFromBackground);
+window.addEventListener("focus",()=>{
+  if(pageBlurCheckTimer){
+    clearTimeout(pageBlurCheckTimer);
+    pageBlurCheckTimer=null;
+  }
+  resumeStudentPageFromBackground();
+});
 window.addEventListener("pagehide",()=>{stopAll();stopGameListeners()});
 window.addEventListener("freeze",stopAll);
 window.addEventListener("beforeunload",()=>{stopAll();stopGameListeners()});
