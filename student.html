@@ -663,6 +663,7 @@ let hanziSpeechRecognition=null,hanziSpeechStarting=false;
 const $=id=>document.getElementById(id);
 const numberButtons=[...document.querySelectorAll(".number-btn")];
 const trackedMicrophoneTracks=new Set();
+const trackedCameraTracks=new Set();
 let microphoneStreamTrackerInstalled=false;
 
 function rememberMicrophoneStream(stream){
@@ -676,6 +677,17 @@ function rememberMicrophoneStream(stream){
   return stream;
 }
 
+function rememberCameraStream(stream){
+  if(!stream||!stream.getVideoTracks)return stream;
+  stream.getVideoTracks().forEach(track=>{
+    trackedCameraTracks.add(track);
+    if(track.addEventListener){
+      track.addEventListener("ended",()=>trackedCameraTracks.delete(track),{once:true});
+    }
+  });
+  return stream;
+}
+
 function installMicrophoneStreamTracker(){
   const mediaDevices=navigator.mediaDevices;
   if(!mediaDevices||!mediaDevices.getUserMedia||microphoneStreamTrackerInstalled)return;
@@ -684,6 +696,11 @@ function installMicrophoneStreamTracker(){
     const trackedGetUserMedia=async constraints=>{
       const stream=await originalGetUserMedia(constraints);
       if(constraints&&constraints.audio)rememberMicrophoneStream(stream);
+      if(constraints&&constraints.video)rememberCameraStream(stream);
+      if(exitInProgress){
+        stopTrackedMicrophoneTracks();
+        stopTrackedCameraTracks();
+      }
       return stream;
     };
     mediaDevices.getUserMedia=trackedGetUserMedia;
@@ -706,6 +723,13 @@ function stopTrackedMicrophoneTracks(){
     try{if(track.readyState!=="ended")track.stop()}catch(e){}
   });
   trackedMicrophoneTracks.clear();
+}
+
+function stopTrackedCameraTracks(){
+  trackedCameraTracks.forEach(track=>{
+    try{if(track.readyState!=="ended")track.stop()}catch(e){}
+  });
+  trackedCameraTracks.clear();
 }
 
 installMicrophoneStreamTracker();
@@ -3353,6 +3377,13 @@ function beginStudentExitMicrophoneShutdown(){
   return exitMicrophoneShutdownPromise;
 }
 
+function beginStudentExitDeviceShutdown(){
+  const microphoneShutdown=beginStudentExitMicrophoneShutdown();
+  stopAll();
+  stopTrackedCameraTracks();
+  return microphoneShutdown;
+}
+
 function processPredictions(predictions,evidenceCanvas){
   predictions.forEach(item=>{
     const row=predictionRows[item.className];
@@ -3693,8 +3724,7 @@ async function endTask(){
   $("leaveTaskBtn").textContent="正在離開…";
   $("againBtn").disabled=true;
 
-  const microphoneShutdown=beginStudentExitMicrophoneShutdown();
-  stopAll();
+  const deviceShutdown=beginStudentExitDeviceShutdown();
   stopGameListeners();
   if("speechSynthesis" in window)window.speechSynthesis.cancel();
   if(captureFeedbackTimer){
@@ -3702,7 +3732,9 @@ async function endTask(){
     captureFeedbackTimer=null;
   }
 
-  await microphoneShutdown;
+  await deviceShutdown;
+  stopTrackedCameraTracks();
+  stopTrackedMicrophoneTracks();
 
   predictionRows={};
   resultRef=null;
@@ -3827,13 +3859,13 @@ $("hanziPicker").addEventListener("click",event=>{
   }
 });
 $("againBtn").onclick=repeatTask;
-$("endBtn").addEventListener("pointerdown",beginStudentExitMicrophoneShutdown,{capture:true});
-$("endBtn").addEventListener("touchstart",beginStudentExitMicrophoneShutdown,{capture:true,passive:true});
-$("endBtn").addEventListener("click",beginStudentExitMicrophoneShutdown,{capture:true});
+$("endBtn").addEventListener("pointerdown",beginStudentExitDeviceShutdown,{capture:true});
+$("endBtn").addEventListener("touchstart",beginStudentExitDeviceShutdown,{capture:true,passive:true});
+$("endBtn").addEventListener("click",beginStudentExitDeviceShutdown,{capture:true});
 $("endBtn").onclick=endTask;
-$("leaveTaskBtn").addEventListener("pointerdown",beginStudentExitMicrophoneShutdown,{capture:true});
-$("leaveTaskBtn").addEventListener("touchstart",beginStudentExitMicrophoneShutdown,{capture:true,passive:true});
-$("leaveTaskBtn").addEventListener("click",beginStudentExitMicrophoneShutdown,{capture:true});
+$("leaveTaskBtn").addEventListener("pointerdown",beginStudentExitDeviceShutdown,{capture:true});
+$("leaveTaskBtn").addEventListener("touchstart",beginStudentExitDeviceShutdown,{capture:true,passive:true});
+$("leaveTaskBtn").addEventListener("click",beginStudentExitDeviceShutdown,{capture:true});
 $("leaveTaskBtn").onclick=endTask;
 
 function refreshLeaveTaskButton(){
