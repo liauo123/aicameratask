@@ -46,7 +46,7 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
 .primary{background:var(--primary);color:#fff}.primary:active{background:var(--primary-dark)}
 .voice-action{background:#7c3aed;color:#fff}.voice-action:active{background:#6d28d9}
 .secondary{background:#e8eef8;color:#24324b}.full{width:100%;margin-top:12px}
-.leave-task-btn{position:fixed;top:max(12px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));z-index:1200;min-height:44px;padding:0 18px;border:2px solid #fecaca;border-radius:999px;background:#fff;color:#b91c1c;box-shadow:0 8px 22px rgba(127,29,29,.2)}
+.leave-task-btn{position:fixed;top:max(12px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));z-index:1200;min-height:36px;padding:0 12px;border:1px solid #fecaca;border-radius:999px;background:#fff;color:#b91c1c;font-size:.85rem;box-shadow:0 6px 16px rgba(127,29,29,.18)}
 .leave-task-btn:active{background:#fee2e2;transform:translateY(1px)}
 .leave-task-btn:disabled{opacity:.65;cursor:wait}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
@@ -3422,17 +3422,7 @@ function pauseStudentMicrophone(){
   hanziSpeechStarting=false;
   audioStarting=false;
   stopOptionalAudioRecognition(false);
-  if(hanziSpeechRecognition){
-    const recognition=hanziSpeechRecognition;
-    hanziSpeechRecognition=null;
-    try{
-      recognition.onresult=null;
-      recognition.onerror=null;
-      recognition.onend=null;
-      try{recognition.abort()}catch(e){}
-      try{recognition.stop()}catch(e){}
-    }catch(e){}
-  }
+  if(hanziSpeechRecognition)stopHanziSpeechRecognition(hanziSpeechRecognition);
   stopTrackedSpeechRecognitions(true);
   stopAudio();
   stopTrackedMicrophoneTracks();
@@ -3926,9 +3916,10 @@ function stopAll(preserveClickRound=false){
 }
 
 function pauseStudentPageForBackground(){
+  const shouldPausePage=!pageAutoPaused&&!finished&&!!task&&!paused;
+  if(shouldPausePage)pageAutoPaused=true;
   releaseStudentMicrophoneForBackground();
-  if(pageAutoPaused||finished||!task||paused)return;
-  pageAutoPaused=true;
+  if(!shouldPausePage)return;
   stopAll(isClickMode());
   if(isClickMode()&&$("clickWaiting")){
     $("clickWaiting").textContent="測驗已暫停，回到頁面後繼續。";
