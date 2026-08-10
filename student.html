@@ -3176,6 +3176,16 @@ function stopAudio(){
   if(model&&model.stopListening)model.stopListening();
 }
 
+function stopStudentMicrophone(){
+  stopOptionalAudioRecognition(false);
+  if(hanziSpeechRecognition){
+    const recognition=hanziSpeechRecognition;
+    hanziSpeechRecognition=null;
+    try{recognition.abort()}catch(e){}
+  }
+  stopAudio();
+}
+
 function processPredictions(predictions,evidenceCanvas){
   predictions.forEach(item=>{
     const row=predictionRows[item.className];
@@ -3557,9 +3567,7 @@ function stopAll(preserveClickRound=false){
   posePredicting=false;
   poseStableClass="";
   poseStableCount=0;
-  stopOptionalAudioRecognition(true);
-  if(hanziSpeechRecognition){try{hanziSpeechRecognition.abort()}catch(e){}hanziSpeechRecognition=null}
-  stopAudio();
+  stopStudentMicrophone();
 }
 
 async function togglePause(){
@@ -3618,6 +3626,7 @@ $("endBtn").onclick=endTask;
 
 document.addEventListener("visibilitychange",async()=>{
   if(document.hidden){
+    stopStudentMicrophone();
     if(!finished&&task&&!paused){
       pageAutoPaused=true;
       stopAll(isClickMode());
