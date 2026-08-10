@@ -735,6 +735,30 @@ function stopTrackedCameraTracks(){
   trackedCameraTracks.clear();
 }
 
+function detachStudentMediaElement(element){
+  if(!element)return;
+  try{element.pause()}catch(e){}
+  try{
+    const stream=element.srcObject;
+    if(stream&&stream.getTracks){
+      stream.getTracks().forEach(track=>{
+        try{if(track.readyState!=="ended")track.stop()}catch(e){}
+      });
+    }
+  }catch(e){}
+  try{element.srcObject=null}catch(e){}
+  try{element.removeAttribute("src")}catch(e){}
+  try{element.load()}catch(e){}
+}
+
+function releaseStudentMediaForIPhone(){
+  const mediaElements=new Set(document.querySelectorAll("video,audio"));
+  if(poseVideo)mediaElements.add(poseVideo);
+  mediaElements.forEach(detachStudentMediaElement);
+  stopTrackedCameraTracks();
+  stopTrackedMicrophoneTracks();
+}
+
 installMicrophoneStreamTracker();
 
 function addItemError(target,type=""){
@@ -3382,9 +3406,10 @@ function beginStudentExitMicrophoneShutdown(){
 
 function beginStudentExitDeviceShutdown(){
   mediaRequestsBlocked=true;
+  releaseStudentMediaForIPhone();
   const microphoneShutdown=beginStudentExitMicrophoneShutdown();
   stopAll();
-  stopTrackedCameraTracks();
+  releaseStudentMediaForIPhone();
   return microphoneShutdown;
 }
 
@@ -3737,8 +3762,9 @@ async function endTask(){
   }
 
   await deviceShutdown;
-  stopTrackedCameraTracks();
-  stopTrackedMicrophoneTracks();
+  releaseStudentMediaForIPhone();
+  await new Promise(resolve=>setTimeout(resolve,60));
+  releaseStudentMediaForIPhone();
 
   predictionRows={};
   resultRef=null;
