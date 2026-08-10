@@ -3176,7 +3176,8 @@ function stopAudio(){
   if(model&&model.stopListening)model.stopListening();
 }
 
-function stopStudentMicrophone(){
+// 暫停時釋放麥克風；回到頁面後由既有的裝置恢復流程重新啟動。
+function pauseStudentMicrophone(){
   stopOptionalAudioRecognition(false);
   if(hanziSpeechRecognition){
     const recognition=hanziSpeechRecognition;
@@ -3567,7 +3568,7 @@ function stopAll(preserveClickRound=false){
   posePredicting=false;
   poseStableClass="";
   poseStableCount=0;
-  stopStudentMicrophone();
+  pauseStudentMicrophone();
 }
 
 async function togglePause(){
@@ -3626,7 +3627,7 @@ $("endBtn").onclick=endTask;
 
 document.addEventListener("visibilitychange",async()=>{
   if(document.hidden){
-    stopStudentMicrophone();
+    pauseStudentMicrophone();
     if(!finished&&task&&!paused){
       pageAutoPaused=true;
       stopAll(isClickMode());
