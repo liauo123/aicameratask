@@ -3676,7 +3676,6 @@ document.addEventListener("visibilitychange",()=>{
   resumeStudentPageFromBackground();
 });
 
-window.addEventListener("blur",pauseStudentPageForBackground);
 window.addEventListener("focus",resumeStudentPageFromBackground);
 window.addEventListener("pagehide",()=>{stopAll();stopGameListeners()});
 window.addEventListener("freeze",stopAll);
