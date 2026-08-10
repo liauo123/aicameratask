@@ -662,6 +662,7 @@ let hanziSpeechRecognition=null,hanziSpeechStarting=false;
 
 const $=id=>document.getElementById(id);
 const numberButtons=[...document.querySelectorAll(".number-btn")];
+const trackedMicrophoneStreams=new Set();
 const trackedMicrophoneTracks=new Set();
 const trackedCameraTracks=new Set();
 let microphoneStreamTrackerInstalled=false;
@@ -669,10 +670,16 @@ let mediaRequestsBlocked=false;
 
 function rememberMicrophoneStream(stream){
   if(!stream||!stream.getAudioTracks)return stream;
+  trackedMicrophoneStreams.add(stream);
   stream.getAudioTracks().forEach(track=>{
     trackedMicrophoneTracks.add(track);
     if(track.addEventListener){
-      track.addEventListener("ended",()=>trackedMicrophoneTracks.delete(track),{once:true});
+      track.addEventListener("ended",()=>{
+        trackedMicrophoneTracks.delete(track);
+        if(!stream.getAudioTracks().some(item=>item.readyState!=="ended")){
+          trackedMicrophoneStreams.delete(stream);
+        }
+      },{once:true});
     }
   });
   return stream;
@@ -722,6 +729,14 @@ function installMicrophoneStreamTracker(){
 }
 
 function stopTrackedMicrophoneTracks(){
+  trackedMicrophoneStreams.forEach(stream=>{
+    try{
+      stream.getAudioTracks().forEach(track=>{
+        try{if(track.readyState!=="ended")track.stop()}catch(e){}
+      });
+    }catch(e){}
+  });
+  trackedMicrophoneStreams.clear();
   trackedMicrophoneTracks.forEach(track=>{
     try{if(track.readyState!=="ended")track.stop()}catch(e){}
   });
@@ -3117,8 +3132,11 @@ function stopOptionalAudioRecognition(updateUI=true){
   if(browserSpeechRecognition){
     const recognition=browserSpeechRecognition;
     browserSpeechRecognition=null;
-    try{recognition.stop()}catch(e){}
+    try{recognition.onresult=null}catch(e){}
+    try{recognition.onerror=null}catch(e){}
+    try{recognition.onend=null}catch(e){}
     try{recognition.abort()}catch(e){}
+    try{recognition.stop()}catch(e){}
   }
   if(updateUI)updateVerificationUI();
 }
@@ -3188,8 +3206,17 @@ async function startOptionalAudioRecognition(){
   setVoiceResult(`正在聆聽，請說出「${target}」…`);
   recognition.onstart=()=>{
     optionalAudioStarting=false;
-    if(document.hidden||pageAutoPaused||finished||paused||exitInProgress){
-      stopOptionalAudioRecognition(false);
+    if(
+      browserSpeechRecognition!==recognition||
+      !optionalAudioListening||
+      document.hidden||
+      pageAutoPaused||
+      finished||
+      paused||
+      exitInProgress
+    ){
+      try{recognition.abort()}catch(e){}
+      try{recognition.stop()}catch(e){}
     }
   };
 
@@ -3349,8 +3376,8 @@ function pauseStudentMicrophone(){
       recognition.onresult=null;
       recognition.onerror=null;
       recognition.onend=null;
+      try{recognition.abort()}catch(e){}
       try{recognition.stop()}catch(e){}
-      recognition.abort();
     }catch(e){}
   }
   stopAudio();
@@ -3371,11 +3398,23 @@ function waitForSpeechRecognitionShutdown(recognition){
       recognition.addEventListener("end",finish,{once:true});
       recognition.addEventListener("error",finish,{once:true});
     }
-    try{recognition.stop()}catch(e){}
     try{recognition.abort()}catch(e){}
+    try{recognition.stop()}catch(e){}
     if(!recognition.addEventListener)finish();
     else setTimeout(finish,900);
   });
+}
+
+function detachAudioRecognizerStream(recognizer){
+  const extractor=recognizer&&recognizer.audioDataExtractor;
+  if(!extractor)return;
+  const stream=extractor.stream;
+  if(stream&&stream.getAudioTracks){
+    stream.getAudioTracks().forEach(track=>{
+      try{if(track.readyState!=="ended")track.stop()}catch(e){}
+    });
+  }
+  try{extractor.stream=null}catch(e){}
 }
 
 async function shutdownStudentMicrophoneForExit(){
@@ -3392,6 +3431,7 @@ async function shutdownStudentMicrophoneForExit(){
     ]);
   }
   await Promise.all(speechShutdowns);
+  detachAudioRecognizerStream(recognizer);
   stopTrackedMicrophoneTracks();
 }
 
