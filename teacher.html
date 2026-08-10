@@ -114,7 +114,7 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
     <section class="card modelCard">
       <h2 id="modelHeading">載入辨識模型</h2>
       <select id="recognitionEngine" aria-label="選擇辨識方式">
-        <option value="ocr">OCR 文字辨識</option>
+        <option value="ocr">文字辨識</option>
         <option value="teachable-machine">Teachable Machine 圖片辨識</option>
       </select>
       <div id="teachableMachineFields">
@@ -122,7 +122,7 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
       </div>
       <div id="ocrFields" class="hidden">
         <textarea id="ocrKeywords" rows="6" placeholder="輸入要辨識的文字，一行一項&#10;例如：&#10;洗髮精&#10;沐浴乳&#10;牙膏"></textarea>
-        <div class="modelHint">OCR 使用繁體中文與英文印刷文字辨識；請一行輸入一個目標文字。</div>
+        <div class="modelHint">文字辨識使用繁體中文與英文印刷文字辨識；請一行輸入一個目標文字。</div>
       </div>
       <button id="loadModelBtn" class="p" style="width:100%">載入模型</button>
       <div id="modelStatus" class="status">尚未載入模型。</div>
@@ -154,13 +154,13 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
       </section>
 
       <section id="hanziModeCard" class="card modeCard hanziMode hidden">
-        <h2>國字練習模式</h2>
-        <div class="clickHint">未勾選時，可將已載入文字中的國字逐字連結教育部筆順練習；勾選語音辨識後，每一個文字項目會成為一題完整語音辨識。</div>
-        <input id="hanziTaskTitle" placeholder="國字練習任務名稱">
+        <h2>文字練習模式</h2>
+        <div class="clickHint">未勾選時，中文字可逐字連結教育部筆順練習，英文字母可逐字連結英文描寫練習；勾選語音辨識後，每一個文字項目會成為一題完整語音辨識。</div>
+        <input id="hanziTaskTitle" placeholder="文字練習任務名稱">
         <div class="modeSettings">
           <label class="modeSetting"><input id="hanziSpeechRecognition" type="checkbox">語音辨識</label>
         </div>
-        <button id="createHanziBtn" class="p" style="width:100%" disabled>產生國字練習 QR</button>
+        <button id="createHanziBtn" class="p" style="width:100%" disabled>產生文字練習 QR</button>
         <div id="hanziStatus" class="status">尚未建立。</div>
       </section>
 
@@ -408,7 +408,7 @@ function syncRecognitionEngineUI(){
   $("clickModeHint").textContent=isOcr
     ? "需要點選的目標文字會顯示在學生畫面上方；有設定縮圖時會與文字一起出現，沒有縮圖時只顯示文字。1–3 個文字選項會隨機出現。"
     : "有縮圖的物品會顯示縮圖，沒有縮圖時只顯示名稱文字；1–3 種物品選項會隨機出現。點錯會顯示錯誤畫面與音效，教師端只保留答對、逾時與平均秒數摘要。";
-  $("loadModelBtn").textContent=isOcr?"載入 OCR 文字辨識":"載入模型";
+  $("loadModelBtn").textContent=isOcr?"載入文字辨識":"載入模型";
   status("modelStatus",isOcr?"請輸入要辨識的文字，一行一項。":"尚未載入模型。");
 }
 $("loadModelBtn").onclick=async()=>{
@@ -422,7 +422,7 @@ $("loadModelBtn").onclick=async()=>{
   modelURL=engine==="ocr"?"":$("modelURL").value.trim();
   if(engine==="teachable-machine"&&!modelURL)return status("modelStatus","請輸入模型網址。","err");
   if(engine==="teachable-machine"&&!modelURL.endsWith("/"))modelURL+="/";
-  status("modelStatus",engine==="ocr"?"正在建立 OCR 文字項目…":"正在載入模型…");
+  status("modelStatus",engine==="ocr"?"正在建立文字項目…":"正在載入模型…");
   try{
     if(engine==="ocr"){
       labels=getOcrKeywords();
@@ -448,7 +448,7 @@ $("loadModelBtn").onclick=async()=>{
     $("clickModeCard").classList.remove("hidden");
     $("hanziModeCard").classList.remove("hidden");
     status("modelStatus",engine==="ocr"
-      ? "OCR 文字辨識已載入，共 "+labels.length+" 項文字。可拖拉調整順序並選擇性加入縮圖。"
+      ? "文字辨識已載入，共 "+labels.length+" 項文字。可拖拉調整順序並選擇性加入縮圖。"
       : "模型載入成功，共 "+labels.length+" 類。可拖拉或點擊加入縮圖。","ok");
     saveTeacherDraft();
   }catch(e){
@@ -499,7 +499,7 @@ async function restoreTaskFromTaskList(taskId){
     if(taskMode==="advanced")$("advancedTitle").value=String(task.title||"");
     if(taskMode==="game")$("gameTitle").value=String(task.title||"");
     if(taskMode==="hanzi"){
-      $("hanziTaskTitle").value=String(task.title||"").replace(/^國字練習：/,"");
+      $("hanziTaskTitle").value=String(task.title||"").replace(/^(?:國字|文字)練習：/,"");
       $("hanziSpeechRecognition").checked=!!task.hanziSpeechEnabled;
     }
     if(taskMode==="evaluation"){
@@ -529,7 +529,7 @@ async function restoreTaskFromTaskList(taskId){
 
     await $("loadModelBtn").onclick();
     if(!model||!labels.length)throw new Error(task.recognitionEngine==="ocr"||taskMode==="hanzi"
-      ? "OCR 文字項目未能成功載入。"
+      ? "文字項目未能成功載入。"
       : "辨識模型未能成功載入，請確認模型網址及網路連線。");
 
     restoringTeacherDraft=true;
@@ -583,9 +583,9 @@ async function restoreTaskFromTaskList(taskId){
     restoringTeacherDraft=false;
     saveTeacherDraft();
     status("modelStatus",taskMode==="hanzi"
-      ? "國字練習設定已回復。"
+      ? "文字練習設定已回復。"
       : task.recognitionEngine==="ocr"
-      ? "OCR 任務設定已回復。已載入文字項目、縮圖、說明及語音辨識勾選狀態。"
+      ? "文字辨識任務設定已回復。已載入文字項目、縮圖、說明及語音辨識勾選狀態。"
       : "任務設定已回復。已載入物品縮圖、說明及語音辨識勾選狀態。","ok");
     const cleanURL=new URL(location.href);
     cleanURL.searchParams.delete("restoreTask");
@@ -1029,21 +1029,26 @@ updateClickRangeLabels();
 
 function getHanziCharacters(texts){
   const seen=new Set();
-  return Array.from(texts.join("")).filter(char=>/\p{Script=Han}/u.test(char)&&!seen.has(char)&&seen.add(char));
+  return Array.from(texts.join("")).filter(char=>{
+    if(/[A-Za-z]/.test(char))return true;
+    return /\p{Script=Han}/u.test(char)&&!seen.has(char)&&seen.add(char);
+  });
 }
 
 async function createHanziModeQR(){
   updateLabelsFromDOM();
   const title=$("hanziTaskTitle").value.trim();
-  const hanziTexts=[...labels];
+  const typedTexts=getSelectedRecognitionEngine()==="ocr"?getOcrKeywords():[];
+  const hanziTexts=labels.length?[...labels]:typedTexts;
   const chars=getHanziCharacters(hanziTexts);
-  if(!title)return status("hanziStatus","請輸入國字練習任務名稱。","err");
-  if(!hanziTexts.length||!chars.length)return status("hanziStatus","請先載入至少一個國字練習文字項目。","err");
-  if(!user)return status("hanziStatus","請先登入教師帳號。","err");
   const speechEnabled=$("hanziSpeechRecognition").checked;
+  if(!title)return status("hanziStatus","請輸入文字練習任務名稱。","err");
+  if(!hanziTexts.length)return status("hanziStatus","請先在上方輸入文字並按下「載入文字辨識」。","err");
+  if(!speechEnabled&&!chars.length)return status("hanziStatus","書寫練習內容需包含至少一個中文字或英文字母。","err");
+  if(!user)return status("hanziStatus","請先登入教師帳號。","err");
   const targets=speechEnabled?hanziTexts:chars;
   $("createHanziBtn").disabled=true;
-  status("hanziStatus","正在建立國字練習…");
+  status("hanziStatus","正在建立文字練習…");
   try{
     const ref=await db.collection("tasks").add({
       teacherId:user.uid,
@@ -1069,11 +1074,11 @@ async function createHanziModeQR(){
     });
     const detail=speechEnabled
       ? `逐項語音辨識：${hanziTexts.join(" → ")}`
-      : "學生可逐字選擇並開啟教育部筆順練習。";
-    status("hanziStatus",`國字練習建立成功！\n${detail}\nTask ID：${ref.id}`,"ok");
+      : "學生可逐字選擇並開啟中文筆順或英文字母描寫練習。";
+    status("hanziStatus",`文字練習建立成功！\n${detail}\nTask ID：${ref.id}`,"ok");
     showQR(ref.id,title);
   }catch(e){
-    status("hanziStatus","建立國字練習失敗：\n"+(e.message||e),"err");
+    status("hanziStatus","建立文字練習失敗：\n"+(e.message||e),"err");
   }finally{
     $("createHanziBtn").disabled=false;
   }
