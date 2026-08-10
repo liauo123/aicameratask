@@ -1771,11 +1771,25 @@ async function completeHanziCharacter(skipped=false){
   renderHanziQuestion();
 }
 
+function stopHanziSpeechRecognition(recognitionOverride=null,enableButton=true){
+  const recognition=recognitionOverride||hanziSpeechRecognition;
+  hanziSpeechStarting=false;
+  if(recognition&&hanziSpeechRecognition===recognition)hanziSpeechRecognition=null;
+  if(recognition){
+    try{recognition.onresult=null}catch(e){}
+    try{recognition.onerror=null}catch(e){}
+    try{recognition.onend=null}catch(e){}
+    stopSpeechRecognitionInstance(recognition);
+  }
+  const button=$("speakHanziBtn");
+  if(button)button.disabled=!enableButton;
+}
+
 function recognizeHanziSpeech(){
   const SpeechRecognition=getBrowserSpeechRecognitionConstructor();
   if(!SpeechRecognition)return setStatus("hanziStatus","此瀏覽器不支援語音辨識，請改用 Chrome 或 Safari。","error");
   if("speechSynthesis" in window)window.speechSynthesis.cancel();
-  if(hanziSpeechRecognition){try{hanziSpeechRecognition.abort()}catch(e){}}
+  if(hanziSpeechRecognition)stopHanziSpeechRecognition(hanziSpeechRecognition);
   const target=task.targetClasses[currentIndex];
   const recognition=rememberSpeechRecognition(new SpeechRecognition());hanziSpeechRecognition=recognition;hanziSpeechStarting=true;microphoneStartRequestedAt=Date.now();recognition.lang=getSpeechRecognitionLanguage(target);recognition.interimResults=false;recognition.maxAlternatives=3;
   $("speakHanziBtn").disabled=true;setStatus("hanziStatus","正在聆聽，請念出畫面上的字…");
@@ -1785,34 +1799,46 @@ function recognizeHanziSpeech(){
       stopSpeechRecognitionInstance(recognition);
     }
   };
-  recognition.onresult=async event=>{attempts++;const alternatives=[...event.results[0]].map(item=>item.transcript);
-    if(!alternatives.some(text=>speechMatchesTarget(text,target))){
-      localIncorrectAudioClasses.push(target);consecutiveWrongAttempts++;totalErrorCount++;addItemError(target,"audio");playTaskErrorSound();showCaptureFeedback("failure","語音答錯了");
-      if(resultRef){
-        try{
-          await resultRef.update({
-            attempts,
-            errorCount:totalErrorCount,
-            itemErrorCounts:{...itemErrorCounts},
-            imageItemErrorCounts:{...imageItemErrorCounts},
-            audioItemErrorCounts:{...audioItemErrorCounts},
-            incorrectAudioClasses:firebase.firestore.FieldValue.arrayUnion(target),
-            updatedAt:firebase.firestore.FieldValue.serverTimestamp()
-          });
-        }catch(e){console.warn("國字語音錯誤紀錄失敗",e)}
-      }
-      if(consecutiveWrongAttempts>=5){
-        setStatus("hanziStatus","已連續答錯 5 次，即將進入下一題。","error");
-        await new Promise(resolve=>setTimeout(resolve,850));
-        await completeHanziCharacter(true);
+  recognition.onresult=async event=>{
+    const alternatives=[...event.results[0]].map(item=>item.transcript);
+    stopHanziSpeechRecognition(recognition,false);
+    try{
+      attempts++;
+      if(!alternatives.some(text=>speechMatchesTarget(text,target))){
+        localIncorrectAudioClasses.push(target);consecutiveWrongAttempts++;totalErrorCount++;addItemError(target,"audio");playTaskErrorSound();showCaptureFeedback("failure","語音答錯了");
+        if(resultRef){
+          try{
+            await resultRef.update({
+              attempts,
+              errorCount:totalErrorCount,
+              itemErrorCounts:{...itemErrorCounts},
+              imageItemErrorCounts:{...imageItemErrorCounts},
+              audioItemErrorCounts:{...audioItemErrorCounts},
+              incorrectAudioClasses:firebase.firestore.FieldValue.arrayUnion(target),
+              updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+            });
+          }catch(e){console.warn("國字語音錯誤紀錄失敗",e)}
+        }
+        if(consecutiveWrongAttempts>=5){
+          setStatus("hanziStatus","已連續答錯 5 次，即將進入下一題。","error");
+          await new Promise(resolve=>setTimeout(resolve,850));
+          await completeHanziCharacter(true);
+          return;
+        }
+        setStatus("hanziStatus",`聽到「${alternatives[0]||""}」，請再試一次（${consecutiveWrongAttempts}/5）。`,"error");
         return;
       }
-      setStatus("hanziStatus",`聽到「${alternatives[0]||""}」，請再試一次（${consecutiveWrongAttempts}/5）。`,"error");return
+      playTaskSuccessSound();showCaptureFeedback("success","語音答對了");await completeHanziCharacter();
+    }finally{
+      if(!finished&&!exitInProgress){
+        const button=$("speakHanziBtn");
+        if(button)button.disabled=false;
+      }
     }
-    playTaskSuccessSound();showCaptureFeedback("success","語音答對了");await completeHanziCharacter()};
-  recognition.onerror=event=>{hanziSpeechStarting=false;setStatus("hanziStatus","語音辨識失敗："+(event.error||"請再試一次"),"error")};
+  };
+  recognition.onerror=event=>{const error=event.error||"請再試一次";stopHanziSpeechRecognition(recognition);setStatus("hanziStatus","語音辨識失敗："+error,"error")};
   recognition.onend=()=>{hanziSpeechStarting=false;$("speakHanziBtn").disabled=false;if(hanziSpeechRecognition===recognition)hanziSpeechRecognition=null};
-  try{recognition.start()}catch(e){hanziSpeechStarting=false;$("speakHanziBtn").disabled=false;hanziSpeechRecognition=null;trackedSpeechRecognitions.delete(recognition);setStatus("hanziStatus","無法啟動語音辨識："+(e.message||e),"error")}
+  try{recognition.start()}catch(e){stopHanziSpeechRecognition(recognition);trackedSpeechRecognitions.delete(recognition);setStatus("hanziStatus","無法啟動語音辨識："+(e.message||e),"error")}
 }
 
 async function startHanziTest(){
