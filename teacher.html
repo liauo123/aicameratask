@@ -1039,11 +1039,13 @@ async function createHanziModeQR(){
   updateLabelsFromDOM();
   const title=$("hanziTaskTitle").value.trim();
   const typedTexts=getSelectedRecognitionEngine()==="ocr"?getOcrKeywords():[];
-  const hanziTexts=labels.length?[...labels]:typedTexts;
+  const selectedTexts=getSelectedClassesInCurrentOrder();
+  const hanziTexts=labels.length?selectedTexts:typedTexts;
   const chars=getHanziCharacters(hanziTexts);
   const speechEnabled=$("hanziSpeechRecognition").checked;
   if(!title)return status("hanziStatus","請輸入文字練習任務名稱。","err");
-  if(!hanziTexts.length)return status("hanziStatus","請先在上方輸入文字並按下「載入文字辨識」。","err");
+  if(!labels.length&&!hanziTexts.length)return status("hanziStatus","請先在上方輸入文字並按下「載入文字辨識」。","err");
+  if(labels.length&&!hanziTexts.length)return status("hanziStatus","請至少勾選一個要出題的文字項目。","err");
   if(!speechEnabled&&!chars.length)return status("hanziStatus","書寫練習內容需包含至少一個中文字或英文字母。","err");
   if(!user)return status("hanziStatus","請先登入教師帳號。","err");
   const targets=speechEnabled?hanziTexts:chars;
