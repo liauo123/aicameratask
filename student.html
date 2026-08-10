@@ -621,7 +621,7 @@ let browserSpeechRecognition=null,optionalAudioListening=false,optionalAudioTime
 let resultRef=null,currentIndex=0,completed=[],attempts=0,holdCount=0,finished=false,paused=false;
 let imageStream=null;
 let poseWebcam=null,poseCtx=null,poseRaf=null,posePredicting=false,poseVideoStream=null,poseVideo=null;
-let audioListening=false;
+let audioListening=false,audioStopPromise=null;
 let predictionRows={};
 
 const POSE_INTERVAL=210;             // 姿勢約 4.8 次/秒
@@ -3170,10 +3170,17 @@ async function startAudio(){
     invokeCallbackOnNoiseAndUnknown:true,
     overlapFactor:0.50
   });
+  if(document.hidden||pageAutoPaused||!audioListening)stopAudio();
 }
 function stopAudio(){
   audioListening=false;
-  if(model&&model.stopListening)model.stopListening();
+  if(model&&model.stopListening&&!audioStopPromise){
+    try{
+      const pending=Promise.resolve(model.stopListening()).catch(()=>{});
+      audioStopPromise=pending;
+      pending.finally(()=>{if(audioStopPromise===pending)audioStopPromise=null});
+    }catch(e){}
+  }
 }
 
 // 暫停時釋放麥克風；回到頁面後由既有的裝置恢復流程重新啟動。
@@ -3182,7 +3189,12 @@ function pauseStudentMicrophone(){
   if(hanziSpeechRecognition){
     const recognition=hanziSpeechRecognition;
     hanziSpeechRecognition=null;
-    try{recognition.abort()}catch(e){}
+    try{
+      recognition.onresult=null;
+      recognition.onerror=null;
+      recognition.onend=null;
+      recognition.abort();
+    }catch(e){}
   }
   stopAudio();
 }
@@ -3571,6 +3583,37 @@ function stopAll(preserveClickRound=false){
   pauseStudentMicrophone();
 }
 
+function pauseStudentPageForBackground(){
+  pauseStudentMicrophone();
+  if(pageAutoPaused||finished||!task||paused)return;
+  pageAutoPaused=true;
+  stopAll(isClickMode());
+  if(isClickMode()&&$("clickWaiting")){
+    $("clickWaiting").textContent="測驗已暫停，回到頁面後繼續。";
+    $("clickWaiting").classList.remove("hidden");
+  }
+}
+
+async function resumeStudentPageFromBackground(){
+  if(document.hidden||!pageAutoPaused||finished||!task||paused)return;
+  pageAutoPaused=false;
+  try{
+    if(isClickMode()){
+      clickNextTimer=setTimeout(()=>showNextClickTrial(true),500);
+    }else{
+      if(audioStopPromise)await audioStopPromise;
+      if(document.hidden||pageAutoPaused)return;
+      await startSelectedProject();
+    }
+  }catch(e){
+    setStatus(
+      "recognitionStatus",
+      "回到頁面後無法重新啟動相機或麥克風：\n"+e.message,
+      "error"
+    );
+  }
+}
+
 async function togglePause(){
   paused=!paused;
 
@@ -3625,39 +3668,16 @@ $("hanziPicker").addEventListener("click",event=>{
 $("againBtn").onclick=repeatTask;
 $("endBtn").onclick=endTask;
 
-document.addEventListener("visibilitychange",async()=>{
+document.addEventListener("visibilitychange",()=>{
   if(document.hidden){
-    pauseStudentMicrophone();
-    if(!finished&&task&&!paused){
-      pageAutoPaused=true;
-      stopAll(isClickMode());
-      if(isClickMode()&&$("clickWaiting")){
-        $("clickWaiting").textContent="測驗已暫停，回到頁面後繼續。";
-        $("clickWaiting").classList.remove("hidden");
-      }
-    }
+    pauseStudentPageForBackground();
     return;
   }
-
-  if(pageAutoPaused&&!finished&&task&&!paused){
-    pageAutoPaused=false;
-
-    try{
-      if(isClickMode()){
-        clickNextTimer=setTimeout(()=>showNextClickTrial(true),500);
-      }else{
-        await startSelectedProject();
-      }
-    }catch(e){
-      setStatus(
-        "recognitionStatus",
-        "回到頁面後無法重新啟動相機：\n"+e.message,
-        "error"
-      );
-    }
-  }
+  resumeStudentPageFromBackground();
 });
 
+window.addEventListener("blur",pauseStudentPageForBackground);
+window.addEventListener("focus",resumeStudentPageFromBackground);
 window.addEventListener("pagehide",()=>{stopAll();stopGameListeners()});
 window.addEventListener("freeze",stopAll);
 window.addEventListener("beforeunload",()=>{stopAll();stopGameListeners()});
