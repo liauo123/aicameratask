@@ -628,6 +628,7 @@ const POSE_INTERVAL=210;             // 姿勢約 4.8 次/秒
 const POSE_STABLE_INTERVAL=320;      // 姿勢結果穩定後約 3.1 次/秒
 let pageAutoPaused=false;
 let pageBlurCheckTimer=null;
+let microphoneStartRequestedAt=0;
 let lastImageOverlayText="";
 let lastPoseOverlayText="";
 let lastTeachingClass="";
@@ -1633,9 +1634,14 @@ function recognizeHanziSpeech(){
   if("speechSynthesis" in window)window.speechSynthesis.cancel();
   if(hanziSpeechRecognition){try{hanziSpeechRecognition.abort()}catch(e){}}
   const target=task.targetClasses[currentIndex];
-  const recognition=new SpeechRecognition();hanziSpeechRecognition=recognition;hanziSpeechStarting=true;recognition.lang=getSpeechRecognitionLanguage(target);recognition.interimResults=false;recognition.maxAlternatives=3;
+  const recognition=new SpeechRecognition();hanziSpeechRecognition=recognition;hanziSpeechStarting=true;microphoneStartRequestedAt=Date.now();recognition.lang=getSpeechRecognitionLanguage(target);recognition.interimResults=false;recognition.maxAlternatives=3;
   $("speakHanziBtn").disabled=true;setStatus("hanziStatus","正在聆聽，請念出畫面上的字…");
-  recognition.onstart=()=>{hanziSpeechStarting=false};
+  recognition.onstart=()=>{
+    hanziSpeechStarting=false;
+    if(document.hidden||pageAutoPaused||finished||paused||exitInProgress){
+      try{recognition.abort()}catch(e){}
+    }
+  };
   recognition.onresult=async event=>{attempts++;const alternatives=[...event.results[0]].map(item=>item.transcript);
     if(!alternatives.some(text=>speechMatchesTarget(text,target))){
       localIncorrectAudioClasses.push(target);consecutiveWrongAttempts++;totalErrorCount++;addItemError(target,"audio");playTaskErrorSound();showCaptureFeedback("failure","語音答錯了");
@@ -3066,6 +3072,7 @@ async function startOptionalAudioRecognition(){
   browserSpeechRecognition=recognition;
   optionalAudioListening=true;
   optionalAudioStarting=true;
+  microphoneStartRequestedAt=Date.now();
   let settled=false;
   let lastHeard="";
 
@@ -3076,7 +3083,12 @@ async function startOptionalAudioRecognition(){
 
   updateVerificationUI();
   setVoiceResult(`正在聆聽，請說出「${target}」…`);
-  recognition.onstart=()=>{optionalAudioStarting=false};
+  recognition.onstart=()=>{
+    optionalAudioStarting=false;
+    if(document.hidden||pageAutoPaused||finished||paused||exitInProgress){
+      stopOptionalAudioRecognition(false);
+    }
+  };
 
   const failRecognition=async(message,countTowardLimit=true)=>{
     if(settled)return;
@@ -3169,6 +3181,7 @@ async function startAudio(){
   if(!recognizer||!recognizer.listen)throw new Error("音訊辨識模型尚未準備完成");
   audioListening=true;
   audioStarting=true;
+  microphoneStartRequestedAt=Date.now();
   setStatus("recognitionStatus","麥克風已啟動，請發出指定聲音。","success");
   try{
     await recognizer.listen(result=>{
@@ -3187,12 +3200,12 @@ async function startAudio(){
   }finally{
     audioStarting=false;
   }
-  if(document.hidden||pageAutoPaused||!audioListening)stopAudio();
+  if(document.hidden||pageAutoPaused||finished||paused||exitInProgress||!audioListening)stopAudio(recognizer);
 }
-function stopAudio(){
+function stopAudio(recognizerOverride=null){
   audioListening=false;
   audioStarting=false;
-  const recognizer=activeAudioRecognizer||(projectType==="audio"?model:null);
+  const recognizer=recognizerOverride||activeAudioRecognizer||(projectType==="audio"?model:null);
   if(recognizer&&recognizer.stopListening&&!audioStopPromise){
     try{
       const pending=Promise.resolve(recognizer.stopListening()).catch(()=>{});
@@ -3707,22 +3720,29 @@ $("hanziPicker").addEventListener("click",event=>{
   }
 });
 $("againBtn").onclick=repeatTask;
+$("endBtn").addEventListener("pointerdown",pauseStudentMicrophone,{capture:true});
+$("endBtn").addEventListener("touchstart",pauseStudentMicrophone,{capture:true,passive:true});
+$("endBtn").addEventListener("click",pauseStudentMicrophone,{capture:true});
 $("endBtn").onclick=endTask;
 
-document.addEventListener("visibilitychange",()=>{
-  if(document.hidden){
+function handleStudentPageVisibility(){
+  if(document.hidden||document.visibilityState==="hidden"||document.webkitHidden){
     pauseStudentPageForBackground();
     return;
   }
   resumeStudentPageFromBackground();
-});
+}
+
+document.addEventListener("visibilitychange",handleStudentPageVisibility,true);
+document.addEventListener("webkitvisibilitychange",handleStudentPageVisibility,true);
 
 window.addEventListener("blur",()=>{
   const pauseIfNeeded=()=>{
     pageBlurCheckTimer=null;
     const microphoneStarting=optionalAudioStarting||hanziSpeechStarting||audioStarting;
     const microphoneActive=optionalAudioListening||!!hanziSpeechRecognition||audioListening;
-    if(document.hidden||(microphoneActive&&!microphoneStarting))pauseStudentPageForBackground();
+    const permissionPromptOpening=microphoneStarting&&!document.hidden&&Date.now()-microphoneStartRequestedAt<1500;
+    if(document.hidden||(microphoneActive&&!permissionPromptOpening))pauseStudentPageForBackground();
   };
   pauseIfNeeded();
   pageBlurCheckTimer=setTimeout(pauseIfNeeded,120);
