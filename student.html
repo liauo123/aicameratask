@@ -3495,6 +3495,15 @@ function beginStudentExitDeviceShutdown(){
   return microphoneShutdown;
 }
 
+function requestStudentTabClose(){
+  try{window.close()}catch(e){}
+}
+
+function beginStudentExitAndCloseTab(){
+  beginStudentExitDeviceShutdown();
+  requestStudentTabClose();
+}
+
 function processPredictions(predictions,evidenceCanvas){
   predictions.forEach(item=>{
     const row=predictionRows[item.className];
@@ -3836,6 +3845,7 @@ async function endTask(){
   $("againBtn").disabled=true;
 
   const deviceShutdown=beginStudentExitDeviceShutdown();
+  requestStudentTabClose();
   stopGameListeners();
   if("speechSynthesis" in window)window.speechSynthesis.cancel();
   if(captureFeedbackTimer){
@@ -3860,6 +3870,7 @@ async function endTask(){
   task=null;
 
   try{window.stop()}catch(e){}
+  requestStudentTabClose();
   document.title="";
   if(document.body)document.body.replaceChildren();
   window.location.replace("about:blank");
@@ -3971,13 +3982,13 @@ $("hanziPicker").addEventListener("click",event=>{
   }
 });
 $("againBtn").onclick=repeatTask;
-$("endBtn").addEventListener("pointerdown",beginStudentExitDeviceShutdown,{capture:true});
-$("endBtn").addEventListener("touchstart",beginStudentExitDeviceShutdown,{capture:true,passive:true});
-$("endBtn").addEventListener("click",beginStudentExitDeviceShutdown,{capture:true});
+$("endBtn").addEventListener("pointerdown",beginStudentExitAndCloseTab,{capture:true});
+$("endBtn").addEventListener("touchstart",beginStudentExitAndCloseTab,{capture:true,passive:true});
+$("endBtn").addEventListener("click",beginStudentExitAndCloseTab,{capture:true});
 $("endBtn").onclick=endTask;
-$("leaveTaskBtn").addEventListener("pointerdown",beginStudentExitDeviceShutdown,{capture:true});
-$("leaveTaskBtn").addEventListener("touchstart",beginStudentExitDeviceShutdown,{capture:true,passive:true});
-$("leaveTaskBtn").addEventListener("click",beginStudentExitDeviceShutdown,{capture:true});
+$("leaveTaskBtn").addEventListener("pointerdown",beginStudentExitAndCloseTab,{capture:true});
+$("leaveTaskBtn").addEventListener("touchstart",beginStudentExitAndCloseTab,{capture:true,passive:true});
+$("leaveTaskBtn").addEventListener("click",beginStudentExitAndCloseTab,{capture:true});
 $("leaveTaskBtn").onclick=endTask;
 
 function refreshLeaveTaskButton(){
