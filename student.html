@@ -46,6 +46,9 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
 .primary{background:var(--primary);color:#fff}.primary:active{background:var(--primary-dark)}
 .voice-action{background:#7c3aed;color:#fff}.voice-action:active{background:#6d28d9}
 .secondary{background:#e8eef8;color:#24324b}.full{width:100%;margin-top:12px}
+.leave-task-btn{position:fixed;top:max(12px,env(safe-area-inset-top));right:max(12px,env(safe-area-inset-right));z-index:1200;min-height:44px;padding:0 18px;border:2px solid #fecaca;border-radius:999px;background:#fff;color:#b91c1c;box-shadow:0 8px 22px rgba(127,29,29,.2)}
+.leave-task-btn:active{background:#fee2e2;transform:translateY(1px)}
+.leave-task-btn:disabled{opacity:.65;cursor:wait}
 .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
 .recognition-actions{display:flex;justify-content:center;align-items:center}
 .recognition-actions button{width:min(100%,320px);flex:0 1 320px}
@@ -405,6 +408,7 @@ html,body{
 </style>
 </head>
 <body>
+<button id="leaveTaskBtn" class="leave-task-btn hidden" type="button">離開</button>
 <main class="app">
   <section id="loadCard" class="card">
     <h2>載入任務</h2>
@@ -652,7 +656,7 @@ let consecutiveWrongAttempts=0;
 let totalErrorCount=0;
 let itemErrorCounts={};
 let imageItemErrorCounts={},audioItemErrorCounts={};
-let exitInProgress=false;
+let exitInProgress=false,exitMicrophoneShutdownPromise=null;
 let clickSequence=[],clickTrialIndex=0,clickRecords=[],clickTrialTimer=null,clickNextTimer=null,clickShownAt=0,clickTrialActive=false,clickCurrentTarget="",clickCurrentChoices=[];
 let hanziSpeechRecognition=null,hanziSpeechStarting=false;
 
@@ -3302,6 +3306,53 @@ function pauseStudentMicrophone(){
   stopTrackedMicrophoneTracks();
 }
 
+function waitForSpeechRecognitionShutdown(recognition){
+  if(!recognition)return Promise.resolve();
+  return new Promise(resolve=>{
+    let resolved=false;
+    const finish=()=>{
+      if(resolved)return;
+      resolved=true;
+      resolve();
+    };
+    if(recognition.addEventListener){
+      recognition.addEventListener("audioend",finish,{once:true});
+      recognition.addEventListener("end",finish,{once:true});
+      recognition.addEventListener("error",finish,{once:true});
+    }
+    try{recognition.stop()}catch(e){}
+    try{recognition.abort()}catch(e){}
+    if(!recognition.addEventListener)finish();
+    else setTimeout(finish,900);
+  });
+}
+
+async function shutdownStudentMicrophoneForExit(){
+  const recognitions=[browserSpeechRecognition,hanziSpeechRecognition].filter(Boolean);
+  const recognizer=activeAudioRecognizer||(projectType==="audio"?model:null);
+  const speechShutdowns=recognitions.map(waitForSpeechRecognitionShutdown);
+  pauseStudentMicrophone();
+  if(recognizer)stopAudio(recognizer);
+  const pendingAudioStop=audioStopPromise;
+  if(pendingAudioStop){
+    await Promise.race([
+      pendingAudioStop,
+      new Promise(resolve=>setTimeout(resolve,900))
+    ]);
+  }
+  await Promise.all(speechShutdowns);
+  stopTrackedMicrophoneTracks();
+}
+
+function beginStudentExitMicrophoneShutdown(){
+  if(!exitMicrophoneShutdownPromise){
+    exitMicrophoneShutdownPromise=shutdownStudentMicrophoneForExit().catch(()=>{
+      stopTrackedMicrophoneTracks();
+    });
+  }
+  return exitMicrophoneShutdownPromise;
+}
+
 function processPredictions(predictions,evidenceCanvas){
   predictions.forEach(item=>{
     const row=predictionRows[item.className];
@@ -3630,15 +3681,19 @@ async function repeatTask(){
   }
 }
 
-function endTask(){
+async function endTask(){
   if(exitInProgress)return;
   exitInProgress=true;
   finished=true;
   paused=true;
   pageAutoPaused=false;
   $("endBtn").disabled=true;
+  $("endBtn").textContent="正在關閉麥克風…";
+  $("leaveTaskBtn").disabled=true;
+  $("leaveTaskBtn").textContent="正在離開…";
   $("againBtn").disabled=true;
 
+  const microphoneShutdown=beginStudentExitMicrophoneShutdown();
   stopAll();
   stopGameListeners();
   if("speechSynthesis" in window)window.speechSynthesis.cancel();
@@ -3646,6 +3701,8 @@ function endTask(){
     clearTimeout(captureFeedbackTimer);
     captureFeedbackTimer=null;
   }
+
+  await microphoneShutdown;
 
   predictionRows={};
   resultRef=null;
@@ -3770,10 +3827,30 @@ $("hanziPicker").addEventListener("click",event=>{
   }
 });
 $("againBtn").onclick=repeatTask;
-$("endBtn").addEventListener("pointerdown",pauseStudentMicrophone,{capture:true});
-$("endBtn").addEventListener("touchstart",pauseStudentMicrophone,{capture:true,passive:true});
-$("endBtn").addEventListener("click",pauseStudentMicrophone,{capture:true});
+$("endBtn").addEventListener("pointerdown",beginStudentExitMicrophoneShutdown,{capture:true});
+$("endBtn").addEventListener("touchstart",beginStudentExitMicrophoneShutdown,{capture:true,passive:true});
+$("endBtn").addEventListener("click",beginStudentExitMicrophoneShutdown,{capture:true});
 $("endBtn").onclick=endTask;
+$("leaveTaskBtn").addEventListener("pointerdown",beginStudentExitMicrophoneShutdown,{capture:true});
+$("leaveTaskBtn").addEventListener("touchstart",beginStudentExitMicrophoneShutdown,{capture:true,passive:true});
+$("leaveTaskBtn").addEventListener("click",beginStudentExitMicrophoneShutdown,{capture:true});
+$("leaveTaskBtn").onclick=endTask;
+
+function refreshLeaveTaskButton(){
+  const activeCardIds=["gameWaitingCard","taskCard","clickTaskCard","hanziTaskCard"];
+  const taskRunning=!!task&&!finished&&activeCardIds.some(id=>{
+    const card=$(id);
+    return card&&!card.classList.contains("hidden");
+  });
+  $("leaveTaskBtn").classList.toggle("hidden",!taskRunning);
+}
+
+const leaveButtonObserver=new MutationObserver(refreshLeaveTaskButton);
+["gameWaitingCard","taskCard","clickTaskCard","hanziTaskCard","completeCard"].forEach(id=>{
+  const card=$(id);
+  if(card)leaveButtonObserver.observe(card,{attributes:true,attributeFilter:["class"]});
+});
+refreshLeaveTaskButton();
 
 function handleStudentPageVisibility(){
   if(document.hidden||document.visibilityState==="hidden"||document.webkitHidden){
