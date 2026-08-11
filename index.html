@@ -1061,6 +1061,7 @@ async function createHanziModeQR(){
       ocrLanguages:["chi_tra","eng"],
       ocrMatchMode:"contains",
       targetClasses:targets,
+      classThumbnails:getClassThumbnails(true),
       hanziText:hanziTexts.join("\n"),
       hanziTexts,
       hanziWritingEnabled:false,
