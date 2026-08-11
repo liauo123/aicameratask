@@ -128,10 +128,12 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
 const firebaseConfig={apiKey:"AIzaSyBbpIezLbQd2-e-3Z4pSdBLIFc_UlTPUy8",authDomain:"project-6540500202923576846.firebaseapp.com",projectId:"project-6540500202923576846",storageBucket:"project-6540500202923576846.firebasestorage.app",messagingSenderId:"516602165604",appId:"1:516602165604:web:b60f69ee56a4d49c416271"};
 firebase.initializeApp(firebaseConfig);
 const auth=firebase.auth(),db=firebase.firestore();
-let user=null,unsub=null,resultUnsub=null,activeMode="click",renderGeneration=0;
+let user=null,unsub=null,activeMode="click",renderGeneration=0;
 let latestTaskDocs=[],resultRefreshTimer=null,resultListenerReady=false,tasksListenerReady=false;
 let resultDocsByTask=new Map(),resultCacheError="";
-const playerUnsubs=new Map(),gamePlayersCache=new Map();
+let resultListenerGeneration=0,resultListenerTaskKey="";
+const resultUnsubs=[],playerUnsubs=new Map(),gamePlayersCache=new Map();
+const gamePlayersLoaded=new Set(),gamePlayersLoading=new Map();
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function getItemErrorGroups(data,fieldName,legacyItems=[],includeSkipped=false){
@@ -169,15 +171,14 @@ function recognitionEngineName(engine){
   return "Teachable Machine 自訂辨識";
 }
 
-function rebuildResultCache(docs){
-  const next=new Map();
+function replaceResultCacheForTasks(taskIds,docs){
+  taskIds.forEach(taskId=>resultDocsByTask.delete(taskId));
   docs.forEach(doc=>{
     const taskId=String(doc.data().taskId||"");
     if(!taskId)return;
-    if(!next.has(taskId))next.set(taskId,[]);
-    next.get(taskId).push(doc);
+    if(!resultDocsByTask.has(taskId))resultDocsByTask.set(taskId,[]);
+    resultDocsByTask.get(taskId).push(doc);
   });
-  resultDocsByTask=next;
 }
 
 function getCachedTaskResultDocs(taskId){
@@ -195,10 +196,72 @@ function scheduleRender(){
   },180);
 }
 
-function clearGamePlayerListeners(){
+function stopResultListeners(){
+  resultListenerGeneration++;
+  resultUnsubs.splice(0).forEach(fn=>fn());
+}
+
+function resultTaskDocsForActiveMode(){
+  if(activeMode==="click")return latestTaskDocs.filter(doc=>doc.data().taskMode==="click");
+  if(activeMode==="hanzi")return latestTaskDocs.filter(doc=>doc.data().taskMode==="hanzi");
+  if(activeMode==="evaluation")return latestTaskDocs.filter(doc=>!["teaching","game","click","hanzi"].includes(doc.data().taskMode));
+  return [];
+}
+
+function syncActiveResultListeners(force=false){
+  if(!user||!tasksListenerReady)return;
+  const taskIds=resultTaskDocsForActiveMode().map(doc=>doc.id).sort();
+  const nextKey=activeMode+":"+taskIds.join(",");
+  if(!force&&nextKey===resultListenerTaskKey&&resultListenerReady){scheduleRender();return}
+
+  stopResultListeners();
+  resultListenerTaskKey=nextKey;
+  resultListenerReady=false;
+  resultCacheError="";
+  const generation=resultListenerGeneration;
+
+  if(!taskIds.length){
+    resultListenerReady=true;
+    scheduleRender();
+    return;
+  }
+
+  const chunks=[];
+  for(let i=0;i<taskIds.length;i+=10)chunks.push(taskIds.slice(i,i+10));
+  const readyChunks=new Set();
+  const markChunkReady=index=>{
+    readyChunks.add(index);
+    if(readyChunks.size===chunks.length)resultListenerReady=true;
+    scheduleRender();
+  };
+
+  chunks.forEach((taskIdChunk,index)=>{
+    const stop=db.collection("taskResults")
+      .where("teacherId","==",user.uid)
+      .where("taskId","in",taskIdChunk)
+      .onSnapshot(snap=>{
+        if(generation!==resultListenerGeneration)return;
+        replaceResultCacheForTasks(taskIdChunk,snap.docs);
+        resultCacheError="";
+        markChunkReady(index);
+      },e=>{
+        if(generation!==resultListenerGeneration)return;
+        console.error("學生狀態即時更新失敗",e);
+        resultCacheError=e.message||String(e);
+        markChunkReady(index);
+      });
+    resultUnsubs.push(stop);
+  });
+}
+
+function clearGamePlayerListeners(clearCache=true){
   playerUnsubs.forEach(fn=>fn());
   playerUnsubs.clear();
-  gamePlayersCache.clear();
+  if(clearCache){
+    gamePlayersCache.clear();
+    gamePlayersLoaded.clear();
+    gamePlayersLoading.clear();
+  }
 }
 
 auth.onAuthStateChanged(u=>{
@@ -214,8 +277,8 @@ auth.onAuthStateChanged(u=>{
     $("taskCard").classList.add("hidden");
     $("userArea").classList.add("hidden");
     if(unsub)unsub();
-    if(resultUnsub)resultUnsub();
-    unsub=null;resultUnsub=null;latestTaskDocs=[];resultListenerReady=false;tasksListenerReady=false;
+    stopResultListeners();
+    unsub=null;latestTaskDocs=[];resultListenerReady=false;tasksListenerReady=false;resultListenerTaskKey="";
     resultDocsByTask=new Map();resultCacheError="";
     if(resultRefreshTimer)clearTimeout(resultRefreshTimer);
     resultRefreshTimer=null;
@@ -255,31 +318,18 @@ $("copyBtn").onclick=()=>navigator.clipboard.writeText($("qrURL").textContent);
 
 function listen(){
   if(unsub)unsub();
-  if(resultUnsub)resultUnsub();
+  stopResultListeners();
   if(resultRefreshTimer)clearTimeout(resultRefreshTimer);
   resultRefreshTimer=null;
   resultListenerReady=false;
   tasksListenerReady=false;
   resultDocsByTask=new Map();
   resultCacheError="";
+  resultListenerTaskKey="";
   $("taskList").innerHTML='<div class="status">正在載入任務列表…</div>';
   unsub=db.collection("tasks").where("teacherId","==",user.uid).onSnapshot(
-    s=>{latestTaskDocs=s.docs;tasksListenerReady=true;scheduleRender()},
+    s=>{latestTaskDocs=s.docs;tasksListenerReady=true;syncActiveResultListeners()},
     e=>$("taskList").innerHTML='<div class="status err">'+esc(e.message||e)+'</div>'
-  );
-  resultUnsub=db.collection("taskResults").where("teacherId","==",user.uid).onSnapshot(
-    snap=>{
-      rebuildResultCache(snap.docs);
-      resultCacheError="";
-      resultListenerReady=true;
-      scheduleRender();
-    },
-    e=>{
-      console.error("學生狀態即時更新失敗",e);
-      resultCacheError=e.message||String(e);
-      resultListenerReady=true;
-      scheduleRender();
-    }
   );
 }
 
@@ -288,7 +338,7 @@ async function refreshTasks(){
   btn.disabled=true;btn.textContent="整理中…";
   try{
     const snap=await db.collection("tasks").where("teacherId","==",user.uid).get();
-    await render(snap.docs);
+    latestTaskDocs=snap.docs;tasksListenerReady=true;syncActiveResultListeners(true);
   }catch(e){$("taskList").innerHTML='<div class="status err">'+esc(e.message||e)+'</div>'}
   finally{btn.disabled=false;btn.textContent="重新整理"}
 }
@@ -306,7 +356,13 @@ function applyModeFilter(){
     $("taskList").appendChild(empty);
   }
 }
-modeTabs.forEach(btn=>btn.addEventListener("click",()=>{activeMode=btn.dataset.mode;applyModeFilter()}));
+modeTabs.forEach(btn=>btn.addEventListener("click",()=>{
+  const nextMode=btn.dataset.mode;
+  if(nextMode===activeMode){applyModeFilter();return}
+  activeMode=nextMode;
+  applyModeFilter();
+  syncActiveResultListeners();
+}));
 
 async function render(docs){
   const generation=++renderGeneration;
@@ -632,13 +688,51 @@ function listenGamePlayers(taskId){
   playerUnsubs.set(taskId,unsubPlayers);
 }
 
+function loadGamePlayersOnce(taskId){
+  if(gamePlayersLoaded.has(taskId)){
+    if(gamePlayersCache.has(taskId))renderGamePlayers(taskId,gamePlayersCache.get(taskId));
+    return;
+  }
+  if(gamePlayersLoading.has(taskId))return;
+  const loading=db.collection("tasks").doc(taskId).collection("gamePlayers").get()
+    .then(snap=>{
+      gamePlayersCache.set(taskId,snap.docs);
+      gamePlayersLoaded.add(taskId);
+      if(activeMode==="game")renderGamePlayers(taskId,snap.docs);
+    })
+    .catch(e=>{
+      const box=$("gamePlayers_"+taskId);
+      if(box&&activeMode==="game")box.innerHTML='<div class="status err">'+esc(e.message||e)+'</div>';
+    })
+    .finally(()=>gamePlayersLoading.delete(taskId));
+  gamePlayersLoading.set(taskId,loading);
+}
+
 function syncGamePlayerListeners(gameDocs){
+  if(activeMode!=="game"){
+    clearGamePlayerListeners(false);
+    return;
+  }
   const currentIds=new Set(gameDocs.map(doc=>doc.id));
+  const liveIds=new Set(gameDocs.filter(doc=>doc.data().gameStatus!=="finished").map(doc=>doc.id));
   [...playerUnsubs.entries()].forEach(([taskId,stop])=>{
-    if(currentIds.has(taskId))return;
-    stop();playerUnsubs.delete(taskId);gamePlayersCache.delete(taskId);
+    if(liveIds.has(taskId))return;
+    stop();playerUnsubs.delete(taskId);
   });
-  gameDocs.forEach(doc=>listenGamePlayers(doc.id));
+  [...gamePlayersCache.keys()].forEach(taskId=>{
+    if(currentIds.has(taskId))return;
+    gamePlayersCache.delete(taskId);gamePlayersLoaded.delete(taskId);
+  });
+  gameDocs.forEach(doc=>{
+    if(doc.data().gameStatus==="finished"){
+      if(gamePlayersCache.has(doc.id)){
+        gamePlayersLoaded.add(doc.id);
+        renderGamePlayers(doc.id,gamePlayersCache.get(doc.id));
+      }else loadGamePlayersOnce(doc.id);
+      return;
+    }
+    listenGamePlayers(doc.id);
+  });
 }
 
 window.approvePlayer=async(taskId,playerId)=>{
