@@ -128,8 +128,10 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
 const firebaseConfig={apiKey:"AIzaSyBbpIezLbQd2-e-3Z4pSdBLIFc_UlTPUy8",authDomain:"project-6540500202923576846.firebaseapp.com",projectId:"project-6540500202923576846",storageBucket:"project-6540500202923576846.firebasestorage.app",messagingSenderId:"516602165604",appId:"1:516602165604:web:b60f69ee56a4d49c416271"};
 firebase.initializeApp(firebaseConfig);
 const auth=firebase.auth(),db=firebase.firestore();
-let user=null,unsub=null,resultUnsub=null,playerUnsubs=[],activeMode="click",renderGeneration=0;
-let latestTaskDocs=[],resultRefreshTimer=null,resultListenerReady=false;
+let user=null,unsub=null,resultUnsub=null,activeMode="click",renderGeneration=0;
+let latestTaskDocs=[],resultRefreshTimer=null,resultListenerReady=false,tasksListenerReady=false;
+let resultDocsByTask=new Map(),resultCacheError="";
+const playerUnsubs=new Map(),gamePlayersCache=new Map();
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function getItemErrorGroups(data,fieldName,legacyItems=[],includeSkipped=false){
@@ -167,6 +169,38 @@ function recognitionEngineName(engine){
   return "Teachable Machine 自訂辨識";
 }
 
+function rebuildResultCache(docs){
+  const next=new Map();
+  docs.forEach(doc=>{
+    const taskId=String(doc.data().taskId||"");
+    if(!taskId)return;
+    if(!next.has(taskId))next.set(taskId,[]);
+    next.get(taskId).push(doc);
+  });
+  resultDocsByTask=next;
+}
+
+function getCachedTaskResultDocs(taskId){
+  if(resultCacheError)throw new Error(resultCacheError);
+  return resultDocsByTask.get(taskId)||[];
+}
+
+function scheduleRender(){
+  if(resultRefreshTimer)clearTimeout(resultRefreshTimer);
+  resultRefreshTimer=setTimeout(async()=>{
+    resultRefreshTimer=null;
+    if(!user||!tasksListenerReady||!resultListenerReady)return;
+    try{await render(latestTaskDocs)}
+    catch(e){$("taskList").innerHTML='<div class="status err">'+esc(e.message||e)+'</div>'}
+  },180);
+}
+
+function clearGamePlayerListeners(){
+  playerUnsubs.forEach(fn=>fn());
+  playerUnsubs.clear();
+  gamePlayersCache.clear();
+}
+
 auth.onAuthStateChanged(u=>{
   user=u;
   if(u){
@@ -181,10 +215,11 @@ auth.onAuthStateChanged(u=>{
     $("userArea").classList.add("hidden");
     if(unsub)unsub();
     if(resultUnsub)resultUnsub();
-    unsub=null;resultUnsub=null;latestTaskDocs=[];resultListenerReady=false;
+    unsub=null;resultUnsub=null;latestTaskDocs=[];resultListenerReady=false;tasksListenerReady=false;
+    resultDocsByTask=new Map();resultCacheError="";
     if(resultRefreshTimer)clearTimeout(resultRefreshTimer);
     resultRefreshTimer=null;
-    playerUnsubs.forEach(fn=>fn());playerUnsubs=[];
+    clearGamePlayerListeners();
   }
 });
 
@@ -224,22 +259,27 @@ function listen(){
   if(resultRefreshTimer)clearTimeout(resultRefreshTimer);
   resultRefreshTimer=null;
   resultListenerReady=false;
+  tasksListenerReady=false;
+  resultDocsByTask=new Map();
+  resultCacheError="";
   $("taskList").innerHTML='<div class="status">正在載入任務列表…</div>';
   unsub=db.collection("tasks").where("teacherId","==",user.uid).onSnapshot(
-    async s=>{latestTaskDocs=s.docs;try{await render(latestTaskDocs)}catch(e){$("taskList").innerHTML='<div class="status err">'+esc(e.message||e)+'</div>'}},
+    s=>{latestTaskDocs=s.docs;tasksListenerReady=true;scheduleRender()},
     e=>$("taskList").innerHTML='<div class="status err">'+esc(e.message||e)+'</div>'
   );
   resultUnsub=db.collection("taskResults").where("teacherId","==",user.uid).onSnapshot(
-    ()=>{
-      if(!resultListenerReady){resultListenerReady=true;return}
-      if(resultRefreshTimer)clearTimeout(resultRefreshTimer);
-      resultRefreshTimer=setTimeout(async()=>{
-        resultRefreshTimer=null;
-        if(!user||!latestTaskDocs.length)return;
-        try{await render(latestTaskDocs)}catch(e){$("taskList").innerHTML='<div class="status err">'+esc(e.message||e)+'</div>'}
-      },180);
+    snap=>{
+      rebuildResultCache(snap.docs);
+      resultCacheError="";
+      resultListenerReady=true;
+      scheduleRender();
     },
-    e=>console.error("學生狀態即時更新失敗",e)
+    e=>{
+      console.error("學生狀態即時更新失敗",e);
+      resultCacheError=e.message||String(e);
+      resultListenerReady=true;
+      scheduleRender();
+    }
   );
 }
 
@@ -367,11 +407,7 @@ async function render(docs){
     let resultDocs=[],resultError="";
 
     try{
-      const rs=await db.collection("taskResults")
-        .where("teacherId","==",user.uid)
-        .where("taskId","==",doc.id)
-        .get();
-      resultDocs=rs.docs;
+      resultDocs=getCachedTaskResultDocs(doc.id);
     }catch(e){
       resultError=e.message||String(e);
     }
@@ -457,11 +493,7 @@ async function render(docs){
     const t=doc.data();
     let resultDocs=[],resultError="";
     try{
-      const rs=await db.collection("taskResults")
-        .where("teacherId","==",user.uid)
-        .where("taskId","==",doc.id)
-        .get();
-      resultDocs=rs.docs.sort((a,b)=>Number(a.data().studentCode||999)-Number(b.data().studentCode||999));
+      resultDocs=[...getCachedTaskResultDocs(doc.id)].sort((a,b)=>Number(a.data().studentCode||999)-Number(b.data().studentCode||999));
     }catch(e){resultError=e.message||String(e)}
     const studentRecords=resultDocs.map(resultDoc=>{
       const data=resultDoc.data();
@@ -495,8 +527,7 @@ async function render(docs){
   const renderHanziTask=async doc=>{
     const t=doc.data();let resultDocs=[],resultError="";
     try{
-      const rs=await db.collection("taskResults").where("teacherId","==",user.uid).where("taskId","==",doc.id).get();
-      resultDocs=rs.docs.sort((a,b)=>Number(a.data().studentCode||999)-Number(b.data().studentCode||999));
+      resultDocs=[...getCachedTaskResultDocs(doc.id)].sort((a,b)=>Number(a.data().studentCode||999)-Number(b.data().studentCode||999));
     }catch(e){resultError=e.message||String(e)}
     const rows=resultDocs.map(r=>{
       const d=r.data(),speech=[...new Set((d.incorrectAudioClasses||[]).filter(Boolean))];
@@ -558,10 +589,9 @@ async function render(docs){
   }
 
   if(generation!==renderGeneration)return;
-  playerUnsubs.forEach(fn=>fn());playerUnsubs=[];
   $("taskList").innerHTML=sections.join("");
   applyModeFilter();
-  gameDocs.forEach(doc=>listenGamePlayers(doc.id));
+  syncGamePlayerListeners(gameDocs);
 }
 
 function resultStatusText(status){
@@ -572,10 +602,9 @@ function gameStatusText(status){
   return {pending:"等待同意",approved:"已同意",playing:"尋找中",completed:"已完成",left:"離開",rejected:"未通過"}[status]||status||"等待";
 }
 
-function listenGamePlayers(taskId){
-  const unsubPlayers=db.collection("tasks").doc(taskId).collection("gamePlayers").onSnapshot(snap=>{
+function renderGamePlayers(taskId,docs){
     const box=$("gamePlayers_"+taskId);if(!box)return;
-    const players=snap.docs.map(doc=>({id:doc.id,...doc.data()}));
+    const players=docs.map(doc=>({id:doc.id,...doc.data()}));
     players.sort((a,b)=>{
       if(a.rank&&b.rank)return a.rank-b.rank;
       if(a.rank)return -1;if(b.rank)return 1;
@@ -589,8 +618,27 @@ function listenGamePlayers(taskId){
         : '<span class="small">—</span>';
       return `<div class="playerRow ${p.rank&&p.rank<=3?'rank'+p.rank:''}"><b>${esc(p.studentNumber||p.id)}</b><span>${gameStatusText(p.status)}</span><span>${rank}</span>${actions}</div>`;
     }).join("");
+}
+
+function listenGamePlayers(taskId){
+  if(playerUnsubs.has(taskId)){
+    if(gamePlayersCache.has(taskId))renderGamePlayers(taskId,gamePlayersCache.get(taskId));
+    return;
+  }
+  const unsubPlayers=db.collection("tasks").doc(taskId).collection("gamePlayers").onSnapshot(snap=>{
+    gamePlayersCache.set(taskId,snap.docs);
+    renderGamePlayers(taskId,snap.docs);
   },e=>{const box=$("gamePlayers_"+taskId);if(box)box.innerHTML='<div class="status err">'+esc(e.message||e)+'</div>'});
-  playerUnsubs.push(unsubPlayers);
+  playerUnsubs.set(taskId,unsubPlayers);
+}
+
+function syncGamePlayerListeners(gameDocs){
+  const currentIds=new Set(gameDocs.map(doc=>doc.id));
+  [...playerUnsubs.entries()].forEach(([taskId,stop])=>{
+    if(currentIds.has(taskId))return;
+    stop();playerUnsubs.delete(taskId);gamePlayersCache.delete(taskId);
+  });
+  gameDocs.forEach(doc=>listenGamePlayers(doc.id));
 }
 
 window.approvePlayer=async(taskId,playerId)=>{
