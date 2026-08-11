@@ -256,7 +256,7 @@ body[data-mode-theme] .target-thumbnail,
 body[data-mode-theme] .speak-btn{border-color:var(--mode-border);color:var(--mode-text)}
 body[data-mode-theme] .target-thumbnail{box-shadow:0 5px 14px var(--mode-shadow)}
 body[data-mode-theme] .progress>div{background:var(--primary)}
-.hanzi-card{background:#fffbeb;border:2px solid #facc15}.hanzi-card h2{color:#854d0e;text-align:center}.hanzi-picker{display:grid;grid-template-columns:repeat(auto-fit,minmax(76px,1fr));gap:12px;margin-top:14px}.hanzi-char{min-height:76px;background:#fff;border:2px solid #facc15;color:#854d0e;font-size:34px;border-radius:16px}.hanzi-question-row{display:flex;align-items:center;justify-content:center;gap:12px;margin:10px}.hanzi-question{text-align:center;font-size:clamp(32px,10vw,64px);font-weight:900;color:#854d0e;line-height:1.35;word-break:break-all}.hanzi-prompt-icon{flex:0 0 46px}.hanzi-note{text-align:center;color:#713f12;line-height:1.6}.hanzi-copyright{margin-top:14px;padding:12px;border:1px solid #facc15;border-radius:12px;background:#fff;color:#713f12;font-size:.88rem;line-height:1.7}.hanzi-copyright a{color:#92400e;font-weight:800}.hanzi-stage-title{text-align:center;font-weight:900;color:#854d0e}.hanzi-speech{padding:18px;text-align:center;background:#fff7d6;border-radius:16px;margin-top:12px}
+.hanzi-card{background:#fff1f2;border:2px solid #fb7185}.hanzi-card h2{color:#991b1b;text-align:center}.hanzi-picker{display:grid;grid-template-columns:repeat(auto-fit,minmax(76px,1fr));gap:12px;margin-top:14px}.hanzi-char{min-height:76px;background:#fff;border:2px solid #fb7185;color:#991b1b;font-size:34px;border-radius:16px}.hanzi-question-row{display:flex;align-items:center;justify-content:center;gap:12px;margin:10px}.hanzi-question{text-align:center;font-size:clamp(32px,10vw,64px);font-weight:900;color:#991b1b;line-height:1.35;word-break:break-all}.hanzi-prompt-icon{flex:0 0 46px}.hanzi-note{text-align:center;color:#7f1d1d;line-height:1.6}.hanzi-copyright{margin-top:14px;padding:12px;border:1px solid #fb7185;border-radius:12px;background:#fff;color:#7f1d1d;font-size:.88rem;line-height:1.7}.hanzi-copyright a{color:#991b1b;font-weight:800}.hanzi-stage-title{text-align:center;font-weight:900;color:#991b1b}.hanzi-speech{padding:18px;text-align:center;background:#ffe4e6;border-radius:16px;margin-top:12px}
 .teaching-camera-card .overlay{left:8px;right:8px;bottom:8px}
 
 /* iPhone／iPad 響應式顯示：避免相機區過高把按鈕推出畫面 */
@@ -658,6 +658,7 @@ let itemErrorCounts={};
 let imageItemErrorCounts={},audioItemErrorCounts={};
 let exitInProgress=false,exitMicrophoneShutdownPromise=null;
 let studentLeaveConfirmed=false;
+let studentPageMarkedLeft=false,studentPresenceWritePromise=Promise.resolve();
 let clickSequence=[],clickTrialIndex=0,clickRecords=[],clickTrialTimer=null,clickNextTimer=null,clickShownAt=0,clickTrialActive=false,clickCurrentTarget="",clickCurrentChoices=[];
 let hanziSpeechRecognition=null,hanziSpeechStarting=false;
 
@@ -999,7 +1000,7 @@ function applyTaskModeTheme(mode){
     teaching:{primary:"#2563eb",dark:"#1d4ed8",soft:"#f0f7ff",strong:"#dbeafe",border:"#93c5fd",text:"#1d4ed8",shadow:"rgba(37,99,235,.22)"},
     evaluation:{primary:"#16a34a",dark:"#15803d",soft:"#ecfdf5",strong:"#dcfce7",border:"#86efac",text:"#166534",shadow:"rgba(22,163,74,.22)"},
     game:{primary:"#7c3aed",dark:"#6d28d9",soft:"#faf5ff",strong:"#ede9fe",border:"#c4b5fd",text:"#6d28d9",shadow:"rgba(124,58,237,.22)"},
-    hanzi:{primary:"#ca8a04",dark:"#a16207",soft:"#fffbeb",strong:"#fef3c7",border:"#facc15",text:"#854d0e",shadow:"rgba(202,138,4,.22)"}
+    hanzi:{primary:"#dc2626",dark:"#b91c1c",soft:"#fff1f2",strong:"#ffe4e6",border:"#fb7185",text:"#991b1b",shadow:"rgba(220,38,38,.22)"}
   };
   const theme=themes[themeKey];
   const root=document.documentElement;
@@ -1744,7 +1745,7 @@ function speakHanziPrompt(showError=true){
 }
 
 async function saveHanziProgress(done=false){
-  if(!resultRef||studentLeaveConfirmed||exitInProgress)return;
+  if(!resultRef||studentLeaveConfirmed||exitInProgress||pageAutoPaused)return;
   await resultRef.update({
     completedClasses:[...completed],incorrectClasses:[...new Set(localIncorrectClasses)],incorrectAudioClasses:[...new Set(localIncorrectAudioClasses)],
     progress:Math.round(completed.length/task.targetClasses.length*100),attempts,errorCount:totalErrorCount,itemErrorCounts:{...itemErrorCounts},imageItemErrorCounts:{...imageItemErrorCounts},audioItemErrorCounts:{...audioItemErrorCounts},status:done?"completed":"inProgress",
@@ -1849,7 +1850,10 @@ async function startHanziTest(){
     disableHanziCamera();
     const currentUser=await ensureAuth();
     resultRef=await db.collection("taskResults").add({taskId,teacherId:task.teacherId||"",studentUid:currentUser.uid,studentName:"學生 "+selectedStudentNumber,studentCode:selectedStudentNumber,projectType:"hanzi",targetClasses:[...task.targetClasses],completedClasses:[],incorrectClasses:[],incorrectAudioClasses:[],progress:0,attempts:0,errorCount:0,itemErrorCounts:{},imageItemErrorCounts:{},audioItemErrorCounts:{},status:"inProgress",taskMode:"hanzi",startedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
-    currentIndex=0;completed=[];attempts=0;totalErrorCount=0;itemErrorCounts={};imageItemErrorCounts={};audioItemErrorCounts={};finished=false;localIncorrectClasses=[];localIncorrectAudioClasses=[];consecutiveWrongAttempts=0;
+    stopHanziSpeechRecognition(hanziSpeechRecognition,true);
+    studentPageMarkedLeft=false;
+    currentIndex=0;completed=[];attempts=0;totalErrorCount=0;itemErrorCounts={};imageItemErrorCounts={};audioItemErrorCounts={};finished=false;paused=false;pageAutoPaused=false;localIncorrectClasses=[];localIncorrectAudioClasses=[];consecutiveWrongAttempts=0;
+    $("speakHanziBtn").disabled=false;
     $("loadCard").classList.add("hidden");$("joinCard").classList.add("hidden");$("hanziTaskCard").classList.remove("hidden");$("hanziPicker").classList.add("hidden");$("hanziTestPanel").classList.remove("hidden");
     $("hanziCopyrightNotice").classList.add("hidden");
     $("hanziTaskTitle").textContent=task.title||"國字測驗";$("hanziPracticeIntro").textContent="學生編號 "+selectedStudentNumber;renderHanziQuestion();
@@ -2090,7 +2094,7 @@ function positionClickTargets(){
 }
 
 async function saveClickProgress(completedStatus=false){
-  if(!resultRef||studentLeaveConfirmed||exitInProgress)return;
+  if(!resultRef||studentLeaveConfirmed||exitInProgress||pageAutoPaused)return;
   const correct=clickRecords.filter(record=>record.result==="correct");
   const misses=clickRecords.filter(record=>record.result==="timeout");
   const averageReactionMs=correct.length
@@ -3536,7 +3540,52 @@ function beginStudentExitAndCloseTab(){
   requestStudentTabClose();
 }
 
+function queueStudentPresenceStatus(status){
+  const currentResultRef=resultRef;
+  const currentGamePlayerRef=gamePlayerRef;
+  const restoredGameStatus=gamePlayerStatus==="playing"?"playing":gamePlayerStatus;
+  if(!currentResultRef&&!currentGamePlayerRef)return studentPresenceWritePromise;
+  studentPresenceWritePromise=studentPresenceWritePromise.catch(()=>{}).then(async()=>{
+    if(studentLeaveConfirmed||exitInProgress)return;
+    const timestamp=firebase.firestore.FieldValue.serverTimestamp();
+    const writes=[];
+    if(currentResultRef===resultRef){
+      writes.push(currentResultRef.update(status==="left"?{
+        status:"left",leftAt:timestamp,updatedAt:timestamp
+      }:{
+        status:"inProgress",
+        leftAt:firebase.firestore.FieldValue.delete(),
+        updatedAt:timestamp
+      }));
+    }
+    if(currentGamePlayerRef===gamePlayerRef){
+      writes.push(currentGamePlayerRef.update(status==="left"?{
+        status:"left",leftAt:timestamp
+      }:{
+        status:restoredGameStatus||"playing",
+        leftAt:firebase.firestore.FieldValue.delete()
+      }));
+    }
+    if(writes.length)await Promise.all(writes);
+  }).catch(error=>console.warn("學生頁面狀態更新失敗",error));
+  return studentPresenceWritePromise;
+}
+
+function markStudentPageAsLeft(){
+  if(studentPageMarkedLeft||studentLeaveConfirmed||exitInProgress||finished||!task)return;
+  if(!resultRef&&!gamePlayerRef)return;
+  studentPageMarkedLeft=true;
+  queueStudentPresenceStatus("left");
+}
+
+function restoreStudentPagePresence(){
+  if(!studentPageMarkedLeft||studentLeaveConfirmed||exitInProgress||finished||!task)return;
+  studentPageMarkedLeft=false;
+  queueStudentPresenceStatus("inProgress");
+}
+
 async function recordConfirmedStudentLeave(){
+  await studentPresenceWritePromise.catch(()=>{});
   const timestamp=firebase.firestore.FieldValue.serverTimestamp();
   const writes=[];
   if(resultRef){
@@ -3775,7 +3824,7 @@ async function completeCurrent(confidence,evidenceCanvas,evidenceDataURL="",audi
   if(!isTeachingMode()&&resultRef){
     try{
       await resultRef.collection("evidence").add(evidence);
-      if(studentLeaveConfirmed||exitInProgress)return;
+      if(studentLeaveConfirmed||exitInProgress||pageAutoPaused)return;
       const progress=Math.round(completed.length/task.targetClasses.length*100);
       await resultRef.update({
         completedClasses:[...completed],
@@ -3970,6 +4019,7 @@ function pauseStudentPageForBackground(){
   const shouldPausePage=!pageAutoPaused&&!finished&&!!task&&!paused;
   if(shouldPausePage)pageAutoPaused=true;
   releaseStudentMicrophoneForBackground();
+  markStudentPageAsLeft();
   if(!shouldPausePage)return;
   stopAll(isClickMode());
   if(isClickMode()&&$("clickWaiting")){
@@ -4077,11 +4127,13 @@ function handleStudentPageVisibility(){
     pauseStudentPageForBackground();
     return;
   }
+  restoreStudentPagePresence();
   resumeStudentPageFromBackground();
 }
 
 function handleStudentPageExit(event){
   pauseStudentPageForBackground();
+  markStudentPageAsLeft();
   beginStudentExitDeviceShutdown();
   if(!event||!event.persisted)stopGameListeners();
 }
@@ -4095,6 +4147,7 @@ async function handleStudentPageRestore(event){
   exitMicrophoneShutdownPromise=null;
   mediaRequestsBlocked=false;
   if(!task||paused)return;
+  restoreStudentPagePresence();
   pageAutoPaused=true;
   resumeStudentPageFromBackground();
 }
