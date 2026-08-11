@@ -657,6 +657,7 @@ let totalErrorCount=0;
 let itemErrorCounts={};
 let imageItemErrorCounts={},audioItemErrorCounts={};
 let exitInProgress=false,exitMicrophoneShutdownPromise=null;
+let studentLeaveConfirmed=false;
 let clickSequence=[],clickTrialIndex=0,clickRecords=[],clickTrialTimer=null,clickNextTimer=null,clickShownAt=0,clickTrialActive=false,clickCurrentTarget="",clickCurrentChoices=[];
 let hanziSpeechRecognition=null,hanziSpeechStarting=false;
 
@@ -1743,7 +1744,7 @@ function speakHanziPrompt(showError=true){
 }
 
 async function saveHanziProgress(done=false){
-  if(!resultRef)return;
+  if(!resultRef||studentLeaveConfirmed||exitInProgress)return;
   await resultRef.update({
     completedClasses:[...completed],incorrectClasses:[...new Set(localIncorrectClasses)],incorrectAudioClasses:[...new Set(localIncorrectAudioClasses)],
     progress:Math.round(completed.length/task.targetClasses.length*100),attempts,errorCount:totalErrorCount,itemErrorCounts:{...itemErrorCounts},imageItemErrorCounts:{...imageItemErrorCounts},audioItemErrorCounts:{...audioItemErrorCounts},status:done?"completed":"inProgress",
@@ -2089,7 +2090,7 @@ function positionClickTargets(){
 }
 
 async function saveClickProgress(completedStatus=false){
-  if(!resultRef)return;
+  if(!resultRef||studentLeaveConfirmed||exitInProgress)return;
   const correct=clickRecords.filter(record=>record.result==="correct");
   const misses=clickRecords.filter(record=>record.result==="timeout");
   const averageReactionMs=correct.length
@@ -3535,13 +3536,33 @@ function beginStudentExitAndCloseTab(){
   requestStudentTabClose();
 }
 
-function confirmStudentLeave(event){
+async function recordConfirmedStudentLeave(){
+  const timestamp=firebase.firestore.FieldValue.serverTimestamp();
+  const writes=[];
+  if(resultRef){
+    writes.push(resultRef.update({
+      status:"left",
+      leftAt:timestamp,
+      updatedAt:timestamp
+    }));
+  }
+  if(gamePlayerRef){
+    writes.push(gamePlayerRef.update({
+      status:"left",
+      leftAt:timestamp
+    }));
+  }
+  if(writes.length)await Promise.all(writes);
+}
+
+async function confirmStudentLeave(event){
   if(event){
     event.preventDefault();
     event.stopPropagation();
   }
   if(exitInProgress)return;
   if(!window.confirm("確定要離開目前任務嗎？"))return;
+  studentLeaveConfirmed=true;
   endTask();
 }
 
@@ -3694,7 +3715,7 @@ async function tryCompleteCurrentVerification(){
 }
 
 async function claimGameRank(){
-  if(!isGameMode()||!gamePlayerRef)return 0;
+  if(studentLeaveConfirmed||exitInProgress||!isGameMode()||!gamePlayerRef)return 0;
   const counterRef=db.collection("tasks").doc(taskId).collection("gameControl").doc("ranking");
   try{
     const rank=await db.runTransaction(async tx=>{
@@ -3754,6 +3775,7 @@ async function completeCurrent(confidence,evidenceCanvas,evidenceDataURL="",audi
   if(!isTeachingMode()&&resultRef){
     try{
       await resultRef.collection("evidence").add(evidence);
+      if(studentLeaveConfirmed||exitInProgress)return;
       const progress=Math.round(completed.length/task.targetClasses.length*100);
       await resultRef.update({
         completedClasses:[...completed],
@@ -3886,7 +3908,10 @@ async function endTask(){
   $("againBtn").disabled=true;
 
   const deviceShutdown=beginStudentExitDeviceShutdown();
-  requestStudentTabClose();
+  const leaveStatusWrite=studentLeaveConfirmed
+    ? recordConfirmedStudentLeave().catch(error=>console.error("學生離開狀態寫入失敗",error))
+    : Promise.resolve();
+  if(!studentLeaveConfirmed)requestStudentTabClose();
   stopGameListeners();
   if("speechSynthesis" in window)window.speechSynthesis.cancel();
   if(captureFeedbackTimer){
@@ -3894,7 +3919,8 @@ async function endTask(){
     captureFeedbackTimer=null;
   }
 
-  await deviceShutdown;
+  await Promise.all([deviceShutdown,leaveStatusWrite]);
+  if(studentLeaveConfirmed)requestStudentTabClose();
   releaseStudentMediaForIPhone();
   await new Promise(resolve=>setTimeout(resolve,60));
   releaseStudentMediaForIPhone();
