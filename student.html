@@ -577,6 +577,7 @@ html,body{
       <div class="progress"><div id="hanziProgressFill"></div></div>
       <div class="hanzi-stage-title">請完成這個國字</div>
       <div class="hanzi-question-row">
+        <img id="hanziTargetThumbnail" class="target-thumbnail hidden" alt="文字練習題目縮圖" decoding="async">
         <div id="hanziQuestion" class="hanzi-question">—</div>
         <button id="repeatHanziPromptBtn" class="speak-btn hanzi-prompt-icon" type="button" aria-label="播放名稱文字" title="播放名稱文字">🔊</button>
       </div>
@@ -1723,9 +1724,11 @@ function disableHanziCamera(){
 
 function renderHanziQuestion(){
   const total=task.targetClasses.length;
+  const target=task.targetClasses[currentIndex]||"";
   $("hanziProgressText").textContent=`${currentIndex} / ${total}`;
   $("hanziProgressFill").style.width=Math.round(currentIndex/total*100)+"%";
-  $("hanziQuestion").textContent=task.targetClasses[currentIndex]||"完成";
+  $("hanziQuestion").textContent=target||"完成";
+  updateThumbnailElement("hanziTargetThumbnail",target,"文字練習題目縮圖");
   $("hanziSpeechPanel").classList.remove("hidden");
   setStatus("hanziStatus","請按下按鈕並完整念出畫面上的文字。");
   setTimeout(()=>speakHanziPrompt(false),300);
