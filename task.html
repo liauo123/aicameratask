@@ -128,7 +128,8 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
 const firebaseConfig={apiKey:"AIzaSyBbpIezLbQd2-e-3Z4pSdBLIFc_UlTPUy8",authDomain:"project-6540500202923576846.firebaseapp.com",projectId:"project-6540500202923576846",storageBucket:"project-6540500202923576846.firebasestorage.app",messagingSenderId:"516602165604",appId:"1:516602165604:web:b60f69ee56a4d49c416271"};
 firebase.initializeApp(firebaseConfig);
 const auth=firebase.auth(),db=firebase.firestore();
-let user=null,unsub=null,playerUnsubs=[],activeMode="click",renderGeneration=0;
+let user=null,unsub=null,resultUnsub=null,playerUnsubs=[],activeMode="click",renderGeneration=0;
+let latestTaskDocs=[],resultRefreshTimer=null,resultListenerReady=false;
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 function getItemErrorGroups(data,fieldName,legacyItems=[],includeSkipped=false){
@@ -179,6 +180,10 @@ auth.onAuthStateChanged(u=>{
     $("taskCard").classList.add("hidden");
     $("userArea").classList.add("hidden");
     if(unsub)unsub();
+    if(resultUnsub)resultUnsub();
+    unsub=null;resultUnsub=null;latestTaskDocs=[];resultListenerReady=false;
+    if(resultRefreshTimer)clearTimeout(resultRefreshTimer);
+    resultRefreshTimer=null;
     playerUnsubs.forEach(fn=>fn());playerUnsubs=[];
   }
 });
@@ -215,10 +220,26 @@ $("copyBtn").onclick=()=>navigator.clipboard.writeText($("qrURL").textContent);
 
 function listen(){
   if(unsub)unsub();
+  if(resultUnsub)resultUnsub();
+  if(resultRefreshTimer)clearTimeout(resultRefreshTimer);
+  resultRefreshTimer=null;
+  resultListenerReady=false;
   $("taskList").innerHTML='<div class="status">正在載入任務列表…</div>';
   unsub=db.collection("tasks").where("teacherId","==",user.uid).onSnapshot(
-    async s=>{try{await render(s.docs)}catch(e){$("taskList").innerHTML='<div class="status err">'+esc(e.message||e)+'</div>'}},
+    async s=>{latestTaskDocs=s.docs;try{await render(latestTaskDocs)}catch(e){$("taskList").innerHTML='<div class="status err">'+esc(e.message||e)+'</div>'}},
     e=>$("taskList").innerHTML='<div class="status err">'+esc(e.message||e)+'</div>'
+  );
+  resultUnsub=db.collection("taskResults").where("teacherId","==",user.uid).onSnapshot(
+    ()=>{
+      if(!resultListenerReady){resultListenerReady=true;return}
+      if(resultRefreshTimer)clearTimeout(resultRefreshTimer);
+      resultRefreshTimer=setTimeout(async()=>{
+        resultRefreshTimer=null;
+        if(!user||!latestTaskDocs.length)return;
+        try{await render(latestTaskDocs)}catch(e){$("taskList").innerHTML='<div class="status err">'+esc(e.message||e)+'</div>'}
+      },180);
+    },
+    e=>console.error("學生狀態即時更新失敗",e)
   );
 }
 
@@ -387,7 +408,7 @@ async function render(docs){
       return `<div class="rr${hasFiveWrong?" hasFiveWrong":hasGeneralError?" hasAnyError":""}">
         <span>${esc(d.studentName||"未命名")}</span>
         <span>${d.progress||0}%</span>
-        <span>${d.status==="completed"?"完成":"進行中"}</span>
+        <span>${resultStatusText(d.status)}</span>
         <span>${incorrectText||"—"}</span>
       </div>`;
     }).join("");
@@ -446,7 +467,7 @@ async function render(docs){
       const data=resultDoc.data();
       const averageSeconds=Number(data.clickAverageReactionMs||0)/1000;
       return `<div class="clickRecord">
-        <b>${esc(data.studentName||("學生 "+(data.studentCode||"")))}</b>｜${data.status==="completed"?"完成":"進行中"}｜答對 ${Number(data.clickCorrectCount||0)} 次｜逾時 ${Number(data.clickMissCount||0)} 次｜平均 ${averageSeconds?averageSeconds.toFixed(2):"—"} 秒
+        <b>${esc(data.studentName||("學生 "+(data.studentCode||"")))}</b>｜${resultStatusText(data.status)}｜答對 ${Number(data.clickCorrectCount||0)} 次｜逾時 ${Number(data.clickMissCount||0)} 次｜平均 ${averageSeconds?averageSeconds.toFixed(2):"—"} 秒
       </div>`;
     }).join("");
     const resultSection=resultError
@@ -487,7 +508,7 @@ async function render(docs){
         threeToFour.length?`語音辨識：<span class="errorCountMark">⚠ 答錯 3～4 次：${threeToFour.map(esc).join("、")}</span>`:"",
         fiveOrMore.length?`語音辨識：<span class="fiveWrongMark">⚠ 答錯 5 次以上：${fiveOrMore.map(esc).join("、")}</span>`:""
       ].filter(Boolean).join("<br>");
-      return `<div class="rr${fiveOrMore.length?" hasFiveWrong":twoOnly.length||threeToFour.length?" hasAnyError":""}"><span>${esc(d.studentName||"未命名")}</span><span>${Number(d.progress||0)}%</span><span>${d.status==="completed"?"完成":"進行中"}</span><span>${errors||"—"}</span></div>`;
+      return `<div class="rr${fiveOrMore.length?" hasFiveWrong":twoOnly.length||threeToFour.length?" hasAnyError":""}"><span>${esc(d.studentName||"未命名")}</span><span>${Number(d.progress||0)}%</span><span>${resultStatusText(d.status)}</span><span>${errors||"—"}</span></div>`;
     }).join("");
     const resultSection=resultError?`<div class="status err">${esc(resultError)}</div>`:`<div style="margin-top:12px"><b>學生完成度（${resultDocs.length} 人）</b><div class="rr"><b>學生</b><b>進度</b><b>狀態</b><b>辨識錯誤</b></div>${rows||'<div class="small" style="padding:10px">尚無學生紀錄</div>'}</div>`;
     const settings=t.hanziSpeechEnabled?"逐項完整文字語音辨識":"中英文書寫練習連結";
@@ -543,8 +564,12 @@ async function render(docs){
   gameDocs.forEach(doc=>listenGamePlayers(doc.id));
 }
 
+function resultStatusText(status){
+  return status==="completed"?"完成":status==="left"?"離開":"進行中";
+}
+
 function gameStatusText(status){
-  return {pending:"等待同意",approved:"已同意",playing:"尋找中",completed:"已完成",rejected:"未通過"}[status]||status||"等待";
+  return {pending:"等待同意",approved:"已同意",playing:"尋找中",completed:"已完成",left:"離開",rejected:"未通過"}[status]||status||"等待";
 }
 
 function listenGamePlayers(taskId){
@@ -751,7 +776,7 @@ window.exportTaskCSV=async taskId=>{
       const incorrect=Array.isArray(data.incorrectClasses)?[...new Set(data.incorrectClasses.filter(Boolean))].join("、"):"";
       return [
         title,data.studentCode||"",data.studentName||"",`${Number(data.progress||0)}%`,
-        data.status==="completed"?"完成":"進行中",Number(data.attempts||0),
+        resultStatusText(data.status),Number(data.attempts||0),
         csvErrorRange(data,1,2),csvErrorRange(data,3,4),csvErrorRange(data,5,Infinity),incorrect,
         data.gameRank?`第 ${data.gameRank} 名`:"",Number(data.clickCorrectCount||0),Number(data.clickMissCount||0),
         Number(data.clickAverageReactionMs||0)?(Number(data.clickAverageReactionMs)/1000).toFixed(2):"",timestampText(data.startedAt),timestampText(data.completedAt)
