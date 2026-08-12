@@ -411,9 +411,7 @@ html,body{
 <button id="leaveTaskBtn" class="leave-task-btn hidden" type="button">離開</button>
 <main class="app">
   <section id="loadCard" class="card">
-    <h2>載入任務</h2>
-    <label for="taskIdInput">任務代碼</label>
-    <input id="taskIdInput" placeholder="掃描 QR Code 會自動帶入">
+    <input id="taskIdInput" aria-label="任務代碼" placeholder="掃描 QR Code 會自動帶入">
     <button id="loadBtn" class="primary full">載入任務</button>
     <div id="loadStatus" class="status">等待任務資料。</div>
   </section>
