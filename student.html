@@ -2015,9 +2015,9 @@ function shuffleClickSequence(items){
 function buildClickSequence(){
   const repeated=[];
   for(let repeat=0;repeat<task.clickRepeatCount;repeat++){
-    repeated.push(...shuffleClickSequence(task.targetClasses));
+    repeated.push(...task.targetClasses);
   }
-  return shuffleClickSequence(repeated);
+  return repeated;
 }
 
 function getClickTotalCount(){
