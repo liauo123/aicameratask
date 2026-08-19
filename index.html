@@ -1065,7 +1065,10 @@ async function createHanziModeQR(){
   if(labels.length&&!hanziTexts.length)return status("hanziStatus","請至少勾選一個要出題的文字項目。","err");
   if(!speechEnabled&&!chars.length)return status("hanziStatus","書寫練習內容需包含至少一個中文字或英文字母。","err");
   if(!user)return status("hanziStatus","請先登入教師帳號。","err");
-  const targets=speechEnabled?hanziTexts:chars;
+  const hanziQuestionSequence=speechEnabled
+    ? hanziTexts.flatMap(text=>Array(hanziRepeatCount).fill(text))
+    : [];
+  const targets=speechEnabled?hanziQuestionSequence:chars;
   $("createHanziBtn").disabled=true;
   status("hanziStatus","正在建立文字練習…");
   try{
@@ -1081,6 +1084,7 @@ async function createHanziModeQR(){
       classThumbnails:getClassThumbnails(true),
       hanziText:hanziTexts.join("\n"),
       hanziTexts,
+      hanziQuestionSequence,
       hanziWritingEnabled:false,
       hanziSpeechEnabled:speechEnabled,
       hanziRepeatCount,
@@ -1090,7 +1094,7 @@ async function createHanziModeQR(){
       taskMode:"hanzi",
       maxPlayers:15,
       status:"active",
-      version:"3.2-hanzi-line-targets",
+      version:"3.3-hanzi-repeat-count",
       createdAt:firebase.firestore.FieldValue.serverTimestamp()
     });
     const detail=speechEnabled
@@ -1155,7 +1159,7 @@ $("createBtn").onclick=async()=>{
     status("createStatus","建立評量失敗：\n"+e.message,"err");
   }
 };
-function studentURL(id){const base=new URL("student.html",location.href).toString(),u=new URL(base,location.href);u.searchParams.set("task",id);u.searchParams.set("v","2.6-optimized");return u.toString()}function showQR(id,title){const url=studentURL(id);$("qrTitle").textContent=title+"－QR Code";$("qrURL").textContent=url;$("qrCode").innerHTML="";new QRCode($("qrCode"),{text:url,width:260,height:260,correctLevel:QRCode.CorrectLevel.M});$("qrModal").classList.remove("hidden")}window.showQR=showQR;$("closeBtn").onclick=()=>$("qrModal").classList.add("hidden");$("copyBtn").onclick=()=>navigator.clipboard.writeText($("qrURL").textContent);
+function studentURL(id){const base=new URL("student.html",location.href).toString(),u=new URL(base,location.href);u.searchParams.set("task",id);u.searchParams.set("v","3.3-hanzi-repeat-count");return u.toString()}function showQR(id,title){const url=studentURL(id);$("qrTitle").textContent=title+"－QR Code";$("qrURL").textContent=url;$("qrCode").innerHTML="";new QRCode($("qrCode"),{text:url,width:260,height:260,correctLevel:QRCode.CorrectLevel.M});$("qrModal").classList.remove("hidden")}window.showQR=showQR;$("closeBtn").onclick=()=>$("qrModal").classList.add("hidden");$("copyBtn").onclick=()=>navigator.clipboard.writeText($("qrURL").textContent);
 
 ["modelURL","ocrKeywords","teachingTitle","taskTitle","advancedTitle","gameTitle","clickTitle","hanziTaskTitle"].forEach(id=>{
   $(id).addEventListener("input",scheduleTeacherDraftSave);

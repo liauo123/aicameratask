@@ -1418,10 +1418,19 @@ async function loadTask(){
     task.clickSimultaneousCount=Math.min(3,Math.max(1,Number(task.clickSimultaneousCount||1)),task.targetClasses.length);
     task.hanziWritingEnabled=false;
     task.hanziSpeechEnabled=isHanziMode()&&!!task.hanziSpeechEnabled;
+    task.hanziRepeatCount=Math.min(5,Math.max(1,Number(task.hanziRepeatCount||1)));
     if(isHanziMode()&&task.hanziSpeechEnabled){
+      const savedQuestionSequence=Array.isArray(task.hanziQuestionSequence)
+        ? task.hanziQuestionSequence.map(text=>String(text).trim()).filter(Boolean)
+        : [];
       const savedTexts=Array.isArray(task.hanziTexts)?task.hanziTexts.map(text=>String(text).trim()).filter(Boolean):[];
-      if(savedTexts.length)task.targetClasses=savedTexts;
-      else if(String(task.hanziText||"").trim())task.targetClasses=[String(task.hanziText).trim()];
+      if(savedQuestionSequence.length){
+        task.targetClasses=savedQuestionSequence;
+      }else{
+        if(savedTexts.length)task.targetClasses=savedTexts;
+        else if(String(task.hanziText||"").trim())task.targetClasses=[String(task.hanziText).trim()];
+        task.targetClasses=task.targetClasses.flatMap(target=>Array(task.hanziRepeatCount).fill(target));
+      }
     }
     stopOptionalAudioRecognition(false);
     if(isHanziMode())disableHanziCamera();
@@ -1452,7 +1461,7 @@ async function loadTask(){
       ? `｜${effectiveAudioRequiredClasses.length}項需要語音辨識`
       : "";
     $("taskMeta").textContent=isHanziMode()
-      ? `國字練習｜${task.hanziSpeechEnabled?"逐項完整文字語音辨識":"開啟中英文書寫練習"}`
+      ? `國字練習｜${task.hanziSpeechEnabled?`逐項完整文字語音辨識｜每題 ${task.hanziRepeatCount} 次`:"開啟中英文書寫練習"}`
       : isClickMode()
       ? `隨機點選測驗｜同時 ${task.clickSimultaneousCount} 種｜每個物品 ${task.clickRepeatCount} 次｜每次最多 ${task.clickDisplaySeconds} 秒`
       : task.taskMode==="teaching"
@@ -1850,7 +1859,7 @@ async function startHanziTest(){
   try{
     disableHanziCamera();
     const currentUser=await ensureAuth();
-    resultRef=await db.collection("taskResults").add({taskId,teacherId:task.teacherId||"",studentUid:currentUser.uid,studentName:"學生 "+selectedStudentNumber,studentCode:selectedStudentNumber,projectType:"hanzi",targetClasses:[...task.targetClasses],completedClasses:[],incorrectClasses:[],incorrectAudioClasses:[],progress:0,attempts:0,errorCount:0,itemErrorCounts:{},imageItemErrorCounts:{},audioItemErrorCounts:{},status:"inProgress",taskMode:"hanzi",startedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    resultRef=await db.collection("taskResults").add({taskId,teacherId:task.teacherId||"",studentUid:currentUser.uid,studentName:"學生 "+selectedStudentNumber,studentCode:selectedStudentNumber,projectType:"hanzi",targetClasses:[...task.targetClasses],hanziRepeatCount:task.hanziRepeatCount,completedClasses:[],incorrectClasses:[],incorrectAudioClasses:[],progress:0,attempts:0,errorCount:0,itemErrorCounts:{},imageItemErrorCounts:{},audioItemErrorCounts:{},status:"inProgress",taskMode:"hanzi",startedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
     stopHanziSpeechRecognition(hanziSpeechRecognition,true);
     studentPageMarkedLeft=false;
     currentIndex=0;completed=[];attempts=0;totalErrorCount=0;itemErrorCounts={};imageItemErrorCounts={};audioItemErrorCounts={};finished=false;paused=false;pageAutoPaused=false;localIncorrectClasses=[];localIncorrectAudioClasses=[];consecutiveWrongAttempts=0;
