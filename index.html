@@ -84,6 +84,7 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
 .modeSetting{display:flex;align-items:flex-start;gap:8px;color:var(--ink);font-size:13px;font-weight:850;line-height:1.55;cursor:pointer}.modeSetting input{width:auto;margin:3px 0 0;accent-color:currentColor;flex:0 0 auto}
 .rangeSetting{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px 12px;align-items:center;margin:12px 0;padding:11px;border:1px solid #fcd34d;border-radius:11px;background:rgba(255,255,255,.72)}
 .rangeSetting label{font-size:13px;font-weight:900}.rangeSetting output{min-width:54px;text-align:center;padding:5px 8px;border-radius:999px;background:#fef3c7;color:#92400e;font-weight:900}.rangeSetting input[type="range"]{grid-column:1/-1;width:100%;padding:0;accent-color:#d97706}
+.hanziMode .rangeSetting{border-color:#fda4af}.hanziMode .rangeSetting output{background:#ffe4e6;color:#9f1239}.hanziMode .rangeSetting input[type="range"]{accent-color:#dc2626}
 @media(max-width:700px){
   header{padding:11px 12px}.head{align-items:flex-start}.brandMark{width:38px;height:38px}.head #userArea{text-align:right}.head #userEmail{display:none}
   main{padding:14px 10px 28px}.card{padding:16px;border-radius:15px}
@@ -159,6 +160,11 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
         <input id="hanziTaskTitle" placeholder="文字練習任務名稱">
         <div class="modeSettings">
           <label class="modeSetting"><input id="hanziSpeechRecognition" type="checkbox">語音辨識</label>
+        </div>
+        <div class="rangeSetting">
+          <label for="hanziRepeatCount">每個題目重複次數</label>
+          <output id="hanziRepeatCountValue">1 次</output>
+          <input id="hanziRepeatCount" type="range" min="1" max="5" step="1" value="1">
         </div>
         <button id="createHanziBtn" class="p" style="width:100%" disabled>產生文字練習 QR</button>
         <div id="hanziStatus" class="status">尚未建立。</div>
@@ -283,6 +289,7 @@ function saveTeacherDraft(){
     gameThumbnailHint:$("gameThumbnailHint").checked,
     hanziTaskTitle:$("hanziTaskTitle").value,
     hanziSpeechRecognition:$("hanziSpeechRecognition").checked,
+    hanziRepeatCount:Number($("hanziRepeatCount").value||1),
     clickTitle:$("clickTitle").value,
     clickDisplaySeconds:Number($("clickDisplaySeconds").value||5),
     clickRepeatCount:Number($("clickRepeatCount").value||3),
@@ -333,6 +340,8 @@ function restoreTeacherDraftBase(){
   $("gameThumbnailHint").checked=!!draft.gameThumbnailHint;
   $("hanziTaskTitle").value=String(draft.hanziTaskTitle||"");
   $("hanziSpeechRecognition").checked=!!draft.hanziSpeechRecognition;
+  $("hanziRepeatCount").value=String(Math.min(5,Math.max(1,Number(draft.hanziRepeatCount||1))));
+  updateHanziRepeatLabel();
   $("clickTitle").value=String(draft.clickTitle||"");
   $("clickDisplaySeconds").value=String(Math.min(8,Math.max(3,Number(draft.clickDisplaySeconds||5))));
   $("clickRepeatCount").value=String(Math.min(5,Math.max(3,Number(draft.clickRepeatCount||3))));
@@ -501,6 +510,8 @@ async function restoreTaskFromTaskList(taskId){
     if(taskMode==="hanzi"){
       $("hanziTaskTitle").value=String(task.title||"").replace(/^(?:國字|文字)練習：/,"");
       $("hanziSpeechRecognition").checked=!!task.hanziSpeechEnabled;
+      $("hanziRepeatCount").value=String(Math.min(5,Math.max(1,Number(task.hanziRepeatCount||1))));
+      updateHanziRepeatLabel();
     }
     if(taskMode==="evaluation"){
       $("evaluationDescriptionPrompt").checked=task.promptMode==="description";
@@ -1027,6 +1038,11 @@ $("createClickBtn").onclick=createClickModeQR;
 });
 updateClickRangeLabels();
 
+function updateHanziRepeatLabel(){
+  $("hanziRepeatCountValue").textContent=$("hanziRepeatCount").value+" 次";
+}
+updateHanziRepeatLabel();
+
 function getHanziCharacters(texts){
   const seen=new Set();
   return Array.from(texts.join("")).filter(char=>{
@@ -1043,6 +1059,7 @@ async function createHanziModeQR(){
   const hanziTexts=labels.length?selectedTexts:typedTexts;
   const chars=getHanziCharacters(hanziTexts);
   const speechEnabled=$("hanziSpeechRecognition").checked;
+  const hanziRepeatCount=Math.min(5,Math.max(1,Number($("hanziRepeatCount").value||1)));
   if(!title)return status("hanziStatus","請輸入文字練習任務名稱。","err");
   if(!labels.length&&!hanziTexts.length)return status("hanziStatus","請先在上方輸入文字並按下「載入文字辨識」。","err");
   if(labels.length&&!hanziTexts.length)return status("hanziStatus","請至少勾選一個要出題的文字項目。","err");
@@ -1066,6 +1083,7 @@ async function createHanziModeQR(){
       hanziTexts,
       hanziWritingEnabled:false,
       hanziSpeechEnabled:speechEnabled,
+      hanziRepeatCount,
       speechRecognitionMode:"browser",
       speechRecognitionLanguage:"zh-TW",
       orderMode:"fixed",
@@ -1076,7 +1094,7 @@ async function createHanziModeQR(){
       createdAt:firebase.firestore.FieldValue.serverTimestamp()
     });
     const detail=speechEnabled
-      ? `逐項語音辨識：${hanziTexts.join(" → ")}`
+      ? `逐項語音辨識：${hanziTexts.join(" → ")}｜每題重複 ${hanziRepeatCount} 次`
       : "學生可逐字選擇並開啟中文筆順或英文字母描寫練習。";
     status("hanziStatus",`文字練習建立成功！\n${detail}\nTask ID：${ref.id}`,"ok");
     showQR(ref.id,title);
@@ -1088,6 +1106,7 @@ async function createHanziModeQR(){
 }
 
 $("createHanziBtn").onclick=createHanziModeQR;
+$("hanziRepeatCount").addEventListener("input",()=>{updateHanziRepeatLabel();scheduleTeacherDraftSave()});
 
 $("createBtn").onclick=async()=>{
   const title=$("taskTitle").value.trim();
