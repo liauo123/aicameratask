@@ -114,6 +114,7 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
 .target-question-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:5px}
 .target-question-row strong{margin-top:0}
 .target-thumbnail{width:72px;height:72px;object-fit:cover;border-radius:14px;border:2px solid #93c5fd;background:#fff;box-shadow:0 5px 14px rgba(37,99,235,.16);flex:0 0 auto}
+#advancedPromptCard.speech-only-prompt .target-thumbnail{width:144px;height:144px;border-radius:28px}
 .progress-label{display:flex;justify-content:space-between;color:var(--muted);margin-bottom:7px}
 .progress{height:14px;background:#e7edf6;border-radius:999px;overflow:hidden;margin-bottom:14px}
 .progress>div{height:100%;width:0;background:var(--success);transition:width .2s}
@@ -337,6 +338,7 @@ html,body{
   .target-question-row{gap:8px;margin-top:3px}
   .target-question-row strong{margin-top:0}
   .target-thumbnail{width:58px;height:58px;border-radius:11px}
+  #advancedPromptCard.speech-only-prompt .target-thumbnail{width:116px;height:116px;border-radius:22px}
   .progress{margin-bottom:7px}
   .teaching-name-card{
     padding:8px;
@@ -469,10 +471,9 @@ html,body{
       </div>
 
       <div id="advancedPromptCard" class="target hidden">
-        <small>請聽語音說明，找出正確物品</small>
         <div class="target-question-row">
           <img id="advancedTargetThumbnail" class="target-thumbnail hidden" alt="進階評量題目縮圖" decoding="async">
-          <strong>🔊 語音題目</strong>
+          <strong>語音題目</strong>
           <button id="repeatAdvancedPromptBtn" class="speak-btn advanced-prompt-speaker" type="button" aria-label="重複聽說明" title="重複聽說明">🔊</button>
         </div>
       </div>
@@ -1056,6 +1057,7 @@ function updateCurrentTargetThumbnail(){
 }
 
 function updateAdvancedTargetThumbnail(){
+  $("advancedPromptCard").classList.toggle("speech-only-prompt",isSpeechOnlyRecognition());
   const mayShow=isAdvancedMode()||(isDescriptionPromptMode()&&shouldShowTargetThumbnail());
   updateThumbnailElement(
     "advancedTargetThumbnail",

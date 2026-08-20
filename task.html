@@ -295,7 +295,7 @@ $("logoutBtn").onclick=()=>window.close();
 function studentURL(id){
   const u=new URL("student.html",location.href);
   u.searchParams.set("task",id);
-  u.searchParams.set("v","3.4-ocr-speech-only");
+  u.searchParams.set("v","3.5-speech-only-layout");
   return u.toString();
 }
 function showQR(id,title){

@@ -987,7 +987,7 @@ async function createGameModeQR(){
       gameFinishCount:0,
       maxPlayers:15,
       status:"active",
-      version:"3.4-ocr-speech-only",
+      version:"3.5-speech-only-layout",
       createdAt:firebase.firestore.FieldValue.serverTimestamp()
     });
     await ref.collection("gameControl").doc("ranking").set({count:0});
@@ -1170,7 +1170,7 @@ $("createBtn").onclick=async()=>{
       requiredConsecutiveFrames:10,
       orderMode:"fixed",
       status:"active",
-      version:"3.4-ocr-speech-only",
+      version:"3.5-speech-only-layout",
       createdAt:firebase.firestore.FieldValue.serverTimestamp()
     });
     status("createStatus","評量建立成功！\nTask ID："+ref.id,"ok");
@@ -1179,7 +1179,7 @@ $("createBtn").onclick=async()=>{
     status("createStatus","建立評量失敗：\n"+e.message,"err");
   }
 };
-function studentURL(id){const base=new URL("student.html",location.href).toString(),u=new URL(base,location.href);u.searchParams.set("task",id);u.searchParams.set("v","3.4-ocr-speech-only");return u.toString()}function showQR(id,title){const url=studentURL(id);$("qrTitle").textContent=title+"－QR Code";$("qrURL").textContent=url;$("qrCode").innerHTML="";new QRCode($("qrCode"),{text:url,width:260,height:260,correctLevel:QRCode.CorrectLevel.M});$("qrModal").classList.remove("hidden")}window.showQR=showQR;$("closeBtn").onclick=()=>$("qrModal").classList.add("hidden");$("copyBtn").onclick=()=>navigator.clipboard.writeText($("qrURL").textContent);
+function studentURL(id){const base=new URL("student.html",location.href).toString(),u=new URL(base,location.href);u.searchParams.set("task",id);u.searchParams.set("v","3.5-speech-only-layout");return u.toString()}function showQR(id,title){const url=studentURL(id);$("qrTitle").textContent=title+"－QR Code";$("qrURL").textContent=url;$("qrCode").innerHTML="";new QRCode($("qrCode"),{text:url,width:260,height:260,correctLevel:QRCode.CorrectLevel.M});$("qrModal").classList.remove("hidden")}window.showQR=showQR;$("closeBtn").onclick=()=>$("qrModal").classList.add("hidden");$("copyBtn").onclick=()=>navigator.clipboard.writeText($("qrURL").textContent);
 
 ["modelURL","ocrKeywords","teachingTitle","taskTitle","advancedTitle","gameTitle","clickTitle","hanziTaskTitle"].forEach(id=>{
   $(id).addEventListener("input",scheduleTeacherDraftSave);
