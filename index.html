@@ -185,6 +185,7 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
           <label id="evaluationNameTextSetting" class="modeSetting hidden"><input id="evaluationShowNameText" type="checkbox">顯示名稱文字</label>
           <label id="evaluationThumbnailSetting" class="modeSetting"><input id="evaluationThumbnailHint" type="checkbox">縮圖提示</label>
           <label class="modeSetting"><input id="evaluationSpeechRecognition" type="checkbox">語音辨識</label>
+          <label id="evaluationSkipPhotoSetting" class="modeSetting hidden"><input id="evaluationSkipPhotoRecognition" type="checkbox">取消拍照辨識</label>
         </div>
         <button id="createBtn" class="p" style="width:100%" disabled>產生評量 QR</button>
         <div id="createStatus" class="status">尚未建立。</div>
@@ -206,6 +207,7 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
           <label id="gameNameTextSetting" class="modeSetting hidden"><input id="gameShowNameText" type="checkbox">顯示名稱文字</label>
           <label id="gameThumbnailSetting" class="modeSetting"><input id="gameThumbnailHint" type="checkbox">縮圖提示</label>
           <label class="modeSetting"><input id="gameSpeechRecognition" type="checkbox">語音辨識</label>
+          <label id="gameSkipPhotoSetting" class="modeSetting hidden"><input id="gameSkipPhotoRecognition" type="checkbox">取消拍照辨識</label>
         </div>
         <button id="createGameBtn" class="p" style="width:100%" disabled>建立遊戲並產生 QR</button>
         <div id="gameStatus" class="status">尚未建立。</div>
@@ -281,10 +283,12 @@ function saveTeacherDraft(){
     gameTitle:$("gameTitle").value,
     evaluationDescriptionPrompt:$("evaluationDescriptionPrompt").checked,
     evaluationSpeechRecognition:$("evaluationSpeechRecognition").checked,
+    evaluationSkipPhotoRecognition:$("evaluationSkipPhotoRecognition").checked,
     evaluationShowNameText:$("evaluationShowNameText").checked,
     evaluationThumbnailHint:$("evaluationThumbnailHint").checked,
     gameDescriptionPrompt:$("gameDescriptionPrompt").checked,
     gameSpeechRecognition:$("gameSpeechRecognition").checked,
+    gameSkipPhotoRecognition:$("gameSkipPhotoRecognition").checked,
     gameShowNameText:$("gameShowNameText").checked,
     gameThumbnailHint:$("gameThumbnailHint").checked,
     hanziTaskTitle:$("hanziTaskTitle").value,
@@ -332,10 +336,14 @@ function restoreTeacherDraftBase(){
   $("gameTitle").value=String(draft.gameTitle||"");
   $("evaluationDescriptionPrompt").checked=!!draft.evaluationDescriptionPrompt;
   $("evaluationSpeechRecognition").checked=!!draft.evaluationSpeechRecognition;
+  $("evaluationSkipPhotoRecognition").checked=getSelectedRecognitionEngine()==="ocr"&&!!draft.evaluationSkipPhotoRecognition;
+  if($("evaluationSkipPhotoRecognition").checked)$("evaluationSpeechRecognition").checked=true;
   $("evaluationShowNameText").checked=getSelectedRecognitionEngine()==="ocr"&&!!draft.evaluationShowNameText;
   $("evaluationThumbnailHint").checked=!!draft.evaluationThumbnailHint;
   $("gameDescriptionPrompt").checked=!!draft.gameDescriptionPrompt;
   $("gameSpeechRecognition").checked=!!draft.gameSpeechRecognition;
+  $("gameSkipPhotoRecognition").checked=getSelectedRecognitionEngine()==="ocr"&&!!draft.gameSkipPhotoRecognition;
+  if($("gameSkipPhotoRecognition").checked)$("gameSpeechRecognition").checked=true;
   $("gameShowNameText").checked=getSelectedRecognitionEngine()==="ocr"&&!!draft.gameShowNameText;
   $("gameThumbnailHint").checked=!!draft.gameThumbnailHint;
   $("hanziTaskTitle").value=String(draft.hanziTaskTitle||"");
@@ -408,11 +416,15 @@ function syncRecognitionEngineUI(){
   $("ocrFields").classList.toggle("hidden",!isOcr);
   $("evaluationNameTextSetting").classList.toggle("hidden",!isOcr);
   $("gameNameTextSetting").classList.toggle("hidden",!isOcr);
+  $("evaluationSkipPhotoSetting").classList.toggle("hidden",!isOcr);
+  $("gameSkipPhotoSetting").classList.toggle("hidden",!isOcr);
   $("evaluationThumbnailSetting").classList.remove("hidden");
   $("gameThumbnailSetting").classList.remove("hidden");
   if(!isOcr){
     $("evaluationShowNameText").checked=false;
     $("gameShowNameText").checked=false;
+    $("evaluationSkipPhotoRecognition").checked=false;
+    $("gameSkipPhotoRecognition").checked=false;
   }
   $("clickModeHint").textContent=isOcr
     ? "需要點選的目標文字會顯示在學生畫面上方；有設定縮圖時會與文字一起出現，沒有縮圖時只顯示文字。1–3 個文字選項會隨機出現。"
@@ -516,6 +528,8 @@ async function restoreTaskFromTaskList(taskId){
     if(taskMode==="evaluation"){
       $("evaluationDescriptionPrompt").checked=task.promptMode==="description";
       $("evaluationSpeechRecognition").checked=Array.isArray(task.audioRequiredClasses)&&task.audioRequiredClasses.length>0;
+      $("evaluationSkipPhotoRecognition").checked=task.recognitionEngine==="ocr"&&!!task.skipPhotoRecognition;
+      if($("evaluationSkipPhotoRecognition").checked)$("evaluationSpeechRecognition").checked=true;
       $("evaluationShowNameText").checked=task.recognitionEngine==="ocr"&&!!task.showNameText;
       $("evaluationThumbnailHint").checked=task.recognitionEngine==="ocr"
         ? !!task.showThumbnailHint
@@ -524,6 +538,8 @@ async function restoreTaskFromTaskList(taskId){
     if(taskMode==="game"){
       $("gameDescriptionPrompt").checked=task.promptMode==="description";
       $("gameSpeechRecognition").checked=Array.isArray(task.audioRequiredClasses)&&task.audioRequiredClasses.length>0;
+      $("gameSkipPhotoRecognition").checked=task.recognitionEngine==="ocr"&&!!task.skipPhotoRecognition;
+      if($("gameSkipPhotoRecognition").checked)$("gameSpeechRecognition").checked=true;
       $("gameShowNameText").checked=task.recognitionEngine==="ocr"&&!!task.showNameText;
       $("gameThumbnailHint").checked=task.recognitionEngine==="ocr"
         ? !!task.showThumbnailHint
@@ -930,7 +946,8 @@ async function createGameModeQR(){
   const title=$("gameTitle").value.trim();
   const targets=getSelectedClassesInCurrentOrder();
   const promptMode=$("gameDescriptionPrompt").checked?"description":"name";
-  const speechRecognitionEnabled=$("gameSpeechRecognition").checked;
+  const skipPhotoRecognition=getSelectedRecognitionEngine()==="ocr"&&$("gameSkipPhotoRecognition").checked;
+  const speechRecognitionEnabled=$("gameSpeechRecognition").checked||skipPhotoRecognition;
   const showNameText=getSelectedRecognitionEngine()==="ocr"&&$("gameShowNameText").checked;
   const showThumbnailHint=$("gameThumbnailHint").checked;
   const audioRequiredClasses=speechRecognitionEnabled?[...targets]:[];
@@ -958,6 +975,7 @@ async function createGameModeQR(){
       audioRequiredClasses,
       promptMode,
       speechRecognitionEnabled,
+      skipPhotoRecognition,
       showNameText,
       showThumbnailHint,
       speechRecognitionMode:"browser",
@@ -969,7 +987,7 @@ async function createGameModeQR(){
       gameFinishCount:0,
       maxPlayers:15,
       status:"active",
-      version:"2.8-game-mode-options",
+      version:"3.4-ocr-speech-only",
       createdAt:firebase.firestore.FieldValue.serverTimestamp()
     });
     await ref.collection("gameControl").doc("ranking").set({count:0});
@@ -1118,7 +1136,8 @@ $("createBtn").onclick=async()=>{
   if(!title)return status("createStatus","請輸入評量模式名稱。","err");
   if(!targets.length)return status("createStatus","請至少選擇一項物品。","err");
   const promptMode=$("evaluationDescriptionPrompt").checked?"description":"name";
-  const speechRecognitionEnabled=$("evaluationSpeechRecognition").checked;
+  const skipPhotoRecognition=getSelectedRecognitionEngine()==="ocr"&&$("evaluationSkipPhotoRecognition").checked;
+  const speechRecognitionEnabled=$("evaluationSpeechRecognition").checked||skipPhotoRecognition;
   const showNameText=getSelectedRecognitionEngine()==="ocr"&&$("evaluationShowNameText").checked;
   const showThumbnailHint=$("evaluationThumbnailHint").checked;
   const descriptions=getClassDescriptions(true);
@@ -1143,6 +1162,7 @@ $("createBtn").onclick=async()=>{
       audioRequiredClasses,
       promptMode,
       speechRecognitionEnabled,
+      skipPhotoRecognition,
       showNameText,
       showThumbnailHint,
       speechRecognitionMode:"browser",
@@ -1150,7 +1170,7 @@ $("createBtn").onclick=async()=>{
       requiredConsecutiveFrames:10,
       orderMode:"fixed",
       status:"active",
-      version:"2.8-evaluation-mode-options",
+      version:"3.4-ocr-speech-only",
       createdAt:firebase.firestore.FieldValue.serverTimestamp()
     });
     status("createStatus","評量建立成功！\nTask ID："+ref.id,"ok");
@@ -1159,7 +1179,7 @@ $("createBtn").onclick=async()=>{
     status("createStatus","建立評量失敗：\n"+e.message,"err");
   }
 };
-function studentURL(id){const base=new URL("student.html",location.href).toString(),u=new URL(base,location.href);u.searchParams.set("task",id);u.searchParams.set("v","3.3-hanzi-repeat-count");return u.toString()}function showQR(id,title){const url=studentURL(id);$("qrTitle").textContent=title+"－QR Code";$("qrURL").textContent=url;$("qrCode").innerHTML="";new QRCode($("qrCode"),{text:url,width:260,height:260,correctLevel:QRCode.CorrectLevel.M});$("qrModal").classList.remove("hidden")}window.showQR=showQR;$("closeBtn").onclick=()=>$("qrModal").classList.add("hidden");$("copyBtn").onclick=()=>navigator.clipboard.writeText($("qrURL").textContent);
+function studentURL(id){const base=new URL("student.html",location.href).toString(),u=new URL(base,location.href);u.searchParams.set("task",id);u.searchParams.set("v","3.4-ocr-speech-only");return u.toString()}function showQR(id,title){const url=studentURL(id);$("qrTitle").textContent=title+"－QR Code";$("qrURL").textContent=url;$("qrCode").innerHTML="";new QRCode($("qrCode"),{text:url,width:260,height:260,correctLevel:QRCode.CorrectLevel.M});$("qrModal").classList.remove("hidden")}window.showQR=showQR;$("closeBtn").onclick=()=>$("qrModal").classList.add("hidden");$("copyBtn").onclick=()=>navigator.clipboard.writeText($("qrURL").textContent);
 
 ["modelURL","ocrKeywords","teachingTitle","taskTitle","advancedTitle","gameTitle","clickTitle","hanziTaskTitle"].forEach(id=>{
   $(id).addEventListener("input",scheduleTeacherDraftSave);
@@ -1173,9 +1193,13 @@ $("recognitionEngine").addEventListener("change",()=>{
   scheduleTeacherDraftSave();
 });
 syncRecognitionEngineUI();
-["evaluationDescriptionPrompt","evaluationSpeechRecognition","evaluationShowNameText","evaluationThumbnailHint","gameDescriptionPrompt","gameSpeechRecognition","gameShowNameText","gameThumbnailHint","hanziSpeechRecognition"].forEach(id=>{
+["evaluationDescriptionPrompt","evaluationSpeechRecognition","evaluationSkipPhotoRecognition","evaluationShowNameText","evaluationThumbnailHint","gameDescriptionPrompt","gameSpeechRecognition","gameSkipPhotoRecognition","gameShowNameText","gameThumbnailHint","hanziSpeechRecognition"].forEach(id=>{
   $(id).addEventListener("change",scheduleTeacherDraftSave);
 });
+$("evaluationSkipPhotoRecognition").addEventListener("change",()=>{if($("evaluationSkipPhotoRecognition").checked)$("evaluationSpeechRecognition").checked=true});
+$("gameSkipPhotoRecognition").addEventListener("change",()=>{if($("gameSkipPhotoRecognition").checked)$("gameSpeechRecognition").checked=true});
+$("evaluationSpeechRecognition").addEventListener("change",()=>{if(!$("evaluationSpeechRecognition").checked)$("evaluationSkipPhotoRecognition").checked=false});
+$("gameSpeechRecognition").addEventListener("change",()=>{if(!$("gameSpeechRecognition").checked)$("gameSkipPhotoRecognition").checked=false});
 $("classes").addEventListener("input",scheduleTeacherDraftSave);
 $("classes").addEventListener("change",scheduleTeacherDraftSave);
 window.addEventListener("pagehide",saveTeacherDraft);

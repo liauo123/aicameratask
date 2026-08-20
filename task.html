@@ -295,7 +295,7 @@ $("logoutBtn").onclick=()=>window.close();
 function studentURL(id){
   const u=new URL("student.html",location.href);
   u.searchParams.set("task",id);
-  u.searchParams.set("v","3.3-hanzi-repeat-count");
+  u.searchParams.set("v","3.4-ocr-speech-only");
   return u.toString();
 }
 function showQR(id,title){
@@ -417,6 +417,7 @@ async function render(docs){
   const renderGameTask=doc=>{
     const t=doc.data();
     const recognitionInfo=`<div class="meta">辨識方式：${recognitionEngineName(t.recognitionEngine)}</div>`;
+    const workflowInfo=t.recognitionEngine==="ocr"&&t.skipPhotoRecognition?'<div class="meta">辨識流程：僅語音辨識（取消拍照辨識）</div>':"";
     const stateText={lobby:"等待學生加入",active:"遊戲進行中",finished:"遊戲已結束"}[t.gameStatus]||"等待學生加入";
     const audioItems=Array.isArray(t.audioRequiredClasses)
       ? t.audioRequiredClasses.filter(name=>(t.targetClasses||[]).includes(name))
@@ -436,6 +437,7 @@ async function render(docs){
             <button class="s restoreTeacherBtn" type="button" onclick="restoreTeacherPlatform('${doc.id}')">回復教師平台</button>
           </div>
           ${recognitionInfo}
+          ${workflowInfo}
           ${promptInfo}
           <div class="meta">尋找順序：${(t.targetClasses||[]).map(esc).join(" → ")}</div>
           ${audioInfo}
@@ -460,6 +462,7 @@ async function render(docs){
     const t=doc.data();
     const isAdvanced=t.taskMode==="advanced";
     const recognitionInfo=`<div class="meta">辨識方式：${recognitionEngineName(t.recognitionEngine)}</div>`;
+    const workflowInfo=t.recognitionEngine==="ocr"&&t.skipPhotoRecognition?'<div class="meta">辨識流程：僅語音辨識（取消拍照辨識）</div>':"";
     let resultDocs=[],resultError="";
 
     try{
@@ -531,6 +534,7 @@ async function render(docs){
             <button class="s restoreTeacherBtn" type="button" onclick="restoreTeacherPlatform('${doc.id}')">回復教師平台</button>
           </div>
           ${recognitionInfo}
+          ${workflowInfo}
           <div class="meta">物品：${(t.targetClasses||[]).map(esc).join(" → ")}</div>
           ${audioInfo}
         </div>

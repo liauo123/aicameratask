@@ -127,6 +127,7 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
 .audio-verification{margin-top:12px;padding:14px;border:2px solid #c4b5fd;border-radius:16px;background:#faf5ff}
 .audio-verification-title{font-weight:900;color:#6d28d9;margin-bottom:9px}
 .verification-state{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px}
+.audio-verification.speech-only .verification-state{grid-template-columns:1fr}
 .verification-badge{padding:9px;border-radius:11px;background:#fff;border:1px solid #ddd6fe;color:#5b21b6;font-weight:800;text-align:center}
 .verification-badge.done{background:#dcfce7;border-color:#86efac;color:#166534}
 .audio-result{margin-top:9px;padding:9px;border-radius:10px;background:#fff;color:#5b21b6;text-align:center;font-weight:800}
@@ -536,7 +537,7 @@ html,body{
     </div>
 
     <div id="audioVerification" class="audio-verification hidden">
-      <div class="audio-verification-title">本題需要完成照片與語音辨識</div>
+      <div id="audioVerificationTitle" class="audio-verification-title">本題需要完成照片與語音辨識</div>
       <div class="verification-state">
         <div id="photoVerificationBadge" class="verification-badge">📷 照片：尚未完成</div>
         <div id="voiceVerificationBadge" class="verification-badge">🎤 語音：尚未完成</div>
@@ -984,6 +985,10 @@ function isEvaluationMode(){
   return !!(task&&!isTeachingMode()&&!isAdvancedMode()&&!isGameMode()&&!isClickMode()&&!isHanziMode());
 }
 
+function isSpeechOnlyRecognition(){
+  return !!(task&&task.recognitionEngine==="ocr"&&task.skipPhotoRecognition&&(isEvaluationMode()||isGameMode()));
+}
+
 function applyTaskModeTheme(mode){
   const themeKey=mode==="hanzi"
     ? "hanzi"
@@ -1080,6 +1085,7 @@ function currentTarget(){
 
 function getEffectiveAudioRequiredClasses(){
   if(!task||isTeachingMode())return [];
+  if(isSpeechOnlyRecognition())return [...task.targetClasses];
   const configured=Array.isArray(task.audioRequiredClasses)
     ? task.audioRequiredClasses.filter(name=>task.targetClasses.includes(name))
     : [];
@@ -1096,6 +1102,7 @@ function restoreCaptureButtonForCurrentQuestion(){
     !captureButton||
     !task||
     projectType!=="image"||
+    isSpeechOnlyRecognition()||
     finished||
     currentIndex>=task.targetClasses.length||
     currentImagePassed
@@ -1107,7 +1114,7 @@ function restoreCaptureButtonForCurrentQuestion(){
 function resetCurrentVerification(){
   stopOptionalAudioRecognition(false);
   photoRecognizing=false;
-  currentImagePassed=false;
+  currentImagePassed=isSpeechOnlyRecognition();
   currentAudioPassed=!isOptionalAudioRequired();
   currentImageConfidence=0;
   currentAudioConfidence=0;
@@ -1176,7 +1183,9 @@ function updateVerificationUI(){
   const captureButton=$("captureBtn");
   if(!panel)return;
   const required=isOptionalAudioRequired()&&!finished;
+  const speechOnly=isSpeechOnlyRecognition();
   panel.classList.toggle("hidden",!required);
+  panel.classList.toggle("speech-only",speechOnly);
   if(voiceButton)voiceButton.classList.toggle("hidden",!(required&&currentImagePassed&&!currentAudioPassed));
   if(
     captureButton&&
@@ -1187,6 +1196,7 @@ function updateVerificationUI(){
     captureButton.classList.toggle("hidden",required&&currentImagePassed);
   }
   if(captureButton){
+    if(speechOnly)captureButton.classList.add("hidden");
     captureButton.disabled=photoRecognizing||taskSuccessAnimating||currentImagePassed;
   }
   if(!required){
@@ -1194,6 +1204,8 @@ function updateVerificationUI(){
     return;
   }
 
+  $("audioVerificationTitle").textContent=speechOnly?"本題需要完成語音辨識":"本題需要完成照片與語音辨識";
+  $("photoVerificationBadge").classList.toggle("hidden",speechOnly);
   $("photoVerificationBadge").textContent=currentImagePassed?"📷 照片：已完成":"📷 照片：尚未完成";
   $("voiceVerificationBadge").textContent=currentAudioPassed?"🎤 語音：已完成":"🎤 語音：尚未完成";
   $("photoVerificationBadge").classList.toggle("done",currentImagePassed);
@@ -1406,6 +1418,8 @@ async function loadTask(){
     task.audioRequiredClasses=Array.isArray(task.audioRequiredClasses)
       ? task.audioRequiredClasses.filter(name=>task.targetClasses.includes(name))
       : [];
+    task.skipPhotoRecognition=task.recognitionEngine==="ocr"&&(isEvaluationMode()||isGameMode())&&!!task.skipPhotoRecognition;
+    if(task.skipPhotoRecognition)task.audioRequiredClasses=[...task.targetClasses];
     task.promptMode=task.promptMode==="description"?"description":"name";
     task.showNameText=task.recognitionEngine==="ocr"&&!!task.showNameText;
     task.showThumbnailHint=task.recognitionEngine==="ocr"
@@ -1469,8 +1483,8 @@ async function loadTask(){
       : task.taskMode==="advanced"
         ? `專案類型：${typeName}｜進階評量：依語音說明找出正確物品${audioNote}`
         : task.taskMode==="game"
-          ? `多人尋物遊戲｜教師開始後，每位學生會收到不同的隨機物品順序${audioNote}`
-          : `專案類型：${typeName}｜${task.promptMode==="description"?"說明文字語音出題":"物品名稱語音出題"}${audioNote}｜順序：${task.targetClasses.join(" → ")}`;
+          ? `多人尋物遊戲｜教師開始後，每位學生會收到不同的隨機物品順序${task.skipPhotoRecognition?"｜僅語音辨識":audioNote}`
+          : `專案類型：${typeName}｜${task.promptMode==="description"?"說明文字語音出題":"物品名稱語音出題"}${task.skipPhotoRecognition?"｜僅語音辨識":audioNote}｜順序：${task.targetClasses.join(" → ")}`;
     if(isHanziMode()&&!task.hanziSpeechEnabled){
       $("joinCard").classList.add("hidden");
       showHanziPracticePicker();
@@ -1654,7 +1668,7 @@ async function tryStartGame(){
   if(!isGameMode()||gameStartedLocally||task.gameStatus!=="active"||!["approved","playing"].includes(gamePlayerStatus))return;
   gameStartedLocally=true;
   $("gameWaitingTitle").textContent="遊戲開始！";
-  setStatus("gameWaitingStatus","正在開啟相機，請準備尋找物品！","success");
+      setStatus("gameWaitingStatus",isSpeechOnlyRecognition()?"正在進入語音辨識，請準備回答題目！":"正在開啟相機，請準備尋找物品！","success");
   try{
     if(gameModelPromise)await gameModelPromise;
     await startTask();
@@ -1920,6 +1934,7 @@ async function startTask(){
         projectType,
         targetClasses:task.targetClasses,
         audioRequiredClasses:getEffectiveAudioRequiredClasses(),
+        skipPhotoRecognition:isSpeechOnlyRecognition(),
         completedClasses:[],
         incorrectClasses:[],
         incorrectAudioClasses:[],
@@ -2317,6 +2332,14 @@ $("clickTargets").addEventListener("click",event=>{
 
 async function loadSelectedModel(){
   if(task.recognitionEngine==="ocr"){
+    if(isSpeechOnlyRecognition()){
+      const supportedLabels=[...task.targetClasses];
+      model={
+        getClassLabels:()=>[...supportedLabels],
+        predict:async()=>supportedLabels.map(className=>({className,probability:0}))
+      };
+      return;
+    }
     if(typeof Tesseract==="undefined"){
       throw new Error("OCR 文字辨識套件載入失敗，請確認網路連線後重新整理頁面。");
     }
@@ -2577,6 +2600,17 @@ async function startSelectedProject(){
   }
   hideAllStages();
 
+  if(isSpeechOnlyRecognition()){
+    stopImage();
+    $("captureBtn").classList.add("hidden");
+    $("voiceRecognizeBtn").classList.remove("hidden");
+    $("targetHint").textContent="目前要回答的題目";
+    updateVerificationUI();
+    setVoiceResult("請按麥克風按鈕並說出答案。");
+    setStatus("recognitionStatus","請按麥克風按鈕進行語音辨識。","success");
+    return;
+  }
+
   if(projectType==="image"){
     $("imageStage").classList.remove("hidden");
     $("captureBtn").classList.remove("hidden");
@@ -2733,6 +2767,7 @@ async function startImage(){
 async function captureAndRecognize(){
   if(
     projectType!=="image" ||
+    isSpeechOnlyRecognition() ||
     !imageStream ||
     finished ||
     paused ||
@@ -3818,7 +3853,7 @@ async function completeCurrent(confidence,evidenceCanvas,evidenceDataURL="",audi
     targetClass:item,
     confidence,
     projectType,
-    imagePassed:projectType==="image",
+    imagePassed:projectType==="image"&&!isSpeechOnlyRecognition(),
     audioRequired,
     audioPassed:audioRequired?audioConfidence>0:false,
     audioConfidence:audioRequired?audioConfidence:0,
