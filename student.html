@@ -665,6 +665,9 @@ let hanziSpeechRecognition=null,hanziSpeechStarting=false;
 
 const $=id=>document.getElementById(id);
 const numberButtons=[...document.querySelectorAll(".number-btn")];
+const studentSessionId=typeof crypto!=="undefined"&&typeof crypto.randomUUID==="function"
+  ? crypto.randomUUID()
+  : Date.now().toString(36)+Math.random().toString(36).slice(2);
 const trackedSpeechRecognitions=new Set();
 const trackedMicrophoneStreams=new Set();
 const trackedMicrophoneTracks=new Set();
@@ -984,6 +987,10 @@ function isHanziMode(){
 
 function isEvaluationMode(){
   return !!(task&&!isTeachingMode()&&!isAdvancedMode()&&!isGameMode()&&!isClickMode()&&!isHanziMode());
+}
+
+function usesExclusiveStudentNumbers(){
+  return !!(task&&(isGameMode()||isClickMode()||isHanziMode()||isEvaluationMode()));
 }
 
 function isSpeechOnlyRecognition(){
@@ -1502,14 +1509,18 @@ async function loadTask(){
       selectedStudentNumber="";
       numberButtons.forEach(button=>{
         button.classList.remove("selected");
+        button.disabled=false;
+        button.style.opacity="1";
+        button.title="";
       });
       $("selectedNumberText").textContent="尚未選擇編號";
       $("startBtn").disabled=true;
       $("startBtn").textContent=isGameMode()?"送出加入申請":isClickMode()?"開始點選測驗":isHanziMode()?"開始文字測試":"開始任務";
 
       $("joinCard").classList.remove("hidden");
+      if(gameSeatsUnsub){gameSeatsUnsub();gameSeatsUnsub=null}
+      if(usesExclusiveStudentNumbers())listenGameSeats();
       if(isGameMode()){
-        listenGameSeats();
         setStatus("loadStatus","遊戲載入成功，請選擇學生編號後送出加入申請。","success");
       }else{
         setStatus("loadStatus","任務載入成功，已辨識為「"+typeName+"」。","success");
@@ -1555,7 +1566,8 @@ function listenGameSeats(){
     const occupied=new Set();
     snap.docs.forEach(doc=>{
       const data=doc.data();
-      if(["pending","approved","playing","completed"].includes(data.status))occupied.add(String(data.studentNumber||doc.id));
+      const isCurrentSession=data.sessionId&&data.sessionId===studentSessionId;
+      if(!isCurrentSession&&["pending","approved","playing","completed"].includes(data.status))occupied.add(String(data.studentNumber||doc.id));
     });
     numberButtons.forEach(button=>{
       const taken=occupied.has(button.dataset.studentNumber);
@@ -1569,6 +1581,52 @@ function listenGameSeats(){
       }
     });
   });
+}
+
+async function claimStudentNumberForTask(){
+  const claimedNumber=String(selectedStudentNumber||"");
+  if(!claimedNumber)throw new Error("請先選擇學生編號");
+  const currentUser=await ensureAuth();
+  const taskRef=db.collection("tasks").doc(taskId);
+  const claimRef=taskRef.collection("gamePlayers").doc(claimedNumber);
+  await db.runTransaction(async tx=>{
+    const [taskSnap,claimSnap]=await Promise.all([tx.get(taskRef),tx.get(claimRef)]);
+    if(!taskSnap.exists||taskSnap.data().status!=="active")throw new Error("任務目前未開放");
+    const existingClaim=claimSnap.exists?claimSnap.data():null;
+    const belongsToCurrentSession=existingClaim&&existingClaim.sessionId===studentSessionId;
+    if(existingClaim&&!belongsToCurrentSession&&["pending","approved","playing","completed"].includes(existingClaim.status)){
+      throw new Error("此學生編號已被選取，請改選其他號碼");
+    }
+    tx.set(claimRef,{
+      studentNumber:claimedNumber,
+      studentName:"學生 "+claimedNumber,
+      studentUid:currentUser.uid,
+      sessionId:studentSessionId,
+      status:"playing",
+      taskMode:task.taskMode||"task",
+      rank:null,
+      joinedAt:firebase.firestore.FieldValue.serverTimestamp(),
+      startedAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+  });
+  gamePlayerRef=claimRef;
+  gamePlayerStatus="playing";
+  if(gameSeatsUnsub){gameSeatsUnsub();gameSeatsUnsub=null}
+  return claimedNumber;
+}
+
+async function releaseStudentNumberClaim(){
+  if(!gamePlayerRef||isGameMode())return;
+  const claimRef=gamePlayerRef;
+  gamePlayerRef=null;
+  gamePlayerStatus="";
+  try{
+    await claimRef.update({
+      status:"left",
+      leftAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }catch(e){console.warn("學生編號釋放失敗",e)}
+  if(task&&usesExclusiveStudentNumbers())listenGameSeats();
 }
 
 async function requestGameJoin(){
@@ -1589,6 +1647,7 @@ async function requestGameJoin(){
         studentNumber:selectedStudentNumber,
         studentName:"學生 "+selectedStudentNumber,
         studentUid:currentUser.uid,
+        sessionId:studentSessionId,
         status:"pending",
         rank:null,
         joinedAt:firebase.firestore.FieldValue.serverTimestamp()
@@ -1875,15 +1934,16 @@ async function startHanziTest(){
   try{
     disableHanziCamera();
     const currentUser=await ensureAuth();
-    resultRef=await db.collection("taskResults").add({taskId,teacherId:task.teacherId||"",studentUid:currentUser.uid,studentName:"學生 "+selectedStudentNumber,studentCode:selectedStudentNumber,projectType:"hanzi",targetClasses:[...task.targetClasses],hanziRepeatCount:task.hanziRepeatCount,completedClasses:[],incorrectClasses:[],incorrectAudioClasses:[],progress:0,attempts:0,errorCount:0,itemErrorCounts:{},imageItemErrorCounts:{},audioItemErrorCounts:{},status:"inProgress",taskMode:"hanzi",startedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    const claimedNumber=await claimStudentNumberForTask();
+    resultRef=await db.collection("taskResults").add({taskId,teacherId:task.teacherId||"",studentUid:currentUser.uid,studentName:"學生 "+claimedNumber,studentCode:claimedNumber,projectType:"hanzi",targetClasses:[...task.targetClasses],hanziRepeatCount:task.hanziRepeatCount,completedClasses:[],incorrectClasses:[],incorrectAudioClasses:[],progress:0,attempts:0,errorCount:0,itemErrorCounts:{},imageItemErrorCounts:{},audioItemErrorCounts:{},status:"inProgress",taskMode:"hanzi",startedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
     stopHanziSpeechRecognition(hanziSpeechRecognition,true);
     studentPageMarkedLeft=false;
     currentIndex=0;completed=[];attempts=0;totalErrorCount=0;itemErrorCounts={};imageItemErrorCounts={};audioItemErrorCounts={};finished=false;paused=false;pageAutoPaused=false;localIncorrectClasses=[];localIncorrectAudioClasses=[];consecutiveWrongAttempts=0;
     $("speakHanziBtn").disabled=false;
     $("loadCard").classList.add("hidden");$("joinCard").classList.add("hidden");$("hanziTaskCard").classList.remove("hidden");$("hanziPicker").classList.add("hidden");$("hanziTestPanel").classList.remove("hidden");
     $("hanziCopyrightNotice").classList.add("hidden");
-    $("hanziTaskTitle").textContent=task.title||"國字測驗";$("hanziPracticeIntro").textContent="學生編號 "+selectedStudentNumber;renderHanziQuestion();
-  }catch(e){setStatus("joinStatus","開始國字測驗失敗：\n"+(e.message||e),"error");$("startBtn").disabled=false}
+    $("hanziTaskTitle").textContent=task.title||"國字測驗";$("hanziPracticeIntro").textContent="學生編號 "+claimedNumber;renderHanziQuestion();
+  }catch(e){await releaseStudentNumberClaim();setStatus("joinStatus","開始國字測驗失敗：\n"+(e.message||e),"error");$("startBtn").disabled=false}
 }
 
 async function startTask(){
@@ -1914,9 +1974,6 @@ async function startTask(){
 
   if(isGameMode())shuffleGameTargetsForStudent();
 
-  const studentName="學生 "+selectedStudentNumber;
-  const studentCode=selectedStudentNumber;
-
   $("startBtn").disabled=true;
   setStatus("joinStatus","正在載入 AI 模型並建立作答紀錄…");
 
@@ -1927,12 +1984,16 @@ async function startTask(){
     const missing=task.targetClasses.filter(x=>!labels.includes(x));
     if(missing.length)throw new Error("模型缺少類別："+missing.join("、"));
 
+    const claimedNumber=isEvaluationMode()
+      ? await claimStudentNumberForTask()
+      : selectedStudentNumber;
+
     if(!isTeachingMode()){
       resultRef=await db.collection("taskResults").add({
         taskId,
         teacherId:task.teacherId||"",
         studentUid:auth.currentUser.uid,
-        studentName,studentCode,
+        studentName:"學生 "+claimedNumber,studentCode:claimedNumber,
         projectType,
         targetClasses:task.targetClasses,
         audioRequiredClasses:getEffectiveAudioRequiredClasses(),
@@ -2009,6 +2070,7 @@ async function startTask(){
 
     await startSelectedProject();
   }catch(error){
+    if(isEvaluationMode())await releaseStudentNumberClaim();
     console.error(error);
     if(isGameMode()){
       gameStartedLocally=false;
@@ -2265,12 +2327,13 @@ async function startClickMode(){
   setStatus("joinStatus","正在建立點選測驗紀錄…");
   try{
     const currentUser=await ensureAuth();
+    const claimedNumber=await claimStudentNumberForTask();
     resultRef=await db.collection("taskResults").add({
       taskId,
       teacherId:task.teacherId||"",
       studentUid:currentUser.uid,
-      studentName:"學生 "+selectedStudentNumber,
-      studentCode:selectedStudentNumber,
+      studentName:"學生 "+claimedNumber,
+      studentCode:claimedNumber,
       projectType:"click",
       targetClasses:[...task.targetClasses],
       incorrectClasses:[],
@@ -2290,7 +2353,7 @@ async function startClickMode(){
     });
     clickSequence=buildClickSequence();clickTrialIndex=0;clickRecords=[];finished=false;paused=false;
     $("clickTaskTitle").textContent=task.title||"隨機點選測驗";
-    $("clickStudentNumber").textContent="學生編號 "+selectedStudentNumber;
+    $("clickStudentNumber").textContent="學生編號 "+claimedNumber;
     updateClickProgress();
     $("loadCard").classList.add("hidden");
     $("joinCard").classList.add("hidden");
@@ -2301,6 +2364,7 @@ async function startClickMode(){
     $("clickWaiting").classList.remove("hidden");
     clickNextTimer=setTimeout(showNextClickTrial,900);
   }catch(e){
+    await releaseStudentNumberClaim();
     setStatus("joinStatus","開始點選測驗失敗：\n"+(e.message||e),"error");
     $("startBtn").disabled=false;
   }
