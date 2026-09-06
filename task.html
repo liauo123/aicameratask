@@ -30,7 +30,7 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
 .status{padding:12px;border-radius:11px;background:#eff6ff;color:#1d4ed8;white-space:pre-wrap;margin-top:10px}
 .err{background:#fef2f2;color:#b91c1c}.hidden{display:none!important}
 .listHeader{align-items:center;margin-bottom:4px}.listHeader h2{margin:0;color:#17376b}.listHint{margin:8px 0 4px;padding:10px 12px;border-radius:10px;background:#f8fafc;border:1px solid #e5eaf0}
-.modeTabs{display:flex;gap:10px;overflow-x:auto;padding:8px 2px 5px;margin-top:10px;scrollbar-width:thin}.modeTab{flex:1 0 185px;border:2px solid transparent;white-space:nowrap;box-shadow:none}.modeTab.clickTab{background:#fef3c7;color:#92400e;border-color:#fbbf24}.modeTab.hanziTab{background:#fee2e2;color:#991b1b;border-color:#fb7185}.modeTab.teachingTab{background:#dbeafe;color:#1d4ed8;border-color:#93c5fd}.modeTab.evaluationTab{background:#dcfce7;color:#166534;border-color:#86efac}.modeTab.gameTab{background:#ede9fe;color:#6d28d9;border-color:#c4b5fd}.modeTab[aria-selected="true"]{color:#fff;box-shadow:0 6px 15px rgba(15,23,42,.16)}.modeTab.clickTab[aria-selected="true"]{background:#ca8a04;border-color:#ca8a04}.modeTab.hanziTab[aria-selected="true"]{background:#dc2626;border-color:#dc2626}.modeTab.teachingTab[aria-selected="true"]{background:#2563eb;border-color:#2563eb}.modeTab.evaluationTab[aria-selected="true"]{background:#16a34a;border-color:#16a34a}.modeTab.gameTab[aria-selected="true"]{background:#7c3aed;border-color:#7c3aed}
+.modeTabs{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;overflow:visible;padding:8px 2px 5px;margin-top:10px}.modeTab{min-width:0;padding:9px 5px;border:2px solid transparent;white-space:normal;line-height:1.25;font-size:12px;box-shadow:none}.modeTab.clickTab{background:#fef3c7;color:#92400e;border-color:#fbbf24}.modeTab.hanziTab{background:#fee2e2;color:#991b1b;border-color:#fb7185}.modeTab.speakingTab{background:#dbeafe;color:#1d4ed8;border-color:#93c5fd}.modeTab.readingTab{background:#cffafe;color:#0e7490;border-color:#67e8f9}.modeTab.evaluationTab{background:#dcfce7;color:#166534;border-color:#86efac}.modeTab.gameTab{background:#ede9fe;color:#6d28d9;border-color:#c4b5fd}.modeTab[aria-selected="true"]{color:#fff;box-shadow:0 6px 15px rgba(15,23,42,.16)}.modeTab.clickTab[aria-selected="true"]{background:#ca8a04;border-color:#ca8a04}.modeTab.hanziTab[aria-selected="true"]{background:#dc2626;border-color:#dc2626}.modeTab.speakingTab[aria-selected="true"]{background:#2563eb;border-color:#2563eb}.modeTab.readingTab[aria-selected="true"]{background:#0891b2;border-color:#0891b2}.modeTab.evaluationTab[aria-selected="true"]{background:#16a34a;border-color:#16a34a}.modeTab.gameTab[aria-selected="true"]{background:#7c3aed;border-color:#7c3aed}
 .task{border:1px solid #dbe4ee;border-radius:14px;padding:17px;margin:13px 0;background:rgba(255,255,255,.76);box-shadow:0 5px 14px rgba(15,23,42,.055)}
 .modeSection{position:relative;overflow:hidden;padding:18px;border-radius:17px;margin-top:18px}
 .modeSection::after{content:"";position:absolute;width:120px;height:120px;border-radius:50%;right:-56px;top:-58px;background:currentColor;opacity:.045;pointer-events:none}
@@ -40,6 +40,7 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
 .modeSection.game{background:var(--game-bg);border:1px solid var(--game-border)}
 .modeSection.click{background:var(--click-bg);border:1px solid var(--click-border)}
 .modeSection.hanzi{background:var(--hanzi-bg);border:1px solid var(--hanzi-border)}
+.modeSection.speaking{background:#f0f7ff;border:1px solid #93c5fd}.modeSection.reading{background:#ecfeff;border:1px solid #67e8f9}
 .modeTitle{margin:0 0 12px;padding-bottom:10px;border-bottom:2px solid}
 .modeSection.teaching .modeTitle{color:#1d4ed8;border-color:#93c5fd}
 .modeSection.evaluation .modeTitle{color:#166534;border-color:#86efac}
@@ -47,8 +48,9 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
 .modeSection.game .modeTitle{color:#6d28d9;border-color:#c4b5fd}
 .modeSection.click .modeTitle{color:#92400e;border-color:#fbbf24}
 .modeSection.hanzi .modeTitle{color:#991b1b;border-color:#fb7185}
-.task.teachingTask{border-left:5px solid #3b82f6}.task.evaluationTask{border-left:5px solid #22c55e}.task.advancedTask{border-left:5px solid #14b8a6}.task.gameTask{border-left:5px solid #8b5cf6}.task.clickTask{border-left:5px solid #f59e0b}.task.hanziTask{border-left:5px solid #dc2626}
-.modeBadge{display:inline-flex;align-items:center;padding:4px 9px;border-radius:999px;font-size:12px;font-weight:900;margin-bottom:7px}.teachingTask .modeBadge{background:#dbeafe;color:#1d4ed8}.evaluationTask .modeBadge{background:#dcfce7;color:#166534}.advancedTask .modeBadge{background:#ccfbf1;color:#0f766e}.gameTask .modeBadge{background:#ede9fe;color:#6d28d9}.clickTask .modeBadge{background:#fef3c7;color:#92400e}.hanziTask .modeBadge{background:#fee2e2;color:#991b1b}
+.modeSection.speaking .modeTitle{color:#1d4ed8;border-color:#93c5fd}.modeSection.reading .modeTitle{color:#0e7490;border-color:#67e8f9}
+.task.teachingTask{border-left:5px solid #3b82f6}.task.evaluationTask{border-left:5px solid #22c55e}.task.advancedTask{border-left:5px solid #14b8a6}.task.gameTask{border-left:5px solid #8b5cf6}.task.clickTask{border-left:5px solid #f59e0b}.task.hanziTask{border-left:5px solid #dc2626}.task.speakingTask{border-left:5px solid #2563eb}
+.modeBadge{display:inline-flex;align-items:center;padding:4px 9px;border-radius:999px;font-size:12px;font-weight:900;margin-bottom:7px}.teachingTask .modeBadge{background:#dbeafe;color:#1d4ed8}.evaluationTask .modeBadge{background:#dcfce7;color:#166534}.readingTask .modeBadge{background:#cffafe;color:#0e7490}.advancedTask .modeBadge{background:#ccfbf1;color:#0f766e}.gameTask .modeBadge{background:#ede9fe;color:#6d28d9}.clickTask .modeBadge{background:#fef3c7;color:#92400e}.hanziTask .modeBadge{background:#fee2e2;color:#991b1b}.speakingTask .modeBadge{background:#dbeafe;color:#1d4ed8}
 .gameState{display:inline-block;padding:5px 10px;border-radius:999px;background:#ddd6fe;color:#6d28d9;font-size:12px;font-weight:900;margin-top:6px}
 .playerRow{display:grid;grid-template-columns:.7fr 1fr 1fr auto;gap:8px;align-items:center;padding:9px;border-bottom:1px solid #ede9fe;font-size:14px}.playerRow:first-child{font-weight:900;background:#faf5ff;border-radius:10px}.playerActions{display:flex;gap:6px}.playerActions button{min-width:auto;padding:7px 10px}.rank1{background:#fef3c7}.rank2{background:#f1f5f9}.rank3{background:#ffedd5}
 .task+.task{margin-top:16px}
@@ -59,7 +61,9 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
 .meta,.small{font-size:13px;color:var(--m);line-height:1.6}
 .badge{padding:4px 8px;border-radius:999px;background:#dbeafe;color:#1d4ed8;font-size:12px;font-weight:800}
 .rr{display:grid;grid-template-columns:1.2fr .7fr .7fr 1.2fr;gap:8px;padding:9px;border-bottom:1px solid #e2e8f0;font-size:14px}
+.rr.inputResultRow{grid-template-columns:1fr .55fr .65fr 1.2fr 1.45fr}
 .rr.hasAnyError{background:#fff7ed;border-left:4px solid #f97316}.rr.hasFiveWrong{background:#fff1f2;border-left:4px solid #dc2626}.lowErrorMark,.errorCountMark,.fiveWrongMark{display:inline-block;margin-top:5px;padding:4px 7px;border-radius:7px;font-weight:900;line-height:1.5}.lowErrorMark{background:#f3f4f6;color:#111827;border:none}.errorCountMark{background:#ffedd5;color:#c2410c;border:1px solid #fdba74}.fiveWrongMark{background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5}
+.studentInputRecords{font-size:13px;line-height:1.65;overflow-wrap:anywhere}.studentInputRecords b{color:#334155}
 .clickRecord{margin-top:8px;padding:9px 11px;border-radius:10px;background:#fff;border:1px solid #fde68a;font-size:13px;line-height:1.75}.clickRecord b{color:#92400e}
 .modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:20px;z-index:99}
 .box{background:var(--surface);border:1px solid var(--surface-border);padding:22px;border-radius:18px;text-align:center;max-width:390px;width:100%;box-shadow:0 20px 55px rgba(15,23,42,.24)}
@@ -67,7 +71,8 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
 @media(max-width:650px){
   header{padding:11px 12px}.brandMark{width:38px;height:38px}.head{align-items:flex-start}
   main{padding:14px 10px 28px}.card{padding:16px;border-radius:15px}
-  .modeSection{padding:13px;margin-top:13px}.rr{grid-template-columns:1fr 1fr}.playerRow{grid-template-columns:.6fr 1fr 1fr}.playerActions{grid-column:1/-1}.playerActions button{flex:1}
+  .modeTabs{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}.modeTab{font-size:11px;padding:8px 4px}
+  .modeSection{padding:13px;margin-top:13px}.rr,.rr.inputResultRow{grid-template-columns:1fr 1fr}.rr.inputResultRow>:last-child{grid-column:1/-1}.playerRow{grid-template-columns:.6fr 1fr 1fr}.playerActions{grid-column:1/-1}.playerActions button{flex:1}
   .listHeader{align-items:flex-start}.listHeader h2{font-size:20px}.navBtn,button{padding:10px 12px}
 }
 </style>
@@ -76,8 +81,8 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
 <header>
   <div class="head">
     <div class="brand">
-      <div class="brandMark">AI</div>
-      <div><h1>教師平台</h1><div class="small">教學評量遊戲列表</div></div>
+      <div class="brandMark">多</div>
+      <div><h1>教師平台</h1><div class="small">任務列表</div></div>
     </div>
     <div id="userArea" class="hidden">
       <button id="logoutBtn" class="s">關閉</button>
@@ -97,14 +102,15 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
 
   <section id="taskCard" class="card hidden">
     <div class="top listHeader">
-      <div><h2>教學與評量列表</h2></div>
+      <div><h2>任務列表</h2></div>
       <button id="refreshBtn" class="s">重新整理</button>
     </div>
     <div class="modeTabs" role="tablist" aria-label="選擇任務模式">
-      <button class="modeTab clickTab" type="button" data-mode="click" role="tab" aria-selected="true">簡易點選練習模式</button>
-      <button class="modeTab hanziTab" type="button" data-mode="hanzi" role="tab" aria-selected="false">文字練習模式</button>
-      <button class="modeTab teachingTab" type="button" data-mode="teaching" role="tab" aria-selected="false">物品(文字)辨識教學模式</button>
-      <button class="modeTab evaluationTab" type="button" data-mode="evaluation" role="tab" aria-selected="false">評量模式</button>
+      <button class="modeTab clickTab" type="button" data-mode="click" role="tab" aria-selected="true">點選模式(聽)</button>
+      <button class="modeTab speakingTab" type="button" data-mode="speaking" role="tab" aria-selected="false">口語模式(說)</button>
+      <button class="modeTab readingTab" type="button" data-mode="reading" role="tab" aria-selected="false">問答模式(讀)</button>
+      <button class="modeTab hanziTab" type="button" data-mode="hanzi" role="tab" aria-selected="false">書寫模式(寫)</button>
+      <button class="modeTab evaluationTab" type="button" data-mode="evaluation" role="tab" aria-selected="false">拍照辨識模式</button>
       <button class="modeTab gameTab" type="button" data-mode="game" role="tab" aria-selected="false">多人遊戲模式</button>
     </div>
     <div class="small listHint">點選上方模式按鈕可查看相關資訊列表。可先匯出學生結果，再只清除辨識照片；「完整刪除」會一併清除學生紀錄、照片與遊戲資料。</div>
@@ -128,6 +134,11 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
 const firebaseConfig={apiKey:"AIzaSyBbpIezLbQd2-e-3Z4pSdBLIFc_UlTPUy8",authDomain:"project-6540500202923576846.firebaseapp.com",projectId:"project-6540500202923576846",storageBucket:"project-6540500202923576846.firebasestorage.app",messagingSenderId:"516602165604",appId:"1:516602165604:web:b60f69ee56a4d49c416271"};
 firebase.initializeApp(firebaseConfig);
 const auth=firebase.auth(),db=firebase.firestore();
+const firestorePersistenceReady=db.enablePersistence({synchronizeTabs:true}).catch(error=>{
+  if(!["failed-precondition","unimplemented"].includes(error.code)){
+    console.warn("Firestore 本機快取啟用失敗：",error);
+  }
+});
 let user=null,unsub=null,activeMode="click",renderGeneration=0;
 let latestTaskDocs=[],resultRefreshTimer=null,resultListenerReady=false,tasksListenerReady=false;
 let resultDocsByTask=new Map(),resultCacheError="";
@@ -170,6 +181,28 @@ function recognitionEngineName(engine){
   if(engine==="coco-ssd")return "COCO-SSD 開放辨識";
   return "Teachable Machine 自訂辨識";
 }
+function speechRecognitionStandardInfo(task){
+  const standard=task&&task.relaxedSpeechRecognition?"放寬（子音或母音符合即可）":"一般標準";
+  const fuzzy=task&&task.fuzzySpeechRecognition?"開啟（日常生活近義詞、語意關鍵詞及可忽略功能詞）":"關閉";
+  return `<div class="meta">語音辨識標準：${standard}</div><div class="meta">語音模糊辨識：${fuzzy}</div>`;
+}
+
+function formatStudentInputRecords(data){
+  const formatRecords=records=>(Array.isArray(records)?records:[]).map(record=>{
+    const item=record&&typeof record==="object"?record:{input:String(record||"")};
+    if(item.correct===true)return "";
+    const input=String(item.input||"").trim();
+    if(!input)return "";
+    const target=String(item.target||"").trim();
+    return `<span>${target?`「${esc(target)}」→ `:""}${esc(input)}</span>`;
+  }).filter(Boolean).join("、");
+  const writingInputs=formatRecords(data&&data.writingInputRecords);
+  const speechInputs=formatRecords(data&&data.speechInputRecords);
+  return [
+    writingInputs?`<div><b>書寫輸入：</b>${writingInputs}</div>`:"",
+    speechInputs?`<div><b>語音輸入：</b>${speechInputs}</div>`:""
+  ].filter(Boolean).join("")||"—";
+}
 
 function replaceResultCacheForTasks(taskIds,docs){
   taskIds.forEach(taskId=>resultDocsByTask.delete(taskId));
@@ -203,8 +236,10 @@ function stopResultListeners(){
 
 function resultTaskDocsForActiveMode(){
   if(activeMode==="click")return latestTaskDocs.filter(doc=>doc.data().taskMode==="click");
-  if(activeMode==="hanzi")return latestTaskDocs.filter(doc=>doc.data().taskMode==="hanzi");
-  if(activeMode==="evaluation")return latestTaskDocs.filter(doc=>!["teaching","game","click","hanzi"].includes(doc.data().taskMode));
+  if(activeMode==="hanzi")return latestTaskDocs.filter(doc=>doc.data().taskMode==="hanzi"&&!doc.data().hanziSpeechEnabled);
+  if(activeMode==="speaking")return latestTaskDocs.filter(doc=>doc.data().taskMode==="speaking"||(doc.data().taskMode==="hanzi"&&doc.data().hanziSpeechEnabled));
+  if(activeMode==="reading")return latestTaskDocs.filter(doc=>doc.data().taskMode==="reading");
+  if(activeMode==="evaluation")return latestTaskDocs.filter(doc=>!["teaching","game","click","hanzi","speaking","reading"].includes(doc.data().taskMode));
   return [];
 }
 
@@ -264,13 +299,14 @@ function clearGamePlayerListeners(clearCache=true){
   }
 }
 
-auth.onAuthStateChanged(u=>{
+auth.onAuthStateChanged(async u=>{
   user=u;
   if(u){
     $("authCard").classList.add("hidden");
     $("taskCard").classList.remove("hidden");
     $("userArea").classList.remove("hidden");
-    listen();
+    await firestorePersistenceReady;
+    if(user===u)listen();
   }else{
     renderGeneration++;
     $("authCard").classList.remove("hidden");
@@ -295,7 +331,7 @@ $("logoutBtn").onclick=()=>window.close();
 function studentURL(id){
   const u=new URL("student.html",location.href);
   u.searchParams.set("task",id);
-  u.searchParams.set("v","3.5-speech-only-layout");
+  u.searchParams.set("v","3.6-github-speech-fix");
   return u.toString();
 }
 function showQR(id,title){
@@ -351,7 +387,7 @@ function applyModeFilter(){
   sections.forEach(section=>section.classList.toggle("hidden",section.dataset.mode!==activeMode));
   const oldEmpty=$("modeEmpty");if(oldEmpty)oldEmpty.remove();
   if(!sections.some(section=>section.dataset.mode===activeMode)){
-    const names={click:"簡易點選練習模式",teaching:"物品(文字)辨識教學模式",hanzi:"文字練習模式",evaluation:"評量模式",game:"多人遊戲模式"};
+    const names={click:"點選模式(聽)",speaking:"口語模式(說)",reading:"問答模式(讀)",hanzi:"書寫模式(寫)",evaluation:"拍照辨識模式",game:"多人遊戲模式"};
     const empty=document.createElement("div");empty.id="modeEmpty";empty.className="status";empty.textContent="目前沒有「"+names[activeMode]+"」資料。";
     $("taskList").appendChild(empty);
   }
@@ -374,12 +410,14 @@ async function render(docs){
   };
 
   const newestFirst=[...docs].sort((a,b)=>getTime(b)-getTime(a));
-  const teachingDocs=newestFirst.filter(doc=>doc.data().taskMode==="teaching");
+  const teachingDocs=[];
   const gameDocs=newestFirst.filter(doc=>doc.data().taskMode==="game");
   const advancedDocs=newestFirst.filter(doc=>doc.data().taskMode==="advanced");
   const clickDocs=newestFirst.filter(doc=>doc.data().taskMode==="click");
-  const hanziDocs=newestFirst.filter(doc=>doc.data().taskMode==="hanzi");
-  const evaluationDocs=newestFirst.filter(doc=>!["teaching","advanced","game","click","hanzi"].includes(doc.data().taskMode));
+  const speakingDocs=newestFirst.filter(doc=>doc.data().taskMode==="speaking"||(doc.data().taskMode==="hanzi"&&doc.data().hanziSpeechEnabled));
+  const hanziDocs=newestFirst.filter(doc=>doc.data().taskMode==="hanzi"&&!doc.data().hanziSpeechEnabled);
+  const readingDocs=newestFirst.filter(doc=>doc.data().taskMode==="reading");
+  const evaluationDocs=newestFirst.filter(doc=>!["teaching","advanced","game","click","hanzi","speaking","reading"].includes(doc.data().taskMode));
 
   const renderTeachingTask=doc=>{
     const t=doc.data();
@@ -425,6 +463,7 @@ async function render(docs){
     const audioInfo=audioItems.length
       ? `<div class="meta">瀏覽器語音辨識（zh-TW）：${audioItems.map(esc).join("、")}</div>`
       : "";
+    const speechStandardInfo=audioItems.length?speechRecognitionStandardInfo(t):"";
     const promptInfo=t.promptMode==="description"
       ? '<div class="meta">出題方式：說明文字出題</div>'
       : "";
@@ -441,6 +480,7 @@ async function render(docs){
           ${promptInfo}
           <div class="meta">尋找順序：${(t.targetClasses||[]).map(esc).join(" → ")}</div>
           ${audioInfo}
+          ${speechStandardInfo}
           <span class="gameState" id="gameState_${doc.id}">${stateText}</span>
         </div>
       </div>
@@ -462,7 +502,7 @@ async function render(docs){
     const t=doc.data();
     const isAdvanced=t.taskMode==="advanced";
     const recognitionInfo=`<div class="meta">辨識方式：${recognitionEngineName(t.recognitionEngine)}</div>`;
-    const workflowInfo=t.recognitionEngine==="ocr"&&t.skipPhotoRecognition?'<div class="meta">辨識流程：僅語音辨識（取消拍照辨識）</div>':"";
+    const workflowInfo=t.taskMode==="reading"||t.recognitionEngine==="ocr"&&t.skipPhotoRecognition?'<div class="meta">辨識流程：僅語音辨識（取消拍照辨識）</div>':"";
     let resultDocs=[],resultError="";
 
     try{
@@ -499,12 +539,14 @@ async function render(docs){
       ].filter(Boolean).join("<br>");
       const hasFiveWrong=imageErrors.fiveOrMore.length||audioErrors.fiveOrMore.length||legacyErrors.fiveOrMore.length;
       const hasGeneralError=imageErrors.twoOnly.length||imageErrors.threeToFour.length||audioErrors.twoOnly.length||audioErrors.threeToFour.length||legacyErrors.twoOnly.length||legacyErrors.threeToFour.length;
+      const studentInputs=formatStudentInputRecords(d);
 
-      return `<div class="rr${hasFiveWrong?" hasFiveWrong":hasGeneralError?" hasAnyError":""}">
+      return `<div class="rr inputResultRow${hasFiveWrong?" hasFiveWrong":hasGeneralError?" hasAnyError":""}">
         <span>${esc(d.studentName||"未命名")}</span>
         <span>${d.progress||0}%</span>
         <span>${resultStatusText(d.status)}</span>
         <span>${incorrectText||"—"}</span>
+        <span class="studentInputRecords">${studentInputs}</span>
       </div>`;
     }).join("");
 
@@ -512,8 +554,8 @@ async function render(docs){
       ? `<div class="status err">${esc(resultError)}</div>`
       : `<div style="margin-top:12px">
           <b>學生完成度（${resultDocs.length} 人）</b>
-          <div class="rr">
-            <b>學生</b><b>進度</b><b>狀態</b><b>辨識錯誤</b>
+          <div class="rr inputResultRow">
+            <b>學生</b><b>進度</b><b>狀態</b><b>辨識錯誤</b><b>學生輸入文字</b>
           </div>
           ${rows||'<div class="small" style="padding:10px">尚無學生紀錄</div>'}
         </div>`;
@@ -524,23 +566,26 @@ async function render(docs){
     const audioInfo=audioItems.length
       ? `<div class="meta">瀏覽器語音辨識（zh-TW）：${audioItems.map(esc).join("、")}</div>`
       : "";
+    const speechStandardInfo=audioItems.length?speechRecognitionStandardInfo(t):"";
 
-    return `<div class="task ${isAdvanced?"advancedTask":"evaluationTask"}">
+    const isReading=t.taskMode==="reading";
+    return `<div class="task ${isAdvanced?"advancedTask":isReading?"readingTask":"evaluationTask"}">
       <div class="top">
         <div>
-          <span class="modeBadge">${isAdvanced?"進階評量模式":"評量模式"}</span>
+          <span class="modeBadge">${isAdvanced?"進階評量模式":isReading?"問答模式(讀)":"拍照辨識模式"}</span>
           <div class="titleLine">
-            <div class="title">${esc(t.title||(isAdvanced?"未命名進階評量":"未命名評量"))}</div>
+            <div class="title">${esc(t.title||(isAdvanced?"未命名進階評量":isReading?"未命名問答模式(讀)":"未命名拍照辨識模式"))}</div>
             <button class="s restoreTeacherBtn" type="button" onclick="restoreTeacherPlatform('${doc.id}')">回復教師平台</button>
           </div>
           ${recognitionInfo}
           ${workflowInfo}
           <div class="meta">物品：${(t.targetClasses||[]).map(esc).join(" → ")}</div>
           ${audioInfo}
+          ${speechStandardInfo}
         </div>
       </div>
       <div class="row" style="margin-top:12px">
-        <button class="s" onclick="showQR('${doc.id}','${esc(t.title||(isAdvanced?"進階評量":"評量"))}')">重新產生 QR</button>
+        <button class="s" onclick="showQR('${doc.id}','${esc(t.title||(isAdvanced?"進階評量":isReading?"問答模式(讀)":"拍照辨識模式"))}')">重新產生 QR</button>
         <button class="s" onclick="exportTaskCSV('${doc.id}')">匯出結果 CSV</button>
         <button class="w" onclick="clearTaskPhotos('${doc.id}')">只清除照片</button>
         <button class="d" onclick="delTask('${doc.id}')">完整刪除</button>
@@ -567,16 +612,16 @@ async function render(docs){
       : `<div style="margin-top:12px"><b>學生端點選紀錄（${resultDocs.length} 人）</b>${studentRecords||'<div class="small" style="padding:10px">尚無學生紀錄</div>'}</div>`;
     return `<div class="task clickTask">
       <div class="top"><div>
-        <span class="modeBadge">簡易點選練習模式</span>
+        <span class="modeBadge">點選模式(聽)</span>
         <div class="titleLine">
-          <div class="title">${esc(t.title||"未命名簡易點選練習")}</div>
+          <div class="title">${esc(t.title||"未命名點選模式(聽)")}</div>
           <button class="s restoreTeacherBtn" type="button" onclick="restoreTeacherPlatform('${doc.id}')">回復教師平台</button>
         </div>
-        <div class="meta">物品：${(t.targetClasses||[]).map(esc).join("、")}</div>
-        <div class="meta">每個物品出現 ${Number(t.clickRepeatCount||3)} 次｜每次最多 ${Number(t.clickDisplaySeconds||5)} 秒</div>
+        <div class="meta">文字：${(t.targetClasses||[]).map(esc).join("、")}</div>
+        <div class="meta">每個文字出現 ${Number(t.clickRepeatCount||3)} 次｜每次最多 ${Number(t.clickDisplaySeconds||5)} 秒</div>
       </div></div>
       <div class="row" style="margin-top:12px">
-        <button class="s" onclick="showQR('${doc.id}','${esc(t.title||"簡易點選練習")}')">重新產生 QR</button>
+        <button class="s" onclick="showQR('${doc.id}','${esc(t.title||"點選模式(聽)")}')">重新產生 QR</button>
         <button class="s" onclick="exportTaskCSV('${doc.id}')">匯出結果 CSV</button>
         <button class="d" onclick="delTask('${doc.id}')">完整刪除</button>
       </div>
@@ -586,25 +631,37 @@ async function render(docs){
 
   const renderHanziTask=async doc=>{
     const t=doc.data();let resultDocs=[],resultError="";
+    const isSpeaking=t.taskMode==="speaking"||!!t.hanziSpeechEnabled;
+    const isPractice=!isSpeaking&&(t.hanziPracticeEnabled===undefined?!t.hanziWritingEnabled:!!t.hanziPracticeEnabled);
     try{
       resultDocs=[...getCachedTaskResultDocs(doc.id)].sort((a,b)=>Number(a.data().studentCode||999)-Number(b.data().studentCode||999));
     }catch(e){resultError=e.message||String(e)}
     const rows=resultDocs.map(r=>{
-      const d=r.data(),speech=[...new Set((d.incorrectAudioClasses||[]).filter(Boolean))];
+      const d=r.data();
+      const writtenWrong=[...new Set((d.incorrectClasses||[]).filter(Boolean))];
+      const spokenWrong=[...new Set((d.incorrectAudioClasses||[]).filter(Boolean))];
+      const incorrect=isSpeaking?spokenWrong:writtenWrong;
+      const studentInputs=formatStudentInputRecords(d);
       const skipped=Array.isArray(d.skippedClasses)?[...new Set(d.skippedClasses.filter(Boolean))]:[];
-      const audioField=d.audioItemErrorCounts&&typeof d.audioItemErrorCounts==="object"?"audioItemErrorCounts":"itemErrorCounts";
-      const {twoOnly,threeToFour,fiveOrMore}=getItemErrorGroups(d,audioField,speech,true);
+      const errorField=isSpeaking
+        ? (d.audioItemErrorCounts&&typeof d.audioItemErrorCounts==="object"?"audioItemErrorCounts":"itemErrorCounts")
+        : (d.imageItemErrorCounts&&typeof d.imageItemErrorCounts==="object"?"imageItemErrorCounts":"itemErrorCounts");
+      const {twoOnly,threeToFour,fiveOrMore}=getItemErrorGroups(d,errorField,incorrect,true);
+      const recognitionLabel=isSpeaking?"語音辨識":"書寫辨識";
       const errors=[
-        twoOnly.length?`語音辨識：<span class="lowErrorMark">⚠ 答錯 2 次：${twoOnly.map(esc).join("、")}</span>`:"",
-        threeToFour.length?`語音辨識：<span class="errorCountMark">⚠ 答錯 3～4 次：${threeToFour.map(esc).join("、")}</span>`:"",
-        fiveOrMore.length?`語音辨識：<span class="fiveWrongMark">⚠ 答錯 5 次以上：${fiveOrMore.map(esc).join("、")}</span>`:""
+        twoOnly.length?`${recognitionLabel}：<span class="lowErrorMark">⚠ 答錯 2 次：${twoOnly.map(esc).join("、")}</span>`:"",
+        threeToFour.length?`${recognitionLabel}：<span class="errorCountMark">⚠ 答錯 3～4 次：${threeToFour.map(esc).join("、")}</span>`:"",
+        fiveOrMore.length?`${recognitionLabel}：<span class="fiveWrongMark">⚠ 答錯 5 次以上：${fiveOrMore.map(esc).join("、")}</span>`:""
       ].filter(Boolean).join("<br>");
-      return `<div class="rr${fiveOrMore.length?" hasFiveWrong":twoOnly.length||threeToFour.length?" hasAnyError":""}"><span>${esc(d.studentName||"未命名")}</span><span>${Number(d.progress||0)}%</span><span>${resultStatusText(d.status)}</span><span>${errors||"—"}</span></div>`;
+      return `<div class="rr inputResultRow${fiveOrMore.length?" hasFiveWrong":twoOnly.length||threeToFour.length?" hasAnyError":""}"><span>${esc(d.studentName||"未命名")}</span><span>${Number(d.progress||0)}%</span><span>${resultStatusText(d.status)}</span><span>${errors||"—"}</span><span class="studentInputRecords">${studentInputs}</span></div>`;
     }).join("");
-    const resultSection=resultError?`<div class="status err">${esc(resultError)}</div>`:`<div style="margin-top:12px"><b>學生完成度（${resultDocs.length} 人）</b><div class="rr"><b>學生</b><b>進度</b><b>狀態</b><b>辨識錯誤</b></div>${rows||'<div class="small" style="padding:10px">尚無學生紀錄</div>'}</div>`;
-    const settings=t.hanziSpeechEnabled?`逐項完整文字語音辨識｜每題 ${Math.min(5,Math.max(1,Number(t.hanziRepeatCount||1)))} 次`:"中英文書寫練習連結";
+    const resultSection=resultError?`<div class="status err">${esc(resultError)}</div>`:`<div style="margin-top:12px"><b>學生完成度（${resultDocs.length} 人）</b><div class="rr inputResultRow"><b>學生</b><b>進度</b><b>狀態</b><b>辨識錯誤</b><b>學生輸入文字</b></div>${rows||'<div class="small" style="padding:10px">尚無學生紀錄</div>'}</div>`;
+    const settings=isSpeaking?`逐項完整文字語音辨識｜每題 ${Math.min(5,Math.max(1,Number(t.hanziRepeatCount||1)))} 次`:isPractice?"中英文書寫練習連結":"學生編號｜設備手寫輸入辨識｜結果回傳";
+    const speechStandardInfo=isSpeaking?speechRecognitionStandardInfo(t):"";
+    const autoSpeechInfo=isSpeaking?`<div class="meta">自動唸出題目：${t.disableAutoPromptSpeech?"停用":"啟用"}</div>`:"";
     const practiceText=Array.isArray(t.hanziTexts)&&t.hanziTexts.length?t.hanziTexts.join("、"):String(t.hanziText||"").trim()||(t.targetClasses||[]).join("");
-    return `<div class="task hanziTask"><div class="top"><div><span class="modeBadge">文字練習模式</span><div class="titleLine"><div class="title">${esc(t.title||"國字練習")}</div><button class="s restoreTeacherBtn" type="button" onclick="restoreTeacherPlatform('${doc.id}')">回復教師平台</button></div><div class="meta">練習文字：${esc(practiceText)}</div><div class="meta">練習方式：${settings}</div></div></div><div class="row" style="margin-top:12px"><button class="s" onclick="showQR('${doc.id}','${esc(t.title||"國字練習")}')">重新產生 QR</button><button class="s" onclick="exportTaskCSV('${doc.id}')">匯出結果 CSV</button><button class="d" onclick="delTask('${doc.id}')">完整刪除</button></div>${resultSection}</div>`;
+    const modeName=isSpeaking?"口語模式(說)":"書寫模式(寫)";
+    return `<div class="task ${isSpeaking?"speakingTask":"hanziTask"}"><div class="top"><div><span class="modeBadge">${modeName}</span><div class="titleLine"><div class="title">${esc(t.title||modeName)}</div><button class="s restoreTeacherBtn" type="button" onclick="restoreTeacherPlatform('${doc.id}')">回復教師平台</button></div><div class="meta">練習文字：${esc(practiceText)}</div><div class="meta">練習方式：${settings}</div>${speechStandardInfo}${autoSpeechInfo}</div></div><div class="row" style="margin-top:12px"><button class="s" onclick="showQR('${doc.id}','${esc(t.title||modeName)}')">重新產生 QR</button><button class="s" onclick="exportTaskCSV('${doc.id}')">匯出結果 CSV</button><button class="d" onclick="delTask('${doc.id}')">完整刪除</button></div>${resultSection}</div>`;
   };
 
   const sections=[];
@@ -616,13 +673,25 @@ async function render(docs){
   }
 
   if(hanziDocs.length){
-    sections.push('<section class="modeSection hanzi" data-mode="hanzi"><h2 class="modeTitle">文字練習模式</h2>');
+    sections.push('<section class="modeSection hanzi" data-mode="hanzi"><h2 class="modeTitle">書寫模式(寫)</h2>');
     const hanziHtml=await Promise.all(hanziDocs.map(renderHanziTask));
     sections.push(hanziHtml.join(""));sections.push('</section>');
   }
 
+  if(speakingDocs.length){
+    sections.push('<section class="modeSection speaking" data-mode="speaking"><h2 class="modeTitle">口語模式(說)</h2>');
+    const speakingHtml=await Promise.all(speakingDocs.map(renderHanziTask));
+    sections.push(speakingHtml.join(""));sections.push('</section>');
+  }
+
+  if(readingDocs.length){
+    sections.push('<section class="modeSection reading" data-mode="reading"><h2 class="modeTitle">問答模式(讀)</h2>');
+    const readingHtml=await Promise.all(readingDocs.map(renderEvaluationTask));
+    sections.push(readingHtml.join(""));sections.push('</section>');
+  }
+
   if(evaluationDocs.length){
-    sections.push('<section class="modeSection evaluation" data-mode="evaluation"><h2 class="modeTitle">評量模式資訊</h2>');
+    sections.push('<section class="modeSection evaluation" data-mode="evaluation"><h2 class="modeTitle">拍照辨識模式資訊</h2>');
     const evaluationHtml=await Promise.all(evaluationDocs.map(renderEvaluationTask));
     sections.push(evaluationHtml.join(""));
     sections.push('</section>');
@@ -642,7 +711,7 @@ async function render(docs){
   }
 
   if(clickDocs.length){
-    sections.push('<section class="modeSection click" data-mode="click"><h2 class="modeTitle">簡易點選練習模式</h2>');
+    sections.push('<section class="modeSection click" data-mode="click"><h2 class="modeTitle">點選模式(聽)</h2>');
     const clickHtml=await Promise.all(clickDocs.map(renderClickTask));
     sections.push(clickHtml.join(""));
     sections.push('</section>');
@@ -882,7 +951,7 @@ function csvErrorRange(data,min,max){
   const parts=[];
   const listed=new Set();
   if(hasTypedCounts){
-    const image=formatEntries("imageItemErrorCounts","拍照辨識：");
+    const image=formatEntries("imageItemErrorCounts",data.taskMode==="hanzi"?"書寫辨識：":"拍照辨識：");
     const audio=formatEntries("audioItemErrorCounts","語音辨識：");
     if(image.text)parts.push(image.text);
     if(audio.text)parts.push(audio.text);
@@ -909,17 +978,21 @@ function csvErrorRange(data,min,max){
 
 window.exportTaskCSV=async taskId=>{
   try{
-    const [taskSnap,resultDocs]=await Promise.all([
-      db.collection("tasks").doc(taskId).get(),
-      getTaskResultDocs(taskId)
-    ]);
+    const taskSnap=latestTaskDocs.find(doc=>doc.id===taskId);
+    const canUseResultCache=resultListenerReady&&resultTaskDocsForActiveMode().some(doc=>doc.id===taskId);
+    const resultDocs=canUseResultCache?[...getCachedTaskResultDocs(taskId)]:await getTaskResultDocs(taskId);
     if(!resultDocs.length){alert("此任務目前沒有學生結果可以匯出。");return}
-    const title=taskSnap.exists?(taskSnap.data().title||"任務結果"):"任務結果";
+    const title=taskSnap?(taskSnap.data().title||"任務結果"):"任務結果";
     const sorted=[...resultDocs].sort((a,b)=>Number(a.data().studentCode||999)-Number(b.data().studentCode||999));
     const header=["任務名稱","學生編號","學生名稱","完成進度","狀態","錯誤次數","錯誤 1～2 次","錯誤 3～4 次","錯誤 5 次以上","辨識錯誤項目","遊戲名次","點選答對次數","點選逾時次數","平均點選時間(秒)","開始時間","完成時間"];
     const rows=sorted.map(doc=>{
       const data=doc.data();
-      const incorrect=Array.isArray(data.incorrectClasses)?[...new Set(data.incorrectClasses.filter(Boolean))].join("、"):"";
+      const writtenWrong=Array.isArray(data.incorrectClasses)?[...new Set(data.incorrectClasses.filter(Boolean))]:[];
+      const spokenWrong=Array.isArray(data.incorrectAudioClasses)?[...new Set(data.incorrectAudioClasses.filter(Boolean))]:[];
+      const incorrect=[
+        writtenWrong.length?`寫錯：${writtenWrong.join("、")}`:"",
+        spokenWrong.length?`念錯：${spokenWrong.join("、")}`:""
+      ].filter(Boolean).join("；");
       return [
         title,data.studentCode||"",data.studentName||"",`${Number(data.progress||0)}%`,
         resultStatusText(data.status),Number(data.attempts||0),
@@ -953,6 +1026,16 @@ window.delTask=async id=>{
     alert("完整刪除失敗：\n"+(e.message||e)+"\n\n請重新整理後再試一次。");
   }
 };
+
+function releaseTaskPageListeners(event){
+  if(event&&event.persisted)return;
+  if(unsub){unsub();unsub=null}
+  stopResultListeners();
+  clearGamePlayerListeners();
+  if(resultRefreshTimer){clearTimeout(resultRefreshTimer);resultRefreshTimer=null}
+}
+window.addEventListener("pagehide",releaseTaskPageListeners);
+window.addEventListener("beforeunload",releaseTaskPageListeners);
 </script>
 </body>
 </html>

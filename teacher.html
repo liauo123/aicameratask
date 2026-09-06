@@ -75,10 +75,38 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
 .gameMode{background:#faf5ff;border-color:#c4b5fd;color:#6d28d9}
 .clickMode{background:#fff8ed;border-color:#fbbf24;color:#92400e}
 .hanziMode{background:#fff1f2;border-color:#fb7185;color:#9f1239}
+.speakingMode{background:#f0f7ff;border-color:#93c5fd;color:#1d4ed8}
+.readingMode{background:#ecfeff;border-color:#67e8f9;color:#0e7490}
+#clickModeCard{order:1}#speakingModeCard{order:2}#readingModeCard{order:3}#hanziModeCard{order:4}#teachMode{order:5}#createTaskCard{order:6}#advancedModeCard{order:7}#gameModeCard{order:8}
+#teachMode{display:none!important}
 .modeCard input{color:var(--ink)}.modeCard .status{background:rgba(255,255,255,.66);color:inherit}
-.teachMode .p{background:#2563eb}.modeCard#createTaskCard .p{background:#16a34a}.modeCard#advancedModeCard .p{background:#0f766e}.gameMode .p{background:#7c3aed}.clickMode .p{background:#d97706}.hanziMode .p{background:#dc2626}
+.teachMode .p{background:#2563eb}.modeCard#createTaskCard .p{background:#16a34a}.modeCard#advancedModeCard .p{background:#0f766e}.gameMode .p{background:#7c3aed}.clickMode .p{background:#d97706}.hanziMode .p{background:#dc2626}.speakingMode .p{background:#2563eb}.readingMode .p{background:#0891b2}
 .gameHint{font-size:13px;line-height:1.7;color:#6d28d9;margin:-4px 0 10px}
 .clickHint{font-size:13px;line-height:1.7;color:#92400e;margin:-4px 0 10px}
+.modeHint{font-size:13px;line-height:1.7;color:inherit;margin:-4px 0 10px}
+.speakingMode h2,.speakingMode .clickHint,.speakingMode .rangeSetting label{color:#1d4ed8}
+.speakingMode input:not([type="checkbox"]):not([type="range"]){border-color:#93c5fd;color:#1d4ed8}
+.speakingMode input::placeholder{color:#60a5fa}
+.speakingMode .rangeSetting{border-color:#93c5fd;background:rgba(239,246,255,.78)}
+.speakingMode .rangeSetting output{background:#dbeafe;color:#1d4ed8}
+.speakingMode .rangeSetting input[type="range"]{accent-color:#2563eb}
+.speakingMode .status{border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8}
+.speakingMode .modeSettings{border-color:#93c5fd;background:rgba(239,246,255,.78)}
+.speakingMode .modeSetting{color:#1d4ed8}
+.speakingTitleRow{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.speakingTitleRow h2{margin:0}
+.speechMatchingSettings{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:7px}
+.relaxedSpeechSetting{display:flex;align-items:center;justify-content:flex-end;gap:7px;color:#1d4ed8;font-size:13px;font-weight:900;line-height:1.45;cursor:pointer;text-align:right}
+.relaxedSpeechSetting input{width:auto;margin:0;accent-color:#2563eb;flex:0 0 auto}
+#createTaskCard .relaxedSpeechSetting{color:#166534}#createTaskCard .relaxedSpeechSetting input{accent-color:#16a34a}
+.readingMode .relaxedSpeechSetting{color:#0e7490}.readingMode .relaxedSpeechSetting input{accent-color:#0891b2}
+.gameMode .relaxedSpeechSetting{color:#6d28d9}.gameMode .relaxedSpeechSetting input{accent-color:#7c3aed}
+.hanziPracticeSetting{color:#991b1b}
+.hanziPracticeSetting input{width:auto;margin:0;accent-color:#dc2626;flex:0 0 auto}
+.hanziMode .modeSettings{border-color:#fda4af;background:rgba(255,241,242,.78)}
+.hanziPracticeDescription{padding-left:25px;color:#7f1d1d;font-size:13px;font-weight:750;line-height:1.65}
+#createTaskCard .modeSettings{background:#dcfce7;border-color:#86efac}
+#gameModeCard .modeSettings{background:#ede9fe;border-color:#c4b5fd}
 .removedMode{display:none!important}
 .modeSettings{display:grid;gap:8px;margin:11px 0;padding:11px 12px;border:1px solid rgba(148,163,184,.45);border-radius:11px;background:rgba(255,255,255,.72)}
 .modeSetting{display:flex;align-items:flex-start;gap:8px;color:var(--ink);font-size:13px;font-weight:850;line-height:1.55;cursor:pointer}.modeSetting input{width:auto;margin:3px 0 0;accent-color:currentColor;flex:0 0 auto}
@@ -99,7 +127,7 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
 </style>
 </head>
 <body>
-<header><div class="head"><div class="brand"><div class="brandMark">AI</div><div><h1>教師平台</h1><div class="small">建立教學與評量・產生學生 QR Code</div></div></div><div id="userArea" class="hidden"><span id="userEmail" class="small"></span> <a class="navBtn" href="task.html" target="_blank" rel="noopener noreferrer">教學評量遊戲列表</a> <button id="logoutBtn" class="s">登出</button></div></div></header>
+<header><div class="head"><div class="brand"><div class="brandMark">多</div><div><h1>教師平台</h1><div class="small">建立教學與評量・產生學生 QR Code</div></div></div><div id="userArea" class="hidden"><span id="userEmail" class="small"></span> <a class="navBtn" href="task.html" target="_blank" rel="noopener noreferrer">任務列表</a> <button id="logoutBtn" class="s">登出</button></div></div></header>
 <main>
 <section id="authCard" class="card">
   <h2>教師登入</h2>
@@ -132,42 +160,62 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
 
     <div class="rightStack">
       <section id="clickModeCard" class="card modeCard clickMode hidden">
-        <h2>簡易點選練習模式</h2>
-        <div id="clickModeHint" class="clickHint">需要點選的縮圖會顯示在學生畫面上方，1–3 種物品選項會隨機出現；點錯會顯示錯誤畫面與音效，教師端只保留答對、逾時與平均秒數摘要。</div>
-        <input id="clickTitle" placeholder="簡易點選練習名稱">
+        <h2>點選模式(聽)</h2>
+        <div id="clickModeHint" class="clickHint">有縮圖的文字會顯示縮圖，沒有縮圖時只顯示名稱文字；1–3 種文字選項會隨機出現。</div>
+        <input id="clickTitle" placeholder="點選模式(聽)名稱">
         <div class="rangeSetting">
-          <label for="clickDisplaySeconds">每次物品顯示時間</label>
+          <label for="clickDisplaySeconds">每次文字顯示時間</label>
           <output id="clickDisplaySecondsValue">5 秒</output>
           <input id="clickDisplaySeconds" type="range" min="3" max="8" step="1" value="5">
         </div>
         <div class="rangeSetting">
-          <label for="clickRepeatCount">每個物品出現次數</label>
+          <label for="clickRepeatCount">每個文字出現次數</label>
           <output id="clickRepeatCountValue">3 次</output>
           <input id="clickRepeatCount" type="range" min="3" max="5" step="1" value="3">
         </div>
         <div class="rangeSetting">
-          <label for="clickSimultaneousCount">同時出現物品種類</label>
+          <label for="clickSimultaneousCount">同時出現文字項目</label>
           <output id="clickSimultaneousCountValue">1 種</output>
           <input id="clickSimultaneousCount" type="range" min="1" max="3" step="1" value="1">
         </div>
-        <button id="createClickBtn" class="p" style="width:100%" disabled>產生簡易點選練習 QR</button>
+        <button id="createClickBtn" class="p" style="width:100%" disabled>產生點選模式(聽) QR</button>
         <div id="clickStatus" class="status">尚未建立。</div>
       </section>
 
       <section id="hanziModeCard" class="card modeCard hanziMode hidden">
-        <h2>文字練習模式</h2>
-        <div class="clickHint">未勾選時，中文字可逐字連結教育部筆順練習，英文字母可逐字連結英文描寫練習；勾選語音辨識後，每一個文字項目會成為一題完整語音辨識。</div>
-        <input id="hanziTaskTitle" placeholder="文字練習任務名稱">
+        <h2>書寫模式(寫)</h2>
+        <div class="modeHint">學生端設備需開啟手寫輸入。</div>
+        <input id="hanziTaskTitle" placeholder="書寫模式(寫)名稱">
         <div class="modeSettings">
-          <label class="modeSetting"><input id="hanziSpeechRecognition" type="checkbox">語音辨識</label>
+          <label class="modeSetting hanziPracticeSetting"><input id="hanziPracticeMode" type="checkbox">書寫練習</label>
+          <div class="hanziPracticeDescription">中文字可逐字連結教育部筆順練習，英文字母可逐字連結英文描寫練習。</div>
         </div>
-        <div class="rangeSetting">
-          <label for="hanziRepeatCount">每個題目重複次數</label>
-          <output id="hanziRepeatCountValue">1 次</output>
-          <input id="hanziRepeatCount" type="range" min="1" max="5" step="1" value="1">
-        </div>
-        <button id="createHanziBtn" class="p" style="width:100%" disabled>產生文字練習 QR</button>
+        <input id="hanziSpeechRecognition" type="checkbox" class="hidden" aria-hidden="true">
+        <input id="hanziRepeatCount" type="hidden" value="1">
+        <output id="hanziRepeatCountValue" class="hidden">1 次</output>
+        <button id="createHanziBtn" class="p" style="width:100%" disabled>產生書寫模式(寫) QR</button>
         <div id="hanziStatus" class="status">尚未建立。</div>
+      </section>
+
+      <section id="speakingModeCard" class="card modeCard speakingMode hidden">
+        <div class="speakingTitleRow">
+          <h2>口語模式(說)</h2>
+          <div class="speechMatchingSettings">
+            <label class="relaxedSpeechSetting"><input id="relaxedSpeechRecognition" type="checkbox">放寬語音辨識標準</label>
+            <label class="relaxedSpeechSetting" title="開啟日常生活近義詞與語意關鍵詞辨識；主要詞、否定詞及方向仍須正確"><input id="fuzzySpeechRecognition" type="checkbox">語音模糊辨識</label>
+            <label class="relaxedSpeechSetting"><input id="speakingDisableAutoSpeech" type="checkbox">停用自動唸出語音</label>
+          </div>
+        </div>
+        <div class="clickHint">每一個勾選的文字項目會成為一題完整語音辨識。</div>
+        <input id="speakingTaskTitle" placeholder="口語模式(說)名稱">
+        <input id="speakingSpeechRecognition" type="checkbox" class="hidden" checked aria-hidden="true">
+        <div class="rangeSetting">
+          <label for="speakingRepeatCount">每個題目重複次數</label>
+          <output id="speakingRepeatCountValue">1 次</output>
+          <input id="speakingRepeatCount" type="range" min="1" max="5" step="1" value="1">
+        </div>
+        <button id="createSpeakingBtn" class="p" style="width:100%" disabled>產生口語模式(說) QR</button>
+        <div id="speakingStatus" class="status">尚未建立。</div>
       </section>
 
       <section id="teachMode" class="card modeCard teachMode hidden">
@@ -178,8 +226,15 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
       </section>
 
       <section id="createTaskCard" class="card modeCard hidden">
-        <h2>評量模式</h2>
-        <input id="taskTitle" placeholder="評量模式名稱">
+        <div class="speakingTitleRow">
+          <h2>拍照辨識模式</h2>
+          <div class="speechMatchingSettings">
+            <label class="relaxedSpeechSetting"><input id="evaluationRelaxedSpeechRecognition" type="checkbox">放寬語音辨識標準</label>
+            <label class="relaxedSpeechSetting" title="開啟日常生活近義詞與語意關鍵詞辨識；主要詞、否定詞及方向仍須正確"><input id="evaluationFuzzySpeechRecognition" type="checkbox">語音模糊辨識</label>
+          </div>
+        </div>
+        <div class="modeHint">需配合載入文字或圖片方式，使用拍照功能進行文字或圖片(實物)辨識，可勾選下列選項增加功能。</div>
+        <input id="taskTitle" placeholder="拍照辨識模式名稱">
         <div class="modeSettings">
           <label class="modeSetting"><input id="evaluationDescriptionPrompt" type="checkbox">說明文字出題</label>
           <label id="evaluationNameTextSetting" class="modeSetting hidden"><input id="evaluationShowNameText" type="checkbox">顯示名稱文字</label>
@@ -187,8 +242,25 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
           <label class="modeSetting"><input id="evaluationSpeechRecognition" type="checkbox">語音辨識</label>
           <label id="evaluationSkipPhotoSetting" class="modeSetting hidden"><input id="evaluationSkipPhotoRecognition" type="checkbox">取消拍照辨識</label>
         </div>
-        <button id="createBtn" class="p" style="width:100%" disabled>產生評量 QR</button>
+        <button id="createBtn" class="p" style="width:100%" disabled>產生拍照辨識 QR</button>
         <div id="createStatus" class="status">尚未建立。</div>
+      </section>
+
+      <section id="readingModeCard" class="card modeCard readingMode hidden">
+        <div class="speakingTitleRow">
+          <h2>問答模式(讀)</h2>
+          <div class="speechMatchingSettings">
+            <label class="relaxedSpeechSetting"><input id="readingRelaxedSpeechRecognition" type="checkbox">放寬語音辨識標準</label>
+            <label class="relaxedSpeechSetting" title="開啟日常生活近義詞與語意關鍵詞辨識；主要詞、否定詞及方向仍須正確"><input id="readingFuzzySpeechRecognition" type="checkbox">語音模糊辨識</label>
+          </div>
+        </div>
+        <div class="modeHint">每一個勾選的文字項目，需填寫說明文字才會成為一題完整語音回答辨識。</div>
+        <input id="readingTitle" placeholder="問答模式(讀)名稱">
+        <input id="readingDescriptionPrompt" type="checkbox" class="hidden" checked aria-hidden="true">
+        <input id="readingThumbnailHint" type="checkbox" class="hidden" checked aria-hidden="true">
+        <input id="readingSpeechRecognition" type="checkbox" class="hidden" checked aria-hidden="true">
+        <button id="createReadingBtn" class="p" style="width:100%" disabled>產生問答模式(讀) QR</button>
+        <div id="readingStatus" class="status">尚未建立。</div>
       </section>
 
       <section id="advancedModeCard" class="card modeCard removedMode hidden" aria-hidden="true">
@@ -199,8 +271,14 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
       </section>
 
       <section id="gameModeCard" class="card modeCard gameMode hidden">
-        <h2>多人遊戲模式</h2>
-        <div class="gameHint">學生掃描 QR、選擇號碼並等待教師同意；教師統一開始後，依拍照辨識完成順序即時排名。</div>
+        <div class="speakingTitleRow">
+          <h2>多人遊戲模式</h2>
+          <div class="speechMatchingSettings">
+            <label class="relaxedSpeechSetting"><input id="gameRelaxedSpeechRecognition" type="checkbox">放寬語音辨識標準</label>
+            <label class="relaxedSpeechSetting" title="開啟日常生活近義詞與語意關鍵詞辨識；主要詞、否定詞及方向仍須正確"><input id="gameFuzzySpeechRecognition" type="checkbox">語音模糊辨識</label>
+          </div>
+        </div>
+        <div class="gameHint">學生掃描 QR、選擇號碼並等待教師同意；教師統一開始後，依拍照辨識或語音辨識回答，完成順序即時排名。</div>
         <input id="gameTitle" placeholder="遊戲名稱或題目名稱">
         <div class="modeSettings">
           <label class="modeSetting"><input id="gameDescriptionPrompt" type="checkbox">說明文字出題</label>
@@ -220,7 +298,11 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
 <div id="qrModal" class="modal hidden"><div class="box"><h3 id="qrTitle">任務 QR Code</h3><div id="qrCode"></div><div id="qrURL" class="url"></div><div class="row"><button id="copyBtn" class="p">複製網址</button><button id="closeBtn" class="s">關閉</button></div></div></div>
 <script>
 const firebaseConfig={apiKey:"AIzaSyBbpIezLbQd2-e-3Z4pSdBLIFc_UlTPUy8",authDomain:"project-6540500202923576846.firebaseapp.com",projectId:"project-6540500202923576846",storageBucket:"project-6540500202923576846.firebasestorage.app",messagingSenderId:"516602165604",appId:"1:516602165604:web:b60f69ee56a4d49c416271"};
-firebase.initializeApp(firebaseConfig);const auth=firebase.auth(),db=firebase.firestore();let user=null,model=null,modelURL="",labels=[],unsub=null,classThumbnails={};
+firebase.initializeApp(firebaseConfig);const auth=firebase.auth(),db=firebase.firestore();
+const firestorePersistenceReady=db.enablePersistence({synchronizeTabs:true}).catch(error=>{
+  if(!["failed-precondition","unimplemented"].includes(error.code))console.warn("Firestore 本機快取啟用失敗：",error);
+});
+let user=null,model=null,modelURL="",labels=[],unsub=null,classThumbnails={};
 const $=id=>document.getElementById(id);const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));function status(id,msg,type=""){const e=$(id);e.textContent=msg;e.className="status "+type}
 const TEACHER_DRAFT_PREFIX="teacherInputDraftV1:";
 let restoringTeacherDraft=false,teacherDraftSaveTimer=null;
@@ -283,17 +365,32 @@ function saveTeacherDraft(){
     gameTitle:$("gameTitle").value,
     evaluationDescriptionPrompt:$("evaluationDescriptionPrompt").checked,
     evaluationSpeechRecognition:$("evaluationSpeechRecognition").checked,
+    evaluationFuzzySpeechRecognition:$("evaluationFuzzySpeechRecognition").checked,
+    evaluationRelaxedSpeechRecognition:$("evaluationRelaxedSpeechRecognition").checked,
     evaluationSkipPhotoRecognition:$("evaluationSkipPhotoRecognition").checked,
     evaluationShowNameText:$("evaluationShowNameText").checked,
     evaluationThumbnailHint:$("evaluationThumbnailHint").checked,
     gameDescriptionPrompt:$("gameDescriptionPrompt").checked,
     gameSpeechRecognition:$("gameSpeechRecognition").checked,
+    gameFuzzySpeechRecognition:$("gameFuzzySpeechRecognition").checked,
+    gameRelaxedSpeechRecognition:$("gameRelaxedSpeechRecognition").checked,
     gameSkipPhotoRecognition:$("gameSkipPhotoRecognition").checked,
     gameShowNameText:$("gameShowNameText").checked,
     gameThumbnailHint:$("gameThumbnailHint").checked,
     hanziTaskTitle:$("hanziTaskTitle").value,
-    hanziSpeechRecognition:$("hanziSpeechRecognition").checked,
-    hanziRepeatCount:Number($("hanziRepeatCount").value||1),
+    hanziPracticeMode:$("hanziPracticeMode").checked,
+    hanziSpeechRecognition:false,
+    hanziRepeatCount:1,
+    speakingTaskTitle:$("speakingTaskTitle").value,
+    speakingRepeatCount:Number($("speakingRepeatCount").value||1),
+    speakingDisableAutoSpeech:$("speakingDisableAutoSpeech").checked,
+    fuzzySpeechRecognition:$("fuzzySpeechRecognition").checked,
+    relaxedSpeechRecognition:$("relaxedSpeechRecognition").checked,
+    readingTitle:$("readingTitle").value,
+    readingFuzzySpeechRecognition:$("readingFuzzySpeechRecognition").checked,
+    readingRelaxedSpeechRecognition:$("readingRelaxedSpeechRecognition").checked,
+    readingDescriptionPrompt:$("readingDescriptionPrompt").checked,
+    readingThumbnailHint:$("readingThumbnailHint").checked,
     clickTitle:$("clickTitle").value,
     clickDisplaySeconds:Number($("clickDisplaySeconds").value||5),
     clickRepeatCount:Number($("clickRepeatCount").value||3),
@@ -336,20 +433,38 @@ function restoreTeacherDraftBase(){
   $("gameTitle").value=String(draft.gameTitle||"");
   $("evaluationDescriptionPrompt").checked=!!draft.evaluationDescriptionPrompt;
   $("evaluationSpeechRecognition").checked=!!draft.evaluationSpeechRecognition;
+  $("evaluationFuzzySpeechRecognition").checked=!!draft.evaluationFuzzySpeechRecognition;
+  $("evaluationRelaxedSpeechRecognition").checked=!!draft.evaluationRelaxedSpeechRecognition;
   $("evaluationSkipPhotoRecognition").checked=getSelectedRecognitionEngine()==="ocr"&&!!draft.evaluationSkipPhotoRecognition;
   if($("evaluationSkipPhotoRecognition").checked)$("evaluationSpeechRecognition").checked=true;
   $("evaluationShowNameText").checked=getSelectedRecognitionEngine()==="ocr"&&!!draft.evaluationShowNameText;
   $("evaluationThumbnailHint").checked=!!draft.evaluationThumbnailHint;
   $("gameDescriptionPrompt").checked=!!draft.gameDescriptionPrompt;
   $("gameSpeechRecognition").checked=!!draft.gameSpeechRecognition;
+  $("gameFuzzySpeechRecognition").checked=!!draft.gameFuzzySpeechRecognition;
+  $("gameRelaxedSpeechRecognition").checked=!!draft.gameRelaxedSpeechRecognition;
   $("gameSkipPhotoRecognition").checked=getSelectedRecognitionEngine()==="ocr"&&!!draft.gameSkipPhotoRecognition;
   if($("gameSkipPhotoRecognition").checked)$("gameSpeechRecognition").checked=true;
   $("gameShowNameText").checked=getSelectedRecognitionEngine()==="ocr"&&!!draft.gameShowNameText;
   $("gameThumbnailHint").checked=!!draft.gameThumbnailHint;
   $("hanziTaskTitle").value=String(draft.hanziTaskTitle||"");
-  $("hanziSpeechRecognition").checked=!!draft.hanziSpeechRecognition;
-  $("hanziRepeatCount").value=String(Math.min(5,Math.max(1,Number(draft.hanziRepeatCount||1))));
+  $("hanziPracticeMode").checked=!!draft.hanziPracticeMode;
+  $("hanziSpeechRecognition").checked=false;
+  $("hanziRepeatCount").value="1";
   updateHanziRepeatLabel();
+  $("speakingTaskTitle").value=String(draft.speakingTaskTitle||"");
+  $("speakingSpeechRecognition").checked=true;
+  $("speakingRepeatCount").value=String(Math.min(5,Math.max(1,Number(draft.speakingRepeatCount||1))));
+  $("speakingDisableAutoSpeech").checked=!!draft.speakingDisableAutoSpeech;
+  $("fuzzySpeechRecognition").checked=!!draft.fuzzySpeechRecognition;
+  $("relaxedSpeechRecognition").checked=!!draft.relaxedSpeechRecognition;
+  updateSpeakingRepeatLabel();
+  $("readingTitle").value=String(draft.readingTitle||"");
+  $("readingDescriptionPrompt").checked=true;
+  $("readingThumbnailHint").checked=true;
+  $("readingSpeechRecognition").checked=true;
+  $("readingFuzzySpeechRecognition").checked=!!draft.readingFuzzySpeechRecognition;
+  $("readingRelaxedSpeechRecognition").checked=!!draft.readingRelaxedSpeechRecognition;
   $("clickTitle").value=String(draft.clickTitle||"");
   $("clickDisplaySeconds").value=String(Math.min(8,Math.max(3,Number(draft.clickDisplaySeconds||5))));
   $("clickRepeatCount").value=String(Math.min(5,Math.max(3,Number(draft.clickRepeatCount||3))));
@@ -394,7 +509,7 @@ function restoreClassDraft(){
   restoringTeacherDraft=false;
   return true;
 }
-auth.onAuthStateChanged(async u=>{user=u;if(u){$("authCard").classList.add("hidden");$("app").classList.remove("hidden");$("userArea").classList.remove("hidden");$("userEmail").textContent=u.email||"教師";restoreTeacherDraftBase();const restoreTaskId=new URLSearchParams(location.search).get("restoreTask");if(restoreTaskId)await restoreTaskFromTaskList(restoreTaskId)}else{$("authCard").classList.remove("hidden");$("app").classList.add("hidden");$("userArea").classList.add("hidden")}});
+auth.onAuthStateChanged(async u=>{user=u;if(u){await firestorePersistenceReady;if(user!==u)return;$("authCard").classList.add("hidden");$("app").classList.remove("hidden");$("userArea").classList.remove("hidden");$("userEmail").textContent=u.email||"教師";restoreTeacherDraftBase();const restoreTaskId=new URLSearchParams(location.search).get("restoreTask");if(restoreTaskId)await restoreTaskFromTaskList(restoreTaskId)}else{$("authCard").classList.remove("hidden");$("app").classList.add("hidden");$("userArea").classList.add("hidden")}});
 $("loginBtn").onclick=async()=>{try{await auth.signInWithEmailAndPassword($("email").value.trim(),$("password").value)}catch(e){status("authStatus","登入失敗：\n"+e.message,"err")}};
 $("logoutBtn").onclick=()=>{saveTeacherDraft();auth.signOut()};
 function getSelectedRecognitionEngine(){
@@ -426,9 +541,7 @@ function syncRecognitionEngineUI(){
     $("evaluationSkipPhotoRecognition").checked=false;
     $("gameSkipPhotoRecognition").checked=false;
   }
-  $("clickModeHint").textContent=isOcr
-    ? "需要點選的目標文字會顯示在學生畫面上方；有設定縮圖時會與文字一起出現，沒有縮圖時只顯示文字。1–3 個文字選項會隨機出現。"
-    : "有縮圖的物品會顯示縮圖，沒有縮圖時只顯示名稱文字；1–3 種物品選項會隨機出現。點錯會顯示錯誤畫面與音效，教師端只保留答對、逾時與平均秒數摘要。";
+  $("clickModeHint").textContent="有縮圖的文字會顯示縮圖，沒有縮圖時只顯示名稱文字；1–3 種文字選項會隨機出現。";
   $("loadModelBtn").textContent=isOcr?"載入文字辨識":"載入模型";
   status("modelStatus",isOcr?"請輸入要辨識的文字，一行一項。":"尚未載入模型。");
 }
@@ -439,6 +552,8 @@ $("loadModelBtn").onclick=async()=>{
   $("gameModeCard").classList.add("hidden");
   $("clickModeCard").classList.add("hidden");
   $("hanziModeCard").classList.add("hidden");
+  $("speakingModeCard").classList.add("hidden");
+  $("readingModeCard").classList.add("hidden");
   const engine=getSelectedRecognitionEngine();
   modelURL=engine==="ocr"?"":$("modelURL").value.trim();
   if(engine==="teachable-machine"&&!modelURL)return status("modelStatus","請輸入模型網址。","err");
@@ -462,12 +577,16 @@ $("loadModelBtn").onclick=async()=>{
     $("createGameBtn").disabled=false;
     $("createClickBtn").disabled=false;
     $("createHanziBtn").disabled=false;
+    $("createSpeakingBtn").disabled=false;
+    $("createReadingBtn").disabled=false;
     $("teachMode").classList.remove("hidden");
     $("advancedModeCard").classList.remove("hidden");
     $("createTaskCard").classList.remove("hidden");
     $("gameModeCard").classList.remove("hidden");
     $("clickModeCard").classList.remove("hidden");
     $("hanziModeCard").classList.remove("hidden");
+    $("speakingModeCard").classList.remove("hidden");
+    $("readingModeCard").classList.remove("hidden");
     status("modelStatus",engine==="ocr"
       ? "文字辨識已載入，共 "+labels.length+" 項文字。可拖拉調整順序並選擇性加入縮圖。"
       : "模型載入成功，共 "+labels.length+" 類。可拖拉或點擊加入縮圖。","ok");
@@ -485,8 +604,10 @@ async function restoreTaskFromTaskList(taskId){
     const task=snap.data()||{};
     if(task.teacherId&&task.teacherId!==user.uid)throw new Error("這不是目前登入教師建立的任務。");
 
-    const taskMode=["teaching","advanced","game","click","hanzi"].includes(task.taskMode)
-      ? task.taskMode
+    const storedTaskMode=task.taskMode;
+    const normalizedTaskMode=storedTaskMode==="hanzi"&&task.hanziSpeechEnabled?"speaking":storedTaskMode;
+    const taskMode=["teaching","advanced","game","click","hanzi","speaking","reading"].includes(normalizedTaskMode)
+      ? normalizedTaskMode
       : "evaluation";
     const savedDraft=readTeacherDraft();
     const savedDraftItems=(
@@ -503,11 +624,13 @@ async function restoreTaskFromTaskList(taskId){
     $("gameModeCard").classList.add("hidden");
     $("clickModeCard").classList.add("hidden");
     $("hanziModeCard").classList.add("hidden");
-    $("recognitionEngine").value=taskMode==="hanzi"
+    $("speakingModeCard").classList.add("hidden");
+    $("readingModeCard").classList.add("hidden");
+    $("recognitionEngine").value=["hanzi","speaking"].includes(taskMode)
       ? (task.modelURL?"teachable-machine":"ocr")
       : task.recognitionEngine==="ocr"?"ocr":"teachable-machine";
     $("modelURL").value=String(task.modelURL||"");
-    $("ocrKeywords").value=taskMode==="hanzi"
+    $("ocrKeywords").value=["hanzi","speaking"].includes(taskMode)
       ? (Array.isArray(task.hanziTexts)&&task.hanziTexts.length
         ? task.hanziTexts.join("\n")
         : String(task.hanziText||"")||(Array.isArray(task.targetClasses)?task.targetClasses.join("\n"):""))
@@ -515,15 +638,39 @@ async function restoreTaskFromTaskList(taskId){
       ? task.targetClasses.join("\n")
       : "";
     syncRecognitionEngineUI();
+    $("relaxedSpeechRecognition").checked=taskMode==="speaking"&&!!task.relaxedSpeechRecognition;
+    $("fuzzySpeechRecognition").checked=taskMode==="speaking"&&!!task.fuzzySpeechRecognition;
+    $("speakingDisableAutoSpeech").checked=taskMode==="speaking"&&!!task.disableAutoPromptSpeech;
+    $("readingRelaxedSpeechRecognition").checked=taskMode==="reading"&&!!task.relaxedSpeechRecognition;
+    $("readingFuzzySpeechRecognition").checked=taskMode==="reading"&&!!task.fuzzySpeechRecognition;
+    $("evaluationRelaxedSpeechRecognition").checked=taskMode==="evaluation"&&!!task.relaxedSpeechRecognition;
+    $("evaluationFuzzySpeechRecognition").checked=taskMode==="evaluation"&&!!task.fuzzySpeechRecognition;
+    $("gameRelaxedSpeechRecognition").checked=taskMode==="game"&&!!task.relaxedSpeechRecognition;
+    $("gameFuzzySpeechRecognition").checked=taskMode==="game"&&!!task.fuzzySpeechRecognition;
     if(taskMode==="teaching")$("teachingTitle").value=String(task.title||"");
     if(taskMode==="evaluation")$("taskTitle").value=String(task.title||"");
     if(taskMode==="advanced")$("advancedTitle").value=String(task.title||"");
     if(taskMode==="game")$("gameTitle").value=String(task.title||"");
     if(taskMode==="hanzi"){
       $("hanziTaskTitle").value=String(task.title||"").replace(/^(?:國字|文字)練習：/,"");
-      $("hanziSpeechRecognition").checked=!!task.hanziSpeechEnabled;
-      $("hanziRepeatCount").value=String(Math.min(5,Math.max(1,Number(task.hanziRepeatCount||1))));
+      $("hanziPracticeMode").checked=task.hanziPracticeEnabled===undefined
+        ? !task.hanziWritingEnabled
+        : !!task.hanziPracticeEnabled;
+      $("hanziSpeechRecognition").checked=false;
+      $("hanziRepeatCount").value="1";
       updateHanziRepeatLabel();
+    }
+    if(taskMode==="speaking"){
+      $("speakingTaskTitle").value=String(task.title||"");
+      $("speakingSpeechRecognition").checked=true;
+      $("speakingRepeatCount").value=String(Math.min(5,Math.max(1,Number(task.hanziRepeatCount||1))));
+      updateSpeakingRepeatLabel();
+    }
+    if(taskMode==="reading"){
+      $("readingTitle").value=String(task.title||"");
+      $("readingDescriptionPrompt").checked=true;
+      $("readingThumbnailHint").checked=true;
+      $("readingSpeechRecognition").checked=true;
     }
     if(taskMode==="evaluation"){
       $("evaluationDescriptionPrompt").checked=task.promptMode==="description";
@@ -555,13 +702,16 @@ async function restoreTaskFromTaskList(taskId){
     restoringTeacherDraft=false;
 
     await $("loadModelBtn").onclick();
-    if(!model||!labels.length)throw new Error(task.recognitionEngine==="ocr"||taskMode==="hanzi"
+    if(!model||!labels.length)throw new Error(task.recognitionEngine==="ocr"||["hanzi","speaking"].includes(taskMode)
       ? "文字項目未能成功載入。"
       : "辨識模型未能成功載入，請確認模型網址及網路連線。");
 
     restoringTeacherDraft=true;
     const targets=Array.isArray(task.targetClasses)?task.targetClasses.filter(Boolean):[];
-    const targetSet=new Set(targets);
+    const selectableTargets=taskMode==="hanzi"&&Array.isArray(task.hanziTexts)&&task.hanziTexts.length
+      ? task.hanziTexts.filter(Boolean)
+      : targets;
+    const targetSet=new Set(selectableTargets);
     const descriptions=task.classDescriptions&&typeof task.classDescriptions==="object"
       ? task.classDescriptions
       : {};
@@ -573,7 +723,7 @@ async function restoreTaskFromTaskList(taskId){
     const boxes=[...container.querySelectorAll(".classBox")];
     const byLabel=new Map(boxes.map(item=>[item.dataset.label,item]));
 
-    targets.forEach(label=>{
+    selectableTargets.forEach(label=>{
       const item=byLabel.get(label);
       if(item)container.appendChild(item);
     });
@@ -610,7 +760,11 @@ async function restoreTaskFromTaskList(taskId){
     restoringTeacherDraft=false;
     saveTeacherDraft();
     status("modelStatus",taskMode==="hanzi"
-      ? "文字練習設定已回復。"
+      ? "書寫模式(寫)設定已回復。"
+      : taskMode==="speaking"
+      ? "口語模式(說)設定已回復。"
+      : taskMode==="reading"
+      ? "問答模式(讀)設定已回復。"
       : task.recognitionEngine==="ocr"
       ? "文字辨識任務設定已回復。已載入文字項目、縮圖、說明及語音辨識勾選狀態。"
       : "任務設定已回復。已載入物品縮圖、說明及語音辨識勾選狀態。","ok");
@@ -800,17 +954,23 @@ function getAudioTargets(mode,selectedTargets){
     return selectedSet.has(item.dataset.label)&&checkbox&&checkbox.checked;
   }).map(item=>item.dataset.label);
 }
-function getRecognitionTaskFields(){
+function getRecognitionTaskFields(_targets,relaxedSpeechRecognition=false,fuzzySpeechRecognition=false){
+  relaxedSpeechRecognition=!!relaxedSpeechRecognition;
+  fuzzySpeechRecognition=!!fuzzySpeechRecognition;
   if(getSelectedRecognitionEngine()==="ocr"){
     return {
       recognitionEngine:"ocr",
       ocrLanguages:["chi_tra","eng"],
       ocrMatchMode:"contains",
+      relaxedSpeechRecognition,
+      fuzzySpeechRecognition,
       threshold:0.50
     };
   }
   return {
     recognitionEngine:"teachable-machine",
+    relaxedSpeechRecognition,
+    fuzzySpeechRecognition,
     threshold:0.85
   };
 }
@@ -844,7 +1004,7 @@ async function createTeachingModeQR(){
       teacherEmail:user.email||"",
       title:teachingTitle,
       modelURL:modelURL,
-      ...getRecognitionTaskFields(labels),
+      ...getRecognitionTaskFields(labels,false),
       targetClasses:[...labels],
       classDescriptions:getClassDescriptions(false),
       classThumbnails:getClassThumbnails(false),
@@ -911,7 +1071,7 @@ async function createAdvancedEvaluationQR(){
       teacherEmail:user.email||"",
       title,
       modelURL,
-      ...getRecognitionTaskFields(targets),
+      ...getRecognitionTaskFields(targets,false),
       targetClasses:targets,
       classDescriptions:getClassDescriptions(false),
       classThumbnails:getClassThumbnails(false),
@@ -968,7 +1128,7 @@ async function createGameModeQR(){
       teacherEmail:user.email||"",
       title,
       modelURL,
-      ...getRecognitionTaskFields(targets),
+      ...getRecognitionTaskFields(targets,$("gameRelaxedSpeechRecognition").checked,$("gameFuzzySpeechRecognition").checked),
       targetClasses:targets,
       classDescriptions:getClassDescriptions(false),
       classThumbnails:getClassThumbnails(false),
@@ -1015,19 +1175,19 @@ async function createClickModeQR(){
   const clickDisplaySeconds=Math.min(8,Math.max(3,Number($("clickDisplaySeconds").value||5)));
   const clickRepeatCount=Math.min(5,Math.max(3,Number($("clickRepeatCount").value||3)));
   const clickSimultaneousCount=Math.min(3,Math.max(1,Number($("clickSimultaneousCount").value||1)));
-  if(!title)return status("clickStatus","請輸入簡易點選練習名稱。","err");
-  if(!targets.length)return status("clickStatus","請至少勾選一項物品。","err");
-  if(targets.length<clickSimultaneousCount)return status("clickStatus",`同時出現 ${clickSimultaneousCount} 種物品時，請至少勾選 ${clickSimultaneousCount} 項物品。`,"err");
+  if(!title)return status("clickStatus","請輸入點選模式(聽)名稱。","err");
+  if(!targets.length)return status("clickStatus","請至少勾選一項文字。","err");
+  if(targets.length<clickSimultaneousCount)return status("clickStatus",`同時出現 ${clickSimultaneousCount} 個文字項目時，請至少勾選 ${clickSimultaneousCount} 項文字。`,"err");
   if(!user)return status("clickStatus","請先登入教師帳號。","err");
   $("createClickBtn").disabled=true;
-  status("clickStatus","正在建立簡易點選練習…");
+  status("clickStatus","正在建立點選模式(聽)…");
   try{
     const ref=await db.collection("tasks").add({
       teacherId:user.uid,
       teacherEmail:user.email||"",
       title,
       modelURL,
-      ...getRecognitionTaskFields(targets),
+      ...getRecognitionTaskFields(targets,false),
       targetClasses:targets,
       classDescriptions:getClassDescriptions(false),
       classThumbnails:getClassThumbnails(false),
@@ -1041,10 +1201,10 @@ async function createClickModeQR(){
       version:"2.9-simultaneous-click",
       createdAt:firebase.firestore.FieldValue.serverTimestamp()
     });
-    status("clickStatus",`簡易點選練習建立成功！\n同時出現 ${clickSimultaneousCount} 種物品，每個物品出現 ${clickRepeatCount} 次，每次最多 ${clickDisplaySeconds} 秒。\nTask ID：${ref.id}`,"ok");
+    status("clickStatus",`點選模式(聽)建立成功！\n同時出現 ${clickSimultaneousCount} 個文字項目，每個文字出現 ${clickRepeatCount} 次，每次最多 ${clickDisplaySeconds} 秒。\nTask ID：${ref.id}`,"ok");
     showQR(ref.id,title);
   }catch(e){
-    status("clickStatus","建立簡易點選練習失敗：\n"+(e.message||e),"err");
+    status("clickStatus","建立點選模式(聽)失敗：\n"+(e.message||e),"err");
   }finally{
     $("createClickBtn").disabled=false;
   }
@@ -1076,19 +1236,20 @@ async function createHanziModeQR(){
   const selectedTexts=getSelectedClassesInCurrentOrder();
   const hanziTexts=labels.length?selectedTexts:typedTexts;
   const chars=getHanziCharacters(hanziTexts);
-  const speechEnabled=$("hanziSpeechRecognition").checked;
-  const hanziRepeatCount=Math.min(5,Math.max(1,Number($("hanziRepeatCount").value||1)));
-  if(!title)return status("hanziStatus","請輸入文字練習任務名稱。","err");
+  const practiceEnabled=$("hanziPracticeMode").checked;
+  const speechEnabled=false;
+  const hanziRepeatCount=1;
+  if(!title)return status("hanziStatus","請輸入書寫模式(寫)名稱。","err");
   if(!labels.length&&!hanziTexts.length)return status("hanziStatus","請先在上方輸入文字並按下「載入文字辨識」。","err");
   if(labels.length&&!hanziTexts.length)return status("hanziStatus","請至少勾選一個要出題的文字項目。","err");
-  if(!speechEnabled&&!chars.length)return status("hanziStatus","書寫練習內容需包含至少一個中文字或英文字母。","err");
+  if(!speechEnabled&&!chars.length)return status("hanziStatus","書寫內容需包含至少一個中文字或英文字母。","err");
   if(!user)return status("hanziStatus","請先登入教師帳號。","err");
   const hanziQuestionSequence=speechEnabled
     ? hanziTexts.flatMap(text=>Array(hanziRepeatCount).fill(text))
     : [];
-  const targets=speechEnabled?hanziQuestionSequence:chars;
+  const targets=chars;
   $("createHanziBtn").disabled=true;
-  status("hanziStatus","正在建立文字練習…");
+  status("hanziStatus","正在建立書寫模式(寫)…");
   try{
     const ref=await db.collection("tasks").add({
       teacherId:user.uid,
@@ -1103,7 +1264,8 @@ async function createHanziModeQR(){
       hanziText:hanziTexts.join("\n"),
       hanziTexts,
       hanziQuestionSequence,
-      hanziWritingEnabled:false,
+      hanziWritingEnabled:!practiceEnabled,
+      hanziPracticeEnabled:practiceEnabled,
       hanziSpeechEnabled:speechEnabled,
       hanziRepeatCount,
       speechRecognitionMode:"browser",
@@ -1112,16 +1274,16 @@ async function createHanziModeQR(){
       taskMode:"hanzi",
       maxPlayers:15,
       status:"active",
-      version:"3.3-hanzi-repeat-count",
+      version:"3.8-hanzi-device-writing",
       createdAt:firebase.firestore.FieldValue.serverTimestamp()
     });
-    const detail=speechEnabled
-      ? `逐項語音辨識：${hanziTexts.join(" → ")}｜每題重複 ${hanziRepeatCount} 次`
-      : "學生可逐字選擇並開啟中文筆順或英文字母描寫練習。";
-    status("hanziStatus",`文字練習建立成功！\n${detail}\nTask ID：${ref.id}`,"ok");
+    const detail=practiceEnabled
+      ? "學生可逐字選擇並開啟中文筆順或英文字母描寫練習。"
+      : "學生選擇編號後，使用設備手寫輸入作答；系統判斷正誤並回傳任務列表。";
+    status("hanziStatus",`書寫模式(寫)建立成功！\n${detail}\nTask ID：${ref.id}`,"ok");
     showQR(ref.id,title);
   }catch(e){
-    status("hanziStatus","建立文字練習失敗：\n"+(e.message||e),"err");
+    status("hanziStatus","建立書寫模式(寫)失敗：\n"+(e.message||e),"err");
   }finally{
     $("createHanziBtn").disabled=false;
   }
@@ -1129,11 +1291,51 @@ async function createHanziModeQR(){
 
 $("createHanziBtn").onclick=createHanziModeQR;
 $("hanziRepeatCount").addEventListener("input",()=>{updateHanziRepeatLabel();scheduleTeacherDraftSave()});
+$("hanziPracticeMode").addEventListener("change",scheduleTeacherDraftSave);
+
+function updateSpeakingRepeatLabel(){
+  $("speakingRepeatCountValue").textContent=$("speakingRepeatCount").value+" 次";
+}
+updateSpeakingRepeatLabel();
+
+async function createSpeakingModeQR(){
+  updateLabelsFromDOM();
+  const title=$("speakingTaskTitle").value.trim();
+  const hanziTexts=getSelectedClassesInCurrentOrder();
+  const repeatCount=Math.min(5,Math.max(1,Number($("speakingRepeatCount").value||1)));
+  if(!title)return status("speakingStatus","請輸入口語模式(說)名稱。","err");
+  if(!hanziTexts.length)return status("speakingStatus","請至少勾選一個要出題的文字項目。","err");
+  if(!user)return status("speakingStatus","請先登入教師帳號。","err");
+  const questionSequence=hanziTexts.flatMap(text=>Array(repeatCount).fill(text));
+  $("createSpeakingBtn").disabled=true;
+  status("speakingStatus","正在建立口語模式(說)…");
+  try{
+    const ref=await db.collection("tasks").add({
+      teacherId:user.uid,teacherEmail:user.email||"",title,modelURL,
+      recognitionEngine:"ocr",ocrLanguages:["chi_tra","eng"],ocrMatchMode:"contains",
+      targetClasses:questionSequence,classThumbnails:getClassThumbnails(true),
+      hanziText:hanziTexts.join("\n"),hanziTexts,hanziQuestionSequence:questionSequence,
+      hanziWritingEnabled:false,hanziSpeechEnabled:true,hanziRepeatCount:repeatCount,
+      speechRecognitionMode:"browser",speechRecognitionLanguage:"zh-TW",
+      disableAutoPromptSpeech:!!$("speakingDisableAutoSpeech").checked,
+      fuzzySpeechRecognition:!!$("fuzzySpeechRecognition").checked,
+      relaxedSpeechRecognition:!!$("relaxedSpeechRecognition").checked,
+      orderMode:"fixed",taskMode:"speaking",maxPlayers:15,status:"active",
+      version:"3.7-speaking-mode",createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    status("speakingStatus",`口語模式(說)建立成功！\n逐項語音辨識：${hanziTexts.join(" → ")}｜每題重複 ${repeatCount} 次\nTask ID：${ref.id}`,"ok");
+    showQR(ref.id,title);
+  }catch(e){
+    status("speakingStatus","建立口語模式(說)失敗：\n"+(e.message||e),"err");
+  }finally{$("createSpeakingBtn").disabled=false}
+}
+$("createSpeakingBtn").onclick=createSpeakingModeQR;
+$("speakingRepeatCount").addEventListener("input",()=>{updateSpeakingRepeatLabel();scheduleTeacherDraftSave()});
 
 $("createBtn").onclick=async()=>{
   const title=$("taskTitle").value.trim();
   const targets=getSelectedClassesInCurrentOrder();
-  if(!title)return status("createStatus","請輸入評量模式名稱。","err");
+  if(!title)return status("createStatus","請輸入拍照辨識模式名稱。","err");
   if(!targets.length)return status("createStatus","請至少選擇一項物品。","err");
   const promptMode=$("evaluationDescriptionPrompt").checked?"description":"name";
   const skipPhotoRecognition=getSelectedRecognitionEngine()==="ocr"&&$("evaluationSkipPhotoRecognition").checked;
@@ -1155,7 +1357,7 @@ $("createBtn").onclick=async()=>{
       teacherEmail:user.email||"",
       title,
       modelURL,
-      ...getRecognitionTaskFields(targets),
+      ...getRecognitionTaskFields(targets,$("evaluationRelaxedSpeechRecognition").checked,$("evaluationFuzzySpeechRecognition").checked),
       targetClasses:targets,
       classDescriptions:getClassDescriptions(false),
       classThumbnails:getClassThumbnails(false),
@@ -1173,27 +1375,64 @@ $("createBtn").onclick=async()=>{
       version:"3.5-speech-only-layout",
       createdAt:firebase.firestore.FieldValue.serverTimestamp()
     });
-    status("createStatus","評量建立成功！\nTask ID："+ref.id,"ok");
+    status("createStatus","拍照辨識模式建立成功！\nTask ID："+ref.id,"ok");
     showQR(ref.id,title);
   }catch(e){
-    status("createStatus","建立評量失敗：\n"+e.message,"err");
+    status("createStatus","建立拍照辨識模式失敗：\n"+e.message,"err");
   }
 };
-function studentURL(id){const base=new URL("student.html",location.href).toString(),u=new URL(base,location.href);u.searchParams.set("task",id);u.searchParams.set("v","3.5-speech-only-layout");return u.toString()}function showQR(id,title){const url=studentURL(id);$("qrTitle").textContent=title+"－QR Code";$("qrURL").textContent=url;$("qrCode").innerHTML="";new QRCode($("qrCode"),{text:url,width:260,height:260,correctLevel:QRCode.CorrectLevel.M});$("qrModal").classList.remove("hidden")}window.showQR=showQR;$("closeBtn").onclick=()=>$("qrModal").classList.add("hidden");$("copyBtn").onclick=()=>navigator.clipboard.writeText($("qrURL").textContent);
 
-["modelURL","ocrKeywords","teachingTitle","taskTitle","advancedTitle","gameTitle","clickTitle","hanziTaskTitle"].forEach(id=>{
+$("createReadingBtn").onclick=async()=>{
+  const title=$("readingTitle").value.trim();
+  const targets=getSelectedClassesInCurrentOrder();
+  const promptMode="description";
+  const showThumbnailHint=true;
+  if(!title)return status("readingStatus","請輸入問答模式(讀)名稱。","err");
+  if(!targets.length)return status("readingStatus","請至少選擇一項物品或文字。","err");
+  const descriptions=getClassDescriptions(true);
+  const missingDescriptions=promptMode==="description"?targets.filter(name=>!String(descriptions[name]||"").trim()):[];
+  if(missingDescriptions.length){
+    return status("readingStatus","說明文字出題需要先填寫每個勾選項目的說明：\n"+missingDescriptions.join("、"),"err");
+  }
+  $("readingSpeechRecognition").checked=true;
+  $("createReadingBtn").disabled=true;
+  status("readingStatus","正在建立問答模式(讀)…");
+  try{
+    const ref=await db.collection("tasks").add({
+      teacherId:user.uid,teacherEmail:user.email||"",title,modelURL,
+      ...getRecognitionTaskFields(targets,$("readingRelaxedSpeechRecognition").checked,$("readingFuzzySpeechRecognition").checked),targetClasses:targets,
+      classDescriptions:getClassDescriptions(false),classThumbnails:getClassThumbnails(false),
+      audioRequiredClasses:[...targets],promptMode,speechRecognitionEnabled:true,
+      skipPhotoRecognition:true,showNameText:false,showThumbnailHint,
+      speechRecognitionMode:"browser",speechRecognitionLanguage:"zh-TW",
+      requiredConsecutiveFrames:10,orderMode:"fixed",taskMode:"reading",
+      status:"active",version:"3.7-reading-mode",
+      createdAt:firebase.firestore.FieldValue.serverTimestamp()
+    });
+    status("readingStatus","問答模式(讀)建立成功！\nTask ID："+ref.id,"ok");
+    showQR(ref.id,title);
+  }catch(e){
+    status("readingStatus","建立問答模式(讀)失敗：\n"+(e.message||e),"err");
+  }finally{$("createReadingBtn").disabled=false}
+};
+function studentURL(id){const base=new URL("student.html",location.href).toString(),u=new URL(base,location.href);u.searchParams.set("task",id);u.searchParams.set("v","3.6-github-speech-fix");return u.toString()}function showQR(id,title){const url=studentURL(id);$("qrTitle").textContent=title+"－QR Code";$("qrURL").textContent=url;$("qrCode").innerHTML="";new QRCode($("qrCode"),{text:url,width:260,height:260,correctLevel:QRCode.CorrectLevel.M});$("qrModal").classList.remove("hidden")}window.showQR=showQR;$("closeBtn").onclick=()=>$("qrModal").classList.add("hidden");$("copyBtn").onclick=()=>navigator.clipboard.writeText($("qrURL").textContent);
+
+["modelURL","ocrKeywords","teachingTitle","taskTitle","advancedTitle","gameTitle","clickTitle","hanziTaskTitle","speakingTaskTitle","readingTitle"].forEach(id=>{
   $(id).addEventListener("input",scheduleTeacherDraftSave);
+});
+["relaxedSpeechRecognition","readingRelaxedSpeechRecognition","evaluationRelaxedSpeechRecognition","gameRelaxedSpeechRecognition","fuzzySpeechRecognition","readingFuzzySpeechRecognition","evaluationFuzzySpeechRecognition","gameFuzzySpeechRecognition","speakingDisableAutoSpeech"].forEach(id=>{
+  $(id).addEventListener("change",scheduleTeacherDraftSave);
 });
 $("recognitionEngine").addEventListener("change",()=>{
   model=null;modelURL="";labels=[];classThumbnails={};
   $("classes").innerHTML="";
-  ["teachMode","createTaskCard","advancedModeCard","gameModeCard","clickModeCard","hanziModeCard"].forEach(id=>$(id).classList.add("hidden"));
-  ["createBtn","createAdvancedBtn","createGameBtn","createClickBtn","createHanziBtn"].forEach(id=>$(id).disabled=true);
+  ["teachMode","createTaskCard","advancedModeCard","gameModeCard","clickModeCard","hanziModeCard","speakingModeCard","readingModeCard"].forEach(id=>$(id).classList.add("hidden"));
+  ["createBtn","createAdvancedBtn","createGameBtn","createClickBtn","createHanziBtn","createSpeakingBtn","createReadingBtn"].forEach(id=>$(id).disabled=true);
   syncRecognitionEngineUI();
   scheduleTeacherDraftSave();
 });
 syncRecognitionEngineUI();
-["evaluationDescriptionPrompt","evaluationSpeechRecognition","evaluationSkipPhotoRecognition","evaluationShowNameText","evaluationThumbnailHint","gameDescriptionPrompt","gameSpeechRecognition","gameSkipPhotoRecognition","gameShowNameText","gameThumbnailHint","hanziSpeechRecognition"].forEach(id=>{
+["evaluationDescriptionPrompt","evaluationSpeechRecognition","evaluationSkipPhotoRecognition","evaluationShowNameText","evaluationThumbnailHint","gameDescriptionPrompt","gameSpeechRecognition","gameSkipPhotoRecognition","gameShowNameText","gameThumbnailHint","hanziSpeechRecognition","readingDescriptionPrompt","readingThumbnailHint"].forEach(id=>{
   $(id).addEventListener("change",scheduleTeacherDraftSave);
 });
 $("evaluationSkipPhotoRecognition").addEventListener("change",()=>{if($("evaluationSkipPhotoRecognition").checked)$("evaluationSpeechRecognition").checked=true});
@@ -1204,6 +1443,9 @@ $("classes").addEventListener("input",scheduleTeacherDraftSave);
 $("classes").addEventListener("change",scheduleTeacherDraftSave);
 window.addEventListener("pagehide",saveTeacherDraft);
 window.addEventListener("beforeunload",saveTeacherDraft);
+function releaseTeacherListeners(event){if(event&&event.persisted)return;if(unsub){unsub();unsub=null}}
+window.addEventListener("pagehide",releaseTeacherListeners);
+window.addEventListener("beforeunload",releaseTeacherListeners);
 window.addEventListener("storage",event=>{
   if(event.key===teacherDraftKey())teacherDraftCacheLoaded=false;
 });

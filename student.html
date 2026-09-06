@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#2563eb">
-<title>AI 多專案學生任務 V2.5｜連續拍照修正版</title>
+<title>AI學習任務平台</title>
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 
@@ -19,22 +19,28 @@
 <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@teachablemachine/pose@0.8/dist/teachablemachine-pose.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/speech-commands@0.4.0/dist/speech-commands.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.28.2/dist/index.js"></script>
+<!-- 中文發音比對元件：專案內檔案優先，外部 CDN 僅作備援。 -->
+<script src="./pinyin-pro.min.js"></script>
+<script>
+if(!window.pinyinPro){
+  document.write('<script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.28.2/dist/index.min.js"><\/script>');
+}
+</script>
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js"></script>
 
 <style>
 :root{
   --primary:#2563eb;--primary-dark:#1d4ed8;--success:#16a34a;
-  --danger:#dc2626;--bg:#f3f6fb;--card:#fff;--text:#172033;
+  --danger:#f59e0b;--bg:#f3f6fb;--card:#fff;--text:#172033;
   --muted:#64748b;--border:#dce4f0;--radius:20px;
   --mode-soft:#eff6ff;--mode-soft-strong:#dbeafe;--mode-border:#93c5fd;
   --mode-text:#1d4ed8;--mode-shadow:rgba(37,99,235,.22)
 }
 *{box-sizing:border-box}
 html,body{margin:0;min-height:100%;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC","Microsoft JhengHei",sans-serif;color:var(--text);background:var(--bg)}
-body{min-height:100dvh;display:flex;justify-content:center}
+body{min-height:100vh;min-height:100dvh;display:flex;justify-content:center}
 button,input{font:inherit}
-.app{width:min(100%,760px);min-height:100dvh;padding:max(16px,env(safe-area-inset-top)) 16px max(22px,env(safe-area-inset-bottom))}
+.app{width:min(100%,760px);min-height:100vh;min-height:100dvh;padding:max(16px,env(safe-area-inset-top)) 16px max(22px,env(safe-area-inset-bottom))}
 .header{background:linear-gradient(135deg,#2563eb,#4f46e5);color:#fff;border-radius:var(--radius);padding:20px;box-shadow:0 12px 28px rgba(37,99,235,.22);margin-bottom:14px}
 .header h1{margin:0 0 8px;font-size:clamp(1.4rem,5vw,2rem)}
 .header p{margin:0;line-height:1.6;opacity:.95}
@@ -52,12 +58,20 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
 .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
 .recognition-actions{display:flex;justify-content:center;align-items:center}
 .recognition-actions button{width:min(100%,320px);flex:0 1 320px}
-.round-action-btn{width:64px;height:64px;min-height:64px;border-radius:50%;padding:0;font-size:30px;display:grid;place-items:center;line-height:1}
+.round-action-btn{position:relative;width:64px;height:64px;min-height:64px;border-radius:50%;padding:0;font-size:30px;display:grid;place-items:center;line-height:1}
 .recognition-actions .round-action-btn{width:64px;height:64px;min-height:64px;flex:0 0 64px;padding:0;font-size:30px}.hanzi-speech .round-action-btn{margin:12px auto 0}.advanced-prompt-speaker{flex:0 0 46px}
-.mic-action-btn{background:linear-gradient(145deg,#fff1f2,#fecdd3);color:#be123c;border:2px solid #fda4af;box-shadow:0 7px 0 #e11d48,0 11px 19px rgba(190,24,93,.24)}
-.mic-action-btn:active{background:linear-gradient(145deg,#ffe4e6,#fda4af);transform:translateY(5px);box-shadow:0 2px 0 #be123c,0 5px 10px rgba(190,24,93,.2)}
-.camera-action-btn{background:linear-gradient(145deg,#fffde7,#fde68a);color:#92400e;border:2px solid #facc15;box-shadow:0 7px 0 #d97706,0 11px 19px rgba(180,83,9,.24)}
-.camera-action-btn:active{background:linear-gradient(145deg,#fef9c3,#fcd34d);transform:translateY(5px);box-shadow:0 2px 0 #b45309,0 5px 10px rgba(180,83,9,.2)}
+.recognition-actions .mic-action-btn,.recognition-actions .camera-action-btn,.hanzi-speech .mic-action-btn{width:96px;height:96px;min-height:96px;flex:0 0 96px;font-size:45px;border-width:3px;transition:transform .1s ease,box-shadow .1s ease,filter .1s ease}
+.mic-action-btn{background:linear-gradient(145deg,#fff8f9 0%,#fecdd3 55%,#fda4af 100%);color:#be123c;border:3px solid #fb7185;box-shadow:0 11px 0 #be123c,0 17px 25px rgba(190,24,93,.34),inset 0 3px 5px rgba(255,255,255,.9)}
+.mic-action-btn:active{background:linear-gradient(145deg,#ffe4e6,#fda4af);transform:translateY(9px) scale(.96);box-shadow:0 2px 0 #9f1239,0 5px 9px rgba(190,24,93,.24),inset 0 2px 5px rgba(159,18,57,.18);filter:brightness(.96)}
+.camera-action-btn{background:linear-gradient(145deg,#fffef2 0%,#fde68a 55%,#facc15 100%);color:#92400e;border:3px solid #eab308;box-shadow:0 11px 0 #b45309,0 17px 25px rgba(180,83,9,.34),inset 0 3px 5px rgba(255,255,255,.9)}
+.camera-action-btn:active{background:linear-gradient(145deg,#fef9c3,#facc15);transform:translateY(9px) scale(.96);box-shadow:0 2px 0 #92400e,0 5px 9px rgba(180,83,9,.24),inset 0 2px 5px rgba(146,64,14,.18);filter:brightness(.96)}
+.mic-action-btn{--listening-color:#e11d48;--listening-soft:rgba(225,29,72,.34);--listening-base-shadow:#9f1239}
+.mic-action-btn.is-listening{z-index:2;animation:microphoneListeningGlow .82s ease-in-out infinite alternate}
+.mic-action-btn.is-listening:active{animation:none}
+.mic-action-btn.is-listening::before{content:"";position:absolute;inset:-13px;border:5px solid var(--listening-color);border-radius:50%;pointer-events:none;animation:microphoneListeningRing 1.05s ease-out infinite}
+.mic-action-btn.is-listening::after{content:"聆聽中";position:absolute;left:50%;top:calc(100% + 18px);transform:translateX(-50%);min-width:78px;padding:6px 9px;border-radius:999px;background:var(--listening-color);color:#fff;font-size:14px;font-weight:1000;line-height:1;white-space:nowrap;box-shadow:0 5px 12px var(--listening-soft);pointer-events:none}
+@keyframes microphoneListeningGlow{from{filter:brightness(1);box-shadow:0 9px 0 var(--listening-base-shadow),0 14px 20px var(--listening-soft),0 0 0 4px rgba(255,255,255,.9)}to{filter:brightness(1.18);box-shadow:0 9px 0 var(--listening-base-shadow),0 17px 29px var(--listening-soft),0 0 0 9px var(--listening-soft)}}
+@keyframes microphoneListeningRing{0%{opacity:.95;transform:scale(.82)}75%,100%{opacity:0;transform:scale(1.28)}}
 .mic-action-btn:disabled,.camera-action-btn:disabled{opacity:.55;transform:none;box-shadow:0 4px 0 #94a3b8,0 7px 12px rgba(15,23,42,.14);cursor:not-allowed}
 
 .number-select-title{
@@ -107,7 +121,7 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
 .status{display:flex;align-items:flex-start;gap:10px;margin-top:14px;padding:12px 14px;border-radius:14px;background:#eff6ff;color:#1e40af;font-weight:700;white-space:pre-wrap;word-break:break-word}
 .status::before{content:"";width:12px;height:12px;border-radius:50%;background:var(--primary);margin-top:4px;flex:none}
 .status.success{background:#ecfdf3;color:#166534}.status.success::before{background:var(--success)}
-.status.error{background:#fef2f2;color:#991b1b}.status.error::before{background:var(--danger)}
+.status.error{background:#fff7ed;color:#9a5b26;border:1px solid #fed7aa}.status.error::before{background:var(--danger)}
 .task-title{font-size:1.45rem;font-weight:900;margin-bottom:6px}.meta{color:var(--muted);line-height:1.6}
 .target{text-align:center;background:linear-gradient(135deg,#eff6ff,#dbeafe);border:2px solid #93c5fd;border-radius:18px;padding:16px;margin-bottom:12px}
 .target small{display:block;color:#475569}.target strong{display:block;font-size:30px;color:#1d4ed8;margin-top:5px}
@@ -115,6 +129,11 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
 .target-question-row strong{margin-top:0}
 .target-thumbnail{width:72px;height:72px;object-fit:cover;border-radius:14px;border:2px solid #93c5fd;background:#fff;box-shadow:0 5px 14px rgba(37,99,235,.16);flex:0 0 auto}
 #advancedPromptCard.speech-only-prompt .target-thumbnail{width:144px;height:144px;border-radius:28px}
+body[data-mode-theme="click"] #clickPrompt #clickPromptImage{width:min(144px,76vw);height:min(144px,76vw);border-radius:24px;object-fit:cover}
+body[data-mode-theme="speaking"] #hanziTargetThumbnail,
+body[data-mode-theme="reading"] #advancedPromptCard.speech-only-prompt #advancedTargetThumbnail{width:min(288px,76vw);height:min(288px,76vw);border-radius:28px;object-fit:cover}
+body[data-mode-theme="speaking"] .hanzi-question-row,
+body[data-mode-theme="reading"] #advancedPromptCard .target-question-row{flex-direction:column}
 .progress-label{display:flex;justify-content:space-between;color:var(--muted);margin-bottom:7px}
 .progress{height:14px;background:#e7edf6;border-radius:999px;overflow:hidden;margin-bottom:14px}
 .progress>div{height:100%;width:0;background:var(--success);transition:width .2s}
@@ -132,7 +151,7 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
 .verification-badge{padding:9px;border-radius:11px;background:#fff;border:1px solid #ddd6fe;color:#5b21b6;font-weight:800;text-align:center}
 .verification-badge.done{background:#dcfce7;border-color:#86efac;color:#166534}
 .audio-result{margin-top:9px;padding:9px;border-radius:10px;background:#fff;color:#5b21b6;text-align:center;font-weight:800}
-.audio-result.error{background:#fef2f2;color:#991b1b}.audio-result.success{background:#ecfdf3;color:#166534}
+.audio-result.error{background:#fff7ed;color:#9a5b26;border:1px solid #fed7aa}.audio-result.success{background:#ecfdf3;color:#166534}
 .overlay{position:absolute;left:10px;right:10px;bottom:10px;background:rgba(15,23,42,.82);color:#fff;border-radius:14px;padding:11px}
 .overlay-main{font-size:1.1rem;font-weight:900}
 @keyframes taskResultFlash{
@@ -146,7 +165,7 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
 .capture-feedback{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;pointer-events:none;visibility:hidden;opacity:0;color:#fff;text-align:center;text-shadow:0 3px 12px rgba(0,0,0,.45)}
 .capture-feedback-icon{font-size:clamp(90px,24vw,170px);font-weight:1000;line-height:1}.capture-feedback-text{font-size:clamp(34px,10vw,68px);font-weight:1000;letter-spacing:.08em}
 .capture-feedback.success{visibility:visible;animation:successScreenFlash 1s ease-out 1}
-.capture-feedback.failure{visibility:visible;animation:failureScreenFlash 1s ease-out 1}
+.capture-feedback.failure{visibility:visible;animation:failureScreenFlash 1.15s ease-out 1}
 @keyframes successScreenFlash{
   0%{opacity:0;background:rgba(22,163,74,0)}
   12%{opacity:1;background:rgba(22,163,74,.88)}
@@ -156,12 +175,10 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
   100%{opacity:0;background:rgba(22,163,74,0)}
 }
 @keyframes failureScreenFlash{
-  0%{opacity:0;background:rgba(220,38,38,0)}
-  12%{opacity:1;background:rgba(220,38,38,.9)}
-  30%{opacity:.25;background:rgba(239,68,68,.3)}
-  48%{opacity:1;background:rgba(185,28,28,.92)}
-  72%{opacity:.9;background:rgba(220,38,38,.78)}
-  100%{opacity:0;background:rgba(220,38,38,0)}
+  0%{opacity:0;background:rgba(251,146,60,0)}
+  18%{opacity:1;background:rgba(251,146,60,.62)}
+  68%{opacity:.88;background:rgba(253,186,116,.56)}
+  100%{opacity:0;background:rgba(255,237,213,0)}
 }
 .prediction{margin-top:14px;display:grid;gap:9px}
 .pred-row{display:grid;grid-template-columns:minmax(82px,130px) 1fr 50px;align-items:center;gap:9px}
@@ -174,7 +191,7 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
 .item{padding:10px 12px;border:1px solid var(--border);border-radius:11px;display:flex;justify-content:space-between;margin-top:8px}
 .item.done{background:#ecfdf5;border-color:#86efac;color:#166534}
 .complete{text-align:center;animation:pop .45s ease}.complete .icon{font-size:72px}
-.incorrect-summary{margin-top:12px;padding:12px 14px;border:1px solid #fecaca;border-radius:14px;background:#fef2f2;color:#991b1b;text-align:left;line-height:1.7}
+.incorrect-summary{margin-top:12px;padding:12px 14px;border:1px solid #fed7aa;border-radius:14px;background:#fff7ed;color:#9a5b26;text-align:left;line-height:1.7}
 .incorrect-summary.no-error{border-color:#bbf7d0;background:#f0fdf4;color:#166534;text-align:center}
 .incorrect-summary-title{font-weight:900}
 .click-task{padding:12px;background:linear-gradient(145deg,#fff7ed,#fef3c7);border:2px solid #fbbf24}
@@ -182,12 +199,12 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
 .click-prompt{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;margin:0 auto 10px;padding:9px 16px;width:max-content;max-width:100%;border:2px solid #f59e0b;border-radius:16px;background:#fff;color:#92400e;font-weight:900;text-align:center;box-shadow:0 6px 18px rgba(146,64,14,.14)}
 .click-prompt img{width:clamp(76px,19vw,112px);height:clamp(76px,19vw,112px);object-fit:cover;border-radius:13px}
 .click-prompt-text{font-size:clamp(25px,7vw,38px);font-weight:1000;line-height:1.25;overflow-wrap:anywhere}
-.click-stage{position:relative;width:100%;height:clamp(420px,68svh,720px);overflow:hidden;border-radius:18px;background:radial-gradient(circle at top,#fffbeb,#fde68a);border:2px solid #f59e0b;touch-action:manipulation}
+.click-stage{position:relative;width:100%;height:clamp(420px,68vh,720px);height:clamp(420px,68svh,720px);overflow:hidden;border-radius:18px;background:radial-gradient(circle at top,#fffbeb,#fde68a);border:2px solid #f59e0b;touch-action:manipulation}
 .click-target{position:absolute;width:clamp(118px,31vw,176px);min-height:0;padding:10px;border:3px solid #fff;border-radius:20px;background:#fff;color:#92400e;box-shadow:0 12px 30px rgba(146,64,14,.25);display:flex;flex-direction:column;align-items:center;gap:7px;transform:scale(1);animation:clickTargetPop .22s ease;user-select:none;-webkit-user-select:none}
 .click-target img{width:clamp(88px,24vw,138px);height:clamp(88px,24vw,138px);object-fit:cover;border-radius:14px}.click-target span{font-size:clamp(18px,5vw,25px);font-weight:1000;line-height:1.2;text-align:center}.click-target:active{transform:scale(.94)}
 .click-waiting{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:#92400e;font-size:22px;font-weight:900;padding:28px}.click-countdown{position:absolute;left:12px;right:12px;bottom:10px;height:9px;border-radius:999px;background:rgba(255,255,255,.75);overflow:hidden}.click-countdown>div{height:100%;width:100%;background:#f97316;transform-origin:left center}
 .click-feedback{position:absolute;inset:0;display:grid;place-items:center;background:rgba(22,163,74,.88);color:#fff;font-size:clamp(42px,13vw,84px);font-weight:1000;z-index:4;pointer-events:none;animation:clickFeedback .65s ease forwards}
-.click-feedback.error{background:rgba(220,38,38,.9)}
+.click-feedback.error{background:rgba(251,146,60,.82)}
 @keyframes clickTargetPop{from{transform:scale(.72);opacity:0}to{transform:scale(1);opacity:1}}
 @keyframes clickFeedback{0%{opacity:0}20%,70%{opacity:1}100%{opacity:0}}
 @keyframes pop{0%{transform:scale(.75);opacity:0}100%{transform:scale(1);opacity:1}}
@@ -258,7 +275,17 @@ body[data-mode-theme] .target-thumbnail,
 body[data-mode-theme] .speak-btn{border-color:var(--mode-border);color:var(--mode-text)}
 body[data-mode-theme] .target-thumbnail{box-shadow:0 5px 14px var(--mode-shadow)}
 body[data-mode-theme] .progress>div{background:var(--primary)}
-.hanzi-card{background:#fff1f2;border:2px solid #fb7185}.hanzi-card h2{color:#991b1b;text-align:center}.hanzi-picker{display:grid;grid-template-columns:repeat(auto-fit,minmax(76px,1fr));gap:12px;margin-top:14px}.hanzi-char{min-height:76px;background:#fff;border:2px solid #fb7185;color:#991b1b;font-size:34px;border-radius:16px}.hanzi-question-row{display:flex;align-items:center;justify-content:center;gap:12px;margin:10px}.hanzi-question{text-align:center;font-size:clamp(32px,10vw,64px);font-weight:900;color:#991b1b;line-height:1.35;word-break:break-all}.hanzi-prompt-icon{flex:0 0 46px}.hanzi-note{text-align:center;color:#7f1d1d;line-height:1.6}.hanzi-copyright{margin-top:14px;padding:12px;border:1px solid #fb7185;border-radius:12px;background:#fff;color:#7f1d1d;font-size:.88rem;line-height:1.7}.hanzi-copyright a{color:#991b1b;font-weight:800}.hanzi-stage-title{text-align:center;font-weight:900;color:#991b1b}.hanzi-speech{padding:18px;text-align:center;background:#ffe4e6;border-radius:16px;margin-top:12px}
+.hanzi-card{background:#fff1f2;border:2px solid #fb7185}.hanzi-card h2{color:#991b1b;text-align:center}.hanzi-picker{display:grid;grid-template-columns:repeat(auto-fit,minmax(76px,1fr));gap:12px;margin-top:14px}.hanzi-picker.single{grid-template-columns:minmax(96px,180px);justify-content:center}.hanzi-char{min-height:76px;background:#fff;border:2px solid #fb7185;color:#991b1b;font-size:34px;border-radius:16px}.hanzi-question-row{display:flex;align-items:center;justify-content:center;gap:12px;margin:10px}.hanzi-question{text-align:center;font-size:clamp(32px,10vw,64px);font-weight:900;color:#991b1b;line-height:1.35;word-break:break-all}.hanzi-prompt-icon{flex:0 0 46px}.hanzi-note{text-align:center;color:#7f1d1d;line-height:1.6}.hanzi-copyright{margin-top:14px;padding:12px;border:1px solid #fb7185;border-radius:12px;background:#fff;color:#7f1d1d;font-size:.88rem;line-height:1.7}.hanzi-copyright a{color:#991b1b;font-weight:800}.hanzi-stage-title{text-align:center;font-weight:900;color:#991b1b}.hanzi-speech{padding:18px;text-align:center;background:#ffe4e6;border-radius:16px;margin-top:12px}
+.hanzi-writing{padding:18px;background:#ffe4e6;border:1px solid #fb7185;border-radius:16px;margin-top:12px;text-align:center}.hanzi-writing label{display:block;color:#7f1d1d;font-weight:900;margin-bottom:10px}.hanzi-writing-row{display:flex;gap:10px;align-items:stretch}.hanzi-writing input{min-width:0;flex:1;font-size:clamp(24px,6vw,36px);font-weight:900;text-align:center;border:2px solid #fb7185;background:#fff;color:#991b1b}.hanzi-writing button{flex:0 0 auto;background:#dc2626;color:#fff;border-color:#dc2626}
+body[data-mode-theme="speaking"] .hanzi-card{background:#f0f7ff;border-color:#93c5fd}
+body[data-mode-theme="speaking"] .hanzi-card h2,
+body[data-mode-theme="speaking"] .hanzi-question,
+body[data-mode-theme="speaking"] .hanzi-stage-title{color:#1d4ed8}
+body[data-mode-theme="speaking"] .hanzi-note{color:#1e40af}
+body[data-mode-theme="speaking"] .hanzi-speech{background:#dbeafe}
+body[data-mode-theme="speaking"] .mic-action-btn{background:linear-gradient(145deg,#f8fbff 0%,#bfdbfe 55%,#93c5fd 100%);color:#1d4ed8;border-color:#60a5fa;box-shadow:0 11px 0 #1d4ed8,0 17px 25px rgba(37,99,235,.34),inset 0 3px 5px rgba(255,255,255,.9)}
+body[data-mode-theme="speaking"] .mic-action-btn{--listening-color:#2563eb;--listening-soft:rgba(37,99,235,.38);--listening-base-shadow:#1e40af}
+body[data-mode-theme="speaking"] .mic-action-btn:active{background:linear-gradient(145deg,#dbeafe,#93c5fd);transform:translateY(9px) scale(.96);box-shadow:0 2px 0 #1e40af,0 5px 9px rgba(37,99,235,.24),inset 0 2px 5px rgba(30,64,175,.18)}
 .teaching-camera-card .overlay{left:8px;right:8px;bottom:8px}
 
 /* iPhone／iPad 響應式顯示：避免相機區過高把按鈕推出畫面 */
@@ -276,7 +303,9 @@ html,body{
 .stage,
 .teaching-camera-card .stage{
   aspect-ratio:auto;
+  height:clamp(300px,58vh,620px);
   height:clamp(300px,58svh,620px);
+  max-height:calc(100vh - 250px);
   max-height:calc(100svh - 250px);
 }
 #imageVideo,
@@ -308,7 +337,9 @@ html,body{
   .card{padding:14px;margin-top:10px}
   .stage,
   .teaching-camera-card .stage{
+    height:clamp(360px,60vh,650px);
     height:clamp(360px,60svh,650px);
+    max-height:calc(100vh - 230px);
     max-height:calc(100svh - 230px);
   }
 }
@@ -339,6 +370,9 @@ html,body{
   .target-question-row strong{margin-top:0}
   .target-thumbnail{width:58px;height:58px;border-radius:11px}
   #advancedPromptCard.speech-only-prompt .target-thumbnail{width:116px;height:116px;border-radius:22px}
+  body[data-mode-theme="click"] #clickPrompt #clickPromptImage{width:min(116px,76vw);height:min(116px,76vw);border-radius:20px}
+  body[data-mode-theme="speaking"] #hanziTargetThumbnail,
+  body[data-mode-theme="reading"] #advancedPromptCard.speech-only-prompt #advancedTargetThumbnail{width:min(232px,76vw);height:min(232px,76vw);border-radius:22px}
   .progress{margin-bottom:7px}
   .teaching-name-card{
     padding:8px;
@@ -354,7 +388,9 @@ html,body{
   }
   .stage,
   .teaching-camera-card .stage{
+    height:clamp(280px,56vh,500px);
     height:clamp(280px,56svh,500px);
+    max-height:calc(100vh - 205px);
     max-height:calc(100svh - 205px);
     border-radius:13px;
   }
@@ -401,12 +437,95 @@ html,body{
   .target strong{font-size:21px}
   .stage,
   .teaching-camera-card .stage{
+    height:calc(100vh - 145px);
     height:calc(100svh - 145px);
     min-height:210px;
     max-height:430px;
   }
   .row{margin-top:5px}
   .row button{min-height:40px}
+}
+
+/* 全裝置響應式版面：小手機、平板與電腦自動調整 */
+html{font-size:clamp(15px,1.15vw,18px)}
+body{width:100%;align-items:flex-start}
+.app{
+  width:min(100%,1040px);
+  padding-block:max(clamp(8px,2vw,20px),env(safe-area-inset-top)) max(clamp(12px,2.5vw,26px),env(safe-area-inset-bottom));
+  padding-inline:max(clamp(8px,2vw,20px),env(safe-area-inset-left)) max(clamp(8px,2vw,20px),env(safe-area-inset-right));
+}
+.header{padding:clamp(14px,3vw,24px);border-radius:clamp(14px,2.5vw,22px)}
+.header h1{font-size:clamp(1.35rem,3.8vw,2rem)}
+.card{width:100%;min-width:0;padding:clamp(10px,2.5vw,20px);border-radius:clamp(14px,2.5vw,22px)}
+img,video,canvas{max-width:100%}
+button,input{max-width:100%}
+.task-title,.meta,.status,.item,.game-note,.hanzi-note,.hanzi-copyright{overflow-wrap:anywhere}
+.row{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));align-items:stretch}
+.row>*{min-width:0}
+.row button{width:100%;white-space:normal;line-height:1.3}
+.target-question-row,.teaching-name-row,.hanzi-question-row{max-width:100%;min-width:0;flex-wrap:wrap}
+.target-question-row strong,.teaching-name-row strong,.hanzi-question{min-width:0;overflow-wrap:anywhere}
+.target-thumbnail,.click-prompt img,.click-target img{max-inline-size:100%}
+.verification-state{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
+.prediction{min-width:0}.pred-row{min-width:0}.pred-name{min-width:0}
+.click-task-meta,.progress-label,.hold-head{flex-wrap:wrap}
+.click-prompt{width:max-content;max-width:100%;padding-inline:clamp(8px,3vw,18px)}
+.click-stage{height:clamp(360px,65vh,720px);height:clamp(360px,65svh,720px);min-height:320px}
+.click-target{max-width:46%;padding:clamp(7px,2vw,11px)}
+
+/* 電腦與大型平板 */
+@media(min-width:1025px){
+  .card{margin-top:18px}
+  .stage,.teaching-camera-card .stage{width:min(100%,760px);height:min(68vh,720px);height:min(68svh,720px);margin-inline:auto}
+  .audio-stage{min-height:340px}
+  .number-grid{grid-template-columns:repeat(5,minmax(72px,1fr))}
+  .click-stage{height:min(70vh,760px);height:min(70svh,760px)}
+}
+
+/* 一般平板 */
+@media(min-width:541px) and (max-width:1024px){
+  .header{margin-bottom:12px}
+  .row{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+  .number-grid{grid-template-columns:repeat(5,minmax(60px,1fr))}
+  .click-target{width:clamp(126px,25vw,170px)}
+}
+
+/* 一般手機 */
+@media(max-width:540px){
+  .header{margin-bottom:7px;padding:13px}
+  .header p{font-size:.9rem;line-height:1.45}
+  .card{padding:10px;margin-top:7px}
+  .row{grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:7px}
+  .row button{min-height:46px;padding-inline:8px}
+  .number-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .number-btn{min-height:50px}
+  .status{padding:10px 11px;font-size:.92rem}
+  .audio-verification{padding:10px}
+  .verification-state{grid-template-columns:1fr}
+  .click-stage{height:clamp(340px,62vh,560px);height:clamp(340px,62svh,560px);min-height:300px}
+  .click-target{width:clamp(105px,36vw,150px);max-width:47%;padding:7px}
+  .click-target img{width:clamp(76px,26vw,112px);height:clamp(76px,26vw,112px)}
+  .click-target span{font-size:clamp(16px,4.8vw,21px)}
+  .pred-row{grid-template-columns:minmax(60px,78px) minmax(0,1fr) 40px;gap:6px}
+}
+
+/* 極窄手機 */
+@media(max-width:360px){
+  .app{padding-inline:max(5px,env(safe-area-inset-left)) max(5px,env(safe-area-inset-right))}
+  .header{padding:11px}.header h1{font-size:1.25rem}
+  .card{padding:8px}
+  .row{grid-template-columns:1fr}
+  #completeActions{grid-template-columns:1fr}
+  .number-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .round-action-btn,.recognition-actions .round-action-btn{width:58px;height:58px;min-height:58px;flex-basis:58px;font-size:27px}
+  .click-stage{height:clamp(320px,60vh,500px);height:clamp(320px,60svh,500px);min-height:280px}
+  .click-target{width:clamp(96px,40vw,128px);max-width:46%}
+}
+
+/* 觸控裝置維持足夠的點按尺寸 */
+@media(pointer:coarse){
+  button{min-height:48px}
+  .speak-btn{min-width:46px;min-height:46px}
 }
 </style>
 </head>
@@ -420,8 +539,8 @@ html,body{
   </section>
 
   <section id="joinCard" class="card hidden">
-    <div id="taskTitle" class="task-title"></div>
-    <div id="taskMeta" class="meta"></div>
+    <div id="taskTitle" class="task-title hidden" aria-hidden="true"></div>
+    <div id="taskMeta" class="meta hidden" aria-hidden="true"></div>
 
     <div class="number-select-title">請選擇學生編號</div>
     <div id="studentNumberGrid" class="number-grid">
@@ -473,7 +592,7 @@ html,body{
       <div id="advancedPromptCard" class="target hidden">
         <div class="target-question-row">
           <img id="advancedTargetThumbnail" class="target-thumbnail hidden" alt="進階評量題目縮圖" decoding="async">
-          <strong>語音題目</strong>
+          <strong id="advancedPromptLabel">語音題目</strong>
           <button id="repeatAdvancedPromptBtn" class="speak-btn advanced-prompt-speaker" type="button" aria-label="重複聽說明" title="重複聽說明">🔊</button>
         </div>
       </div>
@@ -552,12 +671,12 @@ html,body{
 
   <section id="clickTaskCard" class="card click-task hidden">
     <div class="click-task-head">
-      <h2 id="clickTaskTitle">隨機點選測驗</h2>
+      <h2 id="clickTaskTitle">點選模式(聽)</h2>
       <div class="click-task-meta"><span id="clickStudentNumber"></span><span id="clickProgressText">0 / 0</span></div>
     </div>
     <div id="clickPrompt" class="click-prompt hidden">
       <span id="clickPromptInstruction">請點選這個縮圖</span>
-      <img id="clickPromptImage" alt="需要點選的物品縮圖" decoding="async">
+      <img id="clickPromptImage" alt="需要點選的文字縮圖" decoding="async">
       <span id="clickPromptText" class="click-prompt-text hidden"></span>
     </div>
     <div id="clickStage" class="click-stage">
@@ -568,7 +687,7 @@ html,body{
   </section>
 
   <section id="hanziTaskCard" class="card hanzi-card hidden">
-    <h2 id="hanziTaskTitle">國字練習模式</h2>
+    <h2 id="hanziTaskTitle">書寫模式(寫)</h2>
     <div id="hanziPracticeIntro" class="hanzi-note"></div>
     <div id="hanziPicker" class="hanzi-picker"></div>
     <div id="hanziCopyrightNotice" class="hanzi-copyright hidden">點選中文字後，將開啟教育部《國字標準字體筆順學習網》；點選英文字母後，將開啟 Tiny Steps 英文字母描寫練習。本系統僅提供網站連結；外部網站頁面、文字、圖像與書寫內容的著作權及使用規範，均依各網站公告為準。<br><a href="https://stroke-order.learningweb.moe.edu.tw/" target="_blank" rel="noopener noreferrer">教育部國字標準字體筆順學習網</a>｜<a href="https://tinystepslearning.com/free-letter-tracing-game-for-kids" target="_blank" rel="noopener noreferrer">Tiny Steps 英文字母描寫練習</a></div>
@@ -584,6 +703,13 @@ html,body{
       <div id="hanziSpeechPanel" class="hanzi-speech hidden">
         <div class="hanzi-note">請按下辨識按鈕，完整念出畫面上的名稱文字。</div>
         <button id="speakHanziBtn" class="round-action-btn mic-action-btn" type="button" aria-label="開始語音辨識" title="開始語音辨識">🎤</button>
+      </div>
+      <div id="hanziWritingPanel" class="hanzi-writing hidden">
+        <label for="hanziWritingInput">請使用設備手寫鍵盤輸入答案</label>
+        <div class="hanzi-writing-row">
+          <input id="hanziWritingInput" type="text" inputmode="text" enterkeyhint="done" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="書寫答案">
+          <button id="submitHanziWritingBtn" class="primary" type="button">送出</button>
+        </div>
       </div>
       <div id="hanziStatus" class="status">等待作答。</div>
     </div>
@@ -619,10 +745,49 @@ const firebaseConfig={
 firebase.initializeApp(firebaseConfig);
 const auth=firebase.auth();
 const db=firebase.firestore();
+const firestorePersistenceReady=db.enablePersistence({synchronizeTabs:true}).catch(error=>{
+  if(!["failed-precondition","unimplemented"].includes(error.code)){
+    console.warn("Firestore 本機快取啟用失敗：",error);
+  }
+});
+
+let buttonSoundContext=null;
+function playButtonPressSound(){
+  try{
+    const AudioContextClass=window.AudioContext||window.webkitAudioContext;
+    if(!AudioContextClass)return;
+    if(!buttonSoundContext||buttonSoundContext.state==="closed")buttonSoundContext=new AudioContextClass();
+    const play=()=>{
+      const now=buttonSoundContext.currentTime;
+      const oscillator=buttonSoundContext.createOscillator();
+      const gain=buttonSoundContext.createGain();
+      oscillator.type="sine";
+      oscillator.frequency.setValueAtTime(620,now);
+      oscillator.frequency.exponentialRampToValueAtTime(820,now+0.07);
+      gain.gain.setValueAtTime(0.0001,now);
+      gain.gain.exponentialRampToValueAtTime(0.16,now+0.008);
+      gain.gain.exponentialRampToValueAtTime(0.0001,now+0.085);
+      oscillator.connect(gain);gain.connect(buttonSoundContext.destination);
+      oscillator.start(now);oscillator.stop(now+0.09);
+    };
+    if(buttonSoundContext.state==="suspended")buttonSoundContext.resume().then(play).catch(()=>{});
+    else play();
+  }catch(e){console.warn("按鈕音效播放失敗",e)}
+}
+function getEnabledButton(target){
+  const button=target&&target.closest?target.closest("button"):null;
+  return button&&!button.disabled&&button.getAttribute("aria-disabled")!=="true"?button:null;
+}
+document.addEventListener(window.PointerEvent?"pointerdown":"mousedown",event=>{
+  if(getEnabledButton(event.target))playButtonPressSound();
+},{capture:true});
+document.addEventListener("keydown",event=>{
+  if(!event.repeat&&(event.key==="Enter"||event.key===" ")&&getEnabledButton(event.target))playButtonPressSound();
+},{capture:true});
 
 let taskId="",task=null,projectType="",metadata=null,model=null;
 let ocrWorker=null,lastOcrText="",lastOcrConfidence=0;
-let browserSpeechRecognition=null,optionalAudioListening=false,optionalAudioStarting=false,optionalAudioTimer=null;
+let browserSpeechRecognition=null,optionalAudioListening=false,optionalAudioStarting=false,optionalAudioTimer=null,optionalAudioStartWatchdog=null;
 let resultRef=null,currentIndex=0,completed=[],attempts=0,holdCount=0,finished=false,paused=false;
 let imageStream=null;
 let poseWebcam=null,poseCtx=null,poseRaf=null,posePredicting=false,poseVideoStream=null,poseVideo=null;
@@ -661,7 +826,8 @@ let exitInProgress=false,exitMicrophoneShutdownPromise=null;
 let studentLeaveConfirmed=false;
 let studentPageMarkedLeft=false,studentPresenceWritePromise=Promise.resolve();
 let clickSequence=[],clickTrialIndex=0,clickRecords=[],clickTrialTimer=null,clickNextTimer=null,clickShownAt=0,clickTrialActive=false,clickCurrentTarget="",clickCurrentChoices=[];
-let hanziSpeechRecognition=null,hanziSpeechStarting=false;
+let hanziSpeechRecognition=null,hanziSpeechStarting=false,hanziSpeechStartWatchdog=null;
+let hanziPracticeItems=[];
 
 const $=id=>document.getElementById(id);
 const numberButtons=[...document.querySelectorAll(".number-btn")];
@@ -671,6 +837,124 @@ const trackedMicrophoneTracks=new Set();
 const trackedCameraTracks=new Set();
 let microphoneStreamTrackerInstalled=false;
 let mediaRequestsBlocked=false;
+let platformSpeechUnlocked=false;
+let platformSpeechRequestId=0;
+let preferredPlatformVoice=null;
+let platformSpeechLastText="",platformSpeechLastAt=0,platformSpeechLastPromise=null;
+let safariPrimedSpeechText="",safariPrimedSpeechPromise=null;
+let questionAutoSpeechTimer=null,questionAutoSpeechKey="",questionAutoSpeechInFlightKey="";
+let questionReminderTimer=null,questionReminderCount=0,questionReminderKey="",questionReminderManuallyStopped=false,questionReminderBusy=false;
+const QUESTION_REMINDER_DELAY=10000;
+const QUESTION_REMINDER_LIMIT=10;
+
+function refreshPlatformSpeechVoice(){
+  if(!("speechSynthesis" in window))return null;
+  const voices=window.speechSynthesis.getVoices?.()||[];
+  preferredPlatformVoice=
+    voices.find(voice=>/^zh[-_]TW$/i.test(voice.lang))||
+    voices.find(voice=>/^zh[-_](?:Hant|HK)$/i.test(voice.lang))||
+    voices.find(voice=>/^zh/i.test(voice.lang))||
+    null;
+  return preferredPlatformVoice;
+}
+
+function unlockPlatformSpeech(){
+  if(!("speechSynthesis" in window))return;
+  refreshPlatformSpeechVoice();
+  try{window.speechSynthesis.resume()}catch(e){}
+  if(platformSpeechUnlocked)return;
+  platformSpeechUnlocked=true;
+  try{
+    const utterance=new SpeechSynthesisUtterance(" ");
+    utterance.lang="zh-TW";
+    utterance.volume=0;
+    utterance.rate=10;
+    window.speechSynthesis.speak(utterance);
+  }catch(e){
+    platformSpeechUnlocked=false;
+  }
+}
+
+function stopPlatformSpeech(){
+  platformSpeechRequestId++;
+  platformSpeechLastText="";
+  platformSpeechLastAt=0;
+  platformSpeechLastPromise=null;
+  safariPrimedSpeechText="";
+  safariPrimedSpeechPromise=null;
+  if(!("speechSynthesis" in window))return;
+  try{window.speechSynthesis.cancel()}catch(e){}
+}
+
+function speakPlatformText(text,{lang="zh-TW",rate=.9,pitch=1,volume=1,immediate=false}={}){
+  const value=String(text||"").trim();
+  if(!value||!("speechSynthesis" in window))return Promise.resolve(false);
+  const now=Date.now();
+  if(value===platformSpeechLastText&&now-platformSpeechLastAt<2200&&platformSpeechLastPromise){
+    return platformSpeechLastPromise;
+  }
+  const requestId=++platformSpeechRequestId;
+  const synthesis=window.speechSynthesis;
+  try{synthesis.cancel()}catch(e){}
+  try{synthesis.resume()}catch(e){}
+  refreshPlatformSpeechVoice();
+
+  const speechPromise=new Promise(resolve=>{
+    let settled=false;
+    let fallbackTimer=null;
+    const finish=result=>{
+      if(settled)return;
+      settled=true;
+      if(fallbackTimer)clearTimeout(fallbackTimer);
+      resolve(result);
+    };
+    const speakNow=()=>{
+      if(requestId!==platformSpeechRequestId||exitInProgress||mediaRequestsBlocked){
+        finish(false);
+        return;
+      }
+      try{
+        const utterance=new SpeechSynthesisUtterance(value);
+        utterance.lang=lang;
+        utterance.rate=rate;
+        utterance.pitch=pitch;
+        utterance.volume=volume;
+        const voice=preferredPlatformVoice||refreshPlatformSpeechVoice();
+        if(voice&&/^zh/i.test(lang))utterance.voice=voice;
+        utterance.onend=()=>finish(true);
+        utterance.onerror=()=>finish(false);
+        fallbackTimer=setTimeout(()=>finish(false),Math.max(8000,value.length*650));
+        synthesis.speak(utterance);
+        setTimeout(()=>{
+          if(requestId===platformSpeechRequestId&&synthesis.paused){
+            try{synthesis.resume()}catch(e){}
+          }
+        },120);
+      }catch(e){
+        finish(false);
+      }
+    };
+    if(immediate)speakNow();
+    else setTimeout(speakNow,45);
+  });
+  platformSpeechLastText=value;
+  platformSpeechLastAt=now;
+  platformSpeechLastPromise=speechPromise;
+  return speechPromise;
+}
+
+function isSafariBrowser(){
+  const ua=navigator.userAgent||"";
+  return /Safari/i.test(ua)&&!/Chrome|Chromium|CriOS|Edg|OPR|Android/i.test(ua);
+}
+
+if("speechSynthesis" in window){
+  refreshPlatformSpeechVoice();
+  window.speechSynthesis.addEventListener?.("voiceschanged",refreshPlatformSpeechVoice);
+  document.addEventListener("pointerdown",unlockPlatformSpeech,{capture:true,once:true});
+  document.addEventListener("touchstart",unlockPlatformSpeech,{capture:true,passive:true,once:true});
+  document.addEventListener("keydown",unlockPlatformSpeech,{capture:true,once:true});
+}
 
 function rememberSpeechRecognition(recognition){
   if(!recognition)return recognition;
@@ -848,7 +1132,7 @@ function showCaptureFeedback(type,text){
   if(!feedback)return;
   if(captureFeedbackTimer)clearTimeout(captureFeedbackTimer);
   feedback.classList.remove("success","failure");
-  $("captureFeedbackIcon").textContent=type==="success"?"✓":"✕";
+  $("captureFeedbackIcon").textContent=type==="success"?"✓":"↻";
   $("captureFeedbackText").textContent=text;
   void feedback.offsetWidth;
   feedback.classList.add(type);
@@ -916,27 +1200,27 @@ function playTaskErrorSound(){
     gain.connect(ctx.destination);
 
     gain.gain.setValueAtTime(0.0001,now);
-    gain.gain.exponentialRampToValueAtTime(0.25,now+0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001,now+0.62);
+    gain.gain.exponentialRampToValueAtTime(0.11,now+0.025);
+    gain.gain.exponentialRampToValueAtTime(0.0001,now+0.5);
 
     const first=ctx.createOscillator();
-    first.type="sawtooth";
-    first.frequency.setValueAtTime(280,now);
-    first.frequency.exponentialRampToValueAtTime(190,now+0.26);
+    first.type="sine";
+    first.frequency.setValueAtTime(440,now);
+    first.frequency.exponentialRampToValueAtTime(392,now+0.22);
     first.connect(gain);
     first.start(now);
-    first.stop(now+0.28);
+    first.stop(now+0.24);
 
     const second=ctx.createOscillator();
-    second.type="square";
-    second.frequency.setValueAtTime(170,now+0.3);
+    second.type="sine";
+    second.frequency.setValueAtTime(349.23,now+0.24);
     second.connect(gain);
-    second.start(now+0.3);
-    second.stop(now+0.62);
+    second.start(now+0.24);
+    second.stop(now+0.5);
 
     setTimeout(()=>{
       try{ctx.close()}catch(e){}
-    },780);
+    },650);
   }catch(e){
     console.warn("錯誤音效播放失敗",e);
   }
@@ -979,7 +1263,19 @@ function isClickMode(){
 }
 
 function isHanziMode(){
-  return !!(task&&task.taskMode==="hanzi");
+  return !!(task&&["hanzi","speaking"].includes(task.taskMode));
+}
+
+function isSpeakingMode(){
+  return !!(task&&task.taskMode==="speaking");
+}
+
+function isHanziPracticeMode(){
+  return !!(task&&task.taskMode==="hanzi"&&task.hanziPracticeEnabled);
+}
+
+function isReadingMode(){
+  return !!(task&&task.taskMode==="reading");
 }
 
 function isEvaluationMode(){
@@ -987,11 +1283,15 @@ function isEvaluationMode(){
 }
 
 function isSpeechOnlyRecognition(){
-  return !!(task&&task.recognitionEngine==="ocr"&&task.skipPhotoRecognition&&(isEvaluationMode()||isGameMode()));
+  return !!(task&&task.skipPhotoRecognition&&(isReadingMode()||(task.recognitionEngine==="ocr"&&(isEvaluationMode()||isGameMode()))));
 }
 
 function applyTaskModeTheme(mode){
-  const themeKey=mode==="hanzi"
+  const themeKey=mode==="speaking"
+    ? "speaking"
+    : mode==="reading"
+    ? "reading"
+    : mode==="hanzi"
     ? "hanzi"
     : mode==="click"
     ? "click"
@@ -1005,7 +1305,9 @@ function applyTaskModeTheme(mode){
     teaching:{primary:"#2563eb",dark:"#1d4ed8",soft:"#f0f7ff",strong:"#dbeafe",border:"#93c5fd",text:"#1d4ed8",shadow:"rgba(37,99,235,.22)"},
     evaluation:{primary:"#16a34a",dark:"#15803d",soft:"#ecfdf5",strong:"#dcfce7",border:"#86efac",text:"#166534",shadow:"rgba(22,163,74,.22)"},
     game:{primary:"#7c3aed",dark:"#6d28d9",soft:"#faf5ff",strong:"#ede9fe",border:"#c4b5fd",text:"#6d28d9",shadow:"rgba(124,58,237,.22)"},
-    hanzi:{primary:"#dc2626",dark:"#b91c1c",soft:"#fff1f2",strong:"#ffe4e6",border:"#fb7185",text:"#991b1b",shadow:"rgba(220,38,38,.22)"}
+    hanzi:{primary:"#dc2626",dark:"#b91c1c",soft:"#fff1f2",strong:"#ffe4e6",border:"#fb7185",text:"#991b1b",shadow:"rgba(220,38,38,.22)"},
+    speaking:{primary:"#2563eb",dark:"#1d4ed8",soft:"#f0f7ff",strong:"#dbeafe",border:"#93c5fd",text:"#1d4ed8",shadow:"rgba(37,99,235,.22)"},
+    reading:{primary:"#0891b2",dark:"#0e7490",soft:"#ecfeff",strong:"#cffafe",border:"#67e8f9",text:"#0e7490",shadow:"rgba(8,145,178,.22)"}
   };
   const theme=themes[themeKey];
   const root=document.documentElement;
@@ -1085,6 +1387,190 @@ function currentTarget(){
     : "";
 }
 
+function getCurrentQuestionSpeechConfig(){
+  const target=currentTarget().trim();
+  if(!target)return null;
+  if(isAdvancedMode()||isDescriptionPromptMode()){
+    const description=String(task?.classDescriptions?.[target]||"").trim();
+    return description?{text:description,rate:.85}:null;
+  }
+  if(isHanziMode())return {text:target,rate:.82};
+  if(isClickMode())return {text:target,rate:.9};
+  if(isEvaluationMode())return {text:target,rate:.9};
+  return null;
+}
+
+function primeSafariFirstQuestionSpeech(){
+  if(!isSafariBrowser()||!task||isAutomaticPromptSpeechDisabled())return false;
+  const savedIndex=currentIndex;
+  if(currentIndex>=task.targetClasses.length)currentIndex=0;
+  const config=getCurrentQuestionSpeechConfig();
+  currentIndex=savedIndex;
+  if(!config)return false;
+  platformSpeechUnlocked=true;
+  platformSpeechLastText="";
+  platformSpeechLastAt=0;
+  platformSpeechLastPromise=null;
+  safariPrimedSpeechText="";
+  safariPrimedSpeechPromise=null;
+  refreshPlatformSpeechVoice();
+  try{window.speechSynthesis.resume()}catch(e){}
+  safariPrimedSpeechText=config.text;
+  safariPrimedSpeechPromise=speakPlatformText(config.text,{
+    rate:config.rate,
+    volume:isClickMode() ? .01 : 1,
+    immediate:true
+  });
+  return true;
+}
+
+function continueAfterSafariPrimedSpeech(text,options){
+  const value=String(text||"").trim();
+  if(!safariPrimedSpeechPromise||value!==safariPrimedSpeechText)return null;
+  const primedPromise=safariPrimedSpeechPromise;
+  safariPrimedSpeechText="";
+  safariPrimedSpeechPromise=null;
+  return Promise.resolve(primedPromise).then(success=>!!success);
+}
+
+function clearQuestionReminderTimer(resetState=false){
+  if(questionReminderTimer){
+    clearTimeout(questionReminderTimer);
+    questionReminderTimer=null;
+  }
+  questionReminderBusy=false;
+  if(resetState){
+    questionReminderCount=0;
+    questionReminderKey="";
+    questionReminderManuallyStopped=false;
+  }
+}
+
+function resetQuestionReminderForCurrentQuestion(){
+  clearQuestionReminderTimer(false);
+  questionReminderKey=task?`${taskId}|${task.taskMode||""}|${currentIndex}`:"";
+  questionReminderCount=0;
+  questionReminderManuallyStopped=false;
+}
+
+function isQuestionReminderApplicable(){
+  if(!task||finished||paused||pageAutoPaused||exitInProgress||currentIndex>=task.targetClasses.length)return false;
+  if(isAutomaticPromptSpeechDisabled())return false;
+  if(isGameMode()||isTeachingMode()||isClickMode())return false;
+  return isHanziMode()||isReadingMode()||(isEvaluationMode()&&isOptionalAudioRequired());
+}
+
+function markQuestionPromptInteraction(){
+  questionReminderManuallyStopped=true;
+  clearQuestionAutoSpeechTimer();
+  clearQuestionReminderTimer(false);
+}
+
+function playCurrentQuestionPrompt(){
+  if(isAdvancedMode()||isDescriptionPromptMode())return speakAdvancedPrompt();
+  if(isHanziMode())return speakHanziPrompt(false);
+  return speakEvaluationTarget();
+}
+
+function isAutomaticPromptSpeechDisabled(){
+  return !!(task&&isSpeakingMode()&&task.disableAutoPromptSpeech);
+}
+
+function isPlatformSpeechPlaying(){
+  if(!("speechSynthesis" in window))return false;
+  try{return window.speechSynthesis.speaking||window.speechSynthesis.pending}catch(e){return false}
+}
+
+function clearQuestionAutoSpeechTimer(){
+  if(questionAutoSpeechTimer){
+    clearTimeout(questionAutoSpeechTimer);
+    questionAutoSpeechTimer=null;
+  }
+  questionAutoSpeechKey="";
+}
+
+function scheduleQuestionAutoSpeech(callback,delay){
+  const key=task?`${taskId}|${task.taskMode||""}|${currentIndex}`:"";
+  if(key&&key===questionAutoSpeechInFlightKey)return;
+  clearQuestionAutoSpeechTimer();
+  questionAutoSpeechKey=key;
+  questionAutoSpeechTimer=setTimeout(async()=>{
+    questionAutoSpeechTimer=null;
+    const currentKey=task?`${taskId}|${task.taskMode||""}|${currentIndex}`:"";
+    if(!key||key!==questionAutoSpeechKey||key!==currentKey||finished||paused||pageAutoPaused||exitInProgress)return;
+    questionAutoSpeechKey="";
+    questionAutoSpeechInFlightKey=key;
+    try{await Promise.resolve(callback())}catch(e){}
+    if(questionAutoSpeechInFlightKey===key)questionAutoSpeechInFlightKey="";
+    const completedKey=task?`${taskId}|${task.taskMode||""}|${currentIndex}`:"";
+    if(key===completedKey&&!questionReminderManuallyStopped&&!finished&&!paused&&!pageAutoPaused&&!exitInProgress){
+      scheduleQuestionReminder(true);
+    }
+  },delay);
+}
+
+function scheduleQuestionReminder(resetForQuestion=false){
+  clearQuestionReminderTimer(false);
+}
+
+async function runQuestionReminder(){
+  questionReminderTimer=null;
+  if(!isQuestionReminderApplicable()||questionReminderManuallyStopped||questionReminderBusy)return;
+  if(isPlatformSpeechPlaying()){
+    scheduleQuestionReminder(false);
+    return;
+  }
+  questionReminderBusy=true;
+  questionReminderCount++;
+  try{await Promise.resolve(playCurrentQuestionPrompt())}catch(e){}
+  questionReminderBusy=false;
+  if(questionReminderManuallyStopped||finished||paused||pageAutoPaused||exitInProgress)return;
+  if(questionReminderCount>=QUESTION_REMINDER_LIMIT){
+    await skipCurrentQuestionAfterReminderLimit();
+    return;
+  }
+  scheduleQuestionReminder(false);
+}
+
+async function skipCurrentQuestionAfterReminderLimit(){
+  clearQuestionReminderTimer(false);
+  if(!task||finished||currentIndex>=task.targetClasses.length)return;
+  if(isHanziMode()){
+    setStatus("hanziStatus","題目已自動播放 10 次，已進入下一題。","error");
+    await completeHanziCharacter(true);
+    return;
+  }
+  const item=currentTarget();
+  consecutiveWrongAttempts=0;
+  completed.push(item);
+  currentIndex++;
+  resetCurrentVerification();
+  if(resultRef){
+    try{
+      await resultRef.update({
+        completedClasses:[...completed],
+        skippedClasses:firebase.firestore.FieldValue.arrayUnion(item),
+        progress:Math.round(completed.length/task.targetClasses.length*100),
+        attempts,
+        errorCount:totalErrorCount,
+        itemErrorCounts:{...itemErrorCounts},
+        imageItemErrorCounts:{...imageItemErrorCounts},
+        audioItemErrorCounts:{...audioItemErrorCounts},
+        status:currentIndex>=task.targetClasses.length?"completed":"inProgress",
+        updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+        ...(currentIndex>=task.targetClasses.length?{completedAt:firebase.firestore.FieldValue.serverTimestamp()}:{})
+      });
+    }catch(e){console.warn("自動提醒跳題紀錄失敗",e)}
+  }
+  if(currentIndex>=task.targetClasses.length){
+    finishTask();
+  }else{
+    renderTask();
+    setStatus("recognitionStatus",`「${item}」已自動播放 10 次，已進入下一題。`,"error");
+    prepareCurrentQuestionPrompt(true);
+  }
+}
+
 function getEffectiveAudioRequiredClasses(){
   if(!task||isTeachingMode())return [];
   if(isSpeechOnlyRecognition())return [...task.targetClasses];
@@ -1129,56 +1615,6 @@ function resetCurrentVerification(){
   restoreCaptureButtonForCurrentQuestion();
 }
 
-async function skipEvaluationQuestionAfterFiveWrong(){
-  if(!isEvaluationMode()||finished||currentIndex>=task.targetClasses.length)return false;
-  const item=task.targetClasses[currentIndex];
-  consecutiveWrongAttempts=0;
-  completed.push(item);
-  currentIndex++;
-  resetCurrentVerification();
-  renderTask();
-  if(resultRef){
-    try{
-      await resultRef.update({
-        completedClasses:[...completed],
-        skippedClasses:firebase.firestore.FieldValue.arrayUnion(item),
-        progress:Math.round(completed.length/task.targetClasses.length*100),
-        attempts,
-        errorCount:totalErrorCount,
-        itemErrorCounts:{...itemErrorCounts},
-        imageItemErrorCounts:{...imageItemErrorCounts},
-        audioItemErrorCounts:{...audioItemErrorCounts},
-        status:currentIndex>=task.targetClasses.length?"completed":"inProgress",
-        updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
-        ...(currentIndex>=task.targetClasses.length?{completedAt:firebase.firestore.FieldValue.serverTimestamp()}:{})
-      });
-    }catch(e){console.warn("評量跳題紀錄失敗",e)}
-  }
-  if(currentIndex>=task.targetClasses.length){
-    finishTask();
-  }else{
-    setStatus("recognitionStatus",`「${item}」已連續答錯 5 次，已進入下一題。`,"error");
-    prepareCurrentQuestionPrompt(true);
-  }
-  return true;
-}
-
-function continueEvaluationWithAudioAfterFivePhotoWrong(){
-  if(!isEvaluationMode()||!isOptionalAudioRequired()||finished||currentIndex>=task.targetClasses.length)return false;
-  consecutiveWrongAttempts=0;
-  photoRecognizing=false;
-  currentImagePassed=true;
-  currentImageConfidence=0;
-  currentImageEvidenceDataURL="";
-  updateVerificationUI();
-  const message="拍照辨識已連續答錯 5 次，請按麥克風按鈕進行語音辨識。";
-  $("imageOverlay").textContent=message;
-  lastImageOverlayText=message;
-  setStatus("recognitionStatus",message,"error");
-  setVoiceResult("請按按鈕並說出物品名稱。");
-  return true;
-}
-
 function updateVerificationUI(){
   const panel=$("audioVerification");
   const voiceButton=$("voiceRecognizeBtn");
@@ -1212,7 +1648,9 @@ function updateVerificationUI(){
   $("voiceVerificationBadge").textContent=currentAudioPassed?"🎤 語音：已完成":"🎤 語音：尚未完成";
   $("photoVerificationBadge").classList.toggle("done",currentImagePassed);
   $("voiceVerificationBadge").classList.toggle("done",currentAudioPassed);
-  $("voiceRecognizeBtn").disabled=optionalAudioListening||currentAudioPassed||taskSuccessAnimating;
+  $("voiceRecognizeBtn").disabled=currentAudioPassed||taskSuccessAnimating;
+  $("voiceRecognizeBtn").classList.toggle("is-listening",optionalAudioListening||optionalAudioStarting);
+  $("voiceRecognizeBtn").title=optionalAudioListening||optionalAudioStarting?"停止語音辨識":"開始語音辨識";
 }
 
 function gameSeededRandom(seedText){
@@ -1246,27 +1684,24 @@ function shuffleGameTargetsForStudent(){
   gameTargetsShuffled=true;
 }
 
-function speakAdvancedPrompt(){
+function speakAdvancedPrompt(autoPlayback=false){
   const description=currentAdvancedDescription.trim();
 
   if(!description){
     setStatus("recognitionStatus","目前沒有可播放的語音題目。","error");
-    return;
+    return Promise.resolve(false);
   }
 
   if(!("speechSynthesis" in window)){
     setStatus("recognitionStatus","此瀏覽器不支援語音播放。","error");
-    return;
+    return Promise.resolve(false);
   }
 
-  window.speechSynthesis.cancel();
-
-  const utterance=new SpeechSynthesisUtterance(description);
-  utterance.lang="zh-TW";
-  utterance.rate=0.85;
-  utterance.pitch=1;
-  utterance.volume=1;
-  window.speechSynthesis.speak(utterance);
+  if(autoPlayback){
+    const primed=continueAfterSafariPrimedSpeech(description,{rate:.85});
+    if(primed)return primed;
+  }
+  return speakPlatformText(description,{rate:.85});
 }
 
 function prepareAdvancedPrompt(autoSpeak=true){
@@ -1274,6 +1709,7 @@ function prepareAdvancedPrompt(autoSpeak=true){
 
   const target=task.targetClasses[currentIndex];
   currentAdvancedDescription=String(task.classDescriptions?.[target]||"").trim();
+  $("advancedPromptLabel").textContent=isReadingMode()?(currentAdvancedDescription||"說明文字"):"語音題目";
   updateAdvancedTargetThumbnail();
 
   $("normalTargetCard").classList.add("hidden");
@@ -1281,7 +1717,7 @@ function prepareAdvancedPrompt(autoSpeak=true){
   $("repeatAdvancedPromptBtn").disabled=!currentAdvancedDescription;
 
   if(autoSpeak&&currentAdvancedDescription){
-    setTimeout(()=>speakAdvancedPrompt(),250);
+    scheduleQuestionAutoSpeech(()=>speakAdvancedPrompt(true),250);
   }
 }
 
@@ -1290,36 +1726,32 @@ function prepareCurrentQuestionPrompt(autoSpeak=true){
   if(isAdvancedMode()||isDescriptionPromptMode()){
     prepareAdvancedPrompt(autoSpeak);
   }else if(isEvaluationMode()&&autoSpeak){
-    setTimeout(()=>speakEvaluationTarget(),250);
+    scheduleQuestionAutoSpeech(()=>speakEvaluationTarget(true),250);
   }
 }
 
-function speakEvaluationTarget(){
+function speakEvaluationTarget(autoPlayback=false){
   if(isTeachingMode()||isAdvancedMode()||currentIndex>=task.targetClasses.length){
-    return;
+    return Promise.resolve(false);
   }
 
   const label=String(task.targetClasses[currentIndex]||"").trim();
 
   if(!label){
     setStatus("recognitionStatus","目前沒有可播放的物品名稱。","error");
-    return;
+    return Promise.resolve(false);
   }
 
   if(!("speechSynthesis" in window)){
     setStatus("recognitionStatus","此瀏覽器不支援語音播放。","error");
-    return;
+    return Promise.resolve(false);
   }
 
-  window.speechSynthesis.cancel();
-
-  const utterance=new SpeechSynthesisUtterance(label);
-  utterance.lang="zh-TW";
-  utterance.rate=0.9;
-  utterance.pitch=1;
-  utterance.volume=1;
-
-  window.speechSynthesis.speak(utterance);
+  if(autoPlayback){
+    const primed=continueAfterSafariPrimedSpeech(label,{rate:.9});
+    if(primed)return primed;
+  }
+  return speakPlatformText(label,{rate:.9});
 }
 
 function speakTeachingLabel(){
@@ -1335,15 +1767,7 @@ function speakTeachingLabel(){
     return;
   }
 
-  window.speechSynthesis.cancel();
-
-  const utterance=new SpeechSynthesisUtterance(label);
-  utterance.lang="zh-TW";
-  utterance.rate=0.9;
-  utterance.pitch=1;
-  utterance.volume=1;
-
-  window.speechSynthesis.speak(utterance);
+  speakPlatformText(label,{rate:.9});
 }
 
 function speakTeachingDescription(){
@@ -1359,15 +1783,7 @@ function speakTeachingDescription(){
     return;
   }
 
-  window.speechSynthesis.cancel();
-
-  const utterance=new SpeechSynthesisUtterance(description);
-  utterance.lang="zh-TW";
-  utterance.rate=0.85;
-  utterance.pitch=1;
-  utterance.volume=1;
-
-  window.speechSynthesis.speak(utterance);
+  speakPlatformText(description,{rate:.85});
 }
 
 
@@ -1395,6 +1811,7 @@ async function loadTask(){
   setStatus("loadStatus","正在讀取 Firebase 任務…");
   try{
     await ensureAuth();
+    await firestorePersistenceReady;
     const snap=await db.collection("tasks").doc(taskId).get();
     if(!snap.exists)throw new Error("找不到此任務");
     task={id:snap.id,...snap.data()};
@@ -1420,7 +1837,7 @@ async function loadTask(){
     task.audioRequiredClasses=Array.isArray(task.audioRequiredClasses)
       ? task.audioRequiredClasses.filter(name=>task.targetClasses.includes(name))
       : [];
-    task.skipPhotoRecognition=task.recognitionEngine==="ocr"&&(isEvaluationMode()||isGameMode())&&!!task.skipPhotoRecognition;
+    task.skipPhotoRecognition=isReadingMode()?true:task.recognitionEngine==="ocr"&&(isEvaluationMode()||isGameMode())&&!!task.skipPhotoRecognition;
     if(task.skipPhotoRecognition)task.audioRequiredClasses=[...task.targetClasses];
     task.promptMode=task.promptMode==="description"?"description":"name";
     task.showNameText=task.recognitionEngine==="ocr"&&!!task.showNameText;
@@ -1429,11 +1846,16 @@ async function loadTask(){
       : task.showThumbnailHint===undefined?true:!!task.showThumbnailHint;
     task.speechRecognitionMode="browser";
     task.speechRecognitionLanguage="zh-TW";
+    task.disableAutoPromptSpeech=isSpeakingMode()&&!!task.disableAutoPromptSpeech;
     task.clickDisplaySeconds=Math.min(8,Math.max(3,Number(task.clickDisplaySeconds||5)));
     task.clickRepeatCount=Math.min(5,Math.max(3,Number(task.clickRepeatCount||3)));
     task.clickSimultaneousCount=Math.min(3,Math.max(1,Number(task.clickSimultaneousCount||1)),task.targetClasses.length);
-    task.hanziWritingEnabled=false;
     task.hanziSpeechEnabled=isHanziMode()&&!!task.hanziSpeechEnabled;
+    task.hanziPracticeEnabled=isHanziMode()&&!task.hanziSpeechEnabled&&(
+      task.hanziPracticeEnabled===undefined?!task.hanziWritingEnabled:!!task.hanziPracticeEnabled
+    );
+    task.hanziWritingEnabled=isHanziMode()&&!task.hanziSpeechEnabled&&!task.hanziPracticeEnabled;
+    if(task.taskMode==="hanzi"&&task.hanziWritingEnabled)prepareHanziWritingQuestionItems();
     task.hanziRepeatCount=Math.min(5,Math.max(1,Number(task.hanziRepeatCount||1)));
     if(isHanziMode()&&task.hanziSpeechEnabled){
       const savedQuestionSequence=Array.isArray(task.hanziQuestionSequence)
@@ -1457,6 +1879,9 @@ async function loadTask(){
     }else if(isClickMode()){
       projectType="click";
       metadata={labels:[...task.targetClasses]};
+    }else if(isSpeechOnlyRecognition()){
+      projectType="image";
+      metadata={labels:[...task.targetClasses]};
     }else if(task.recognitionEngine==="coco-ssd"||task.recognitionEngine==="ocr"){
       projectType="image";
       metadata={labels:[...task.targetClasses]};
@@ -1466,7 +1891,7 @@ async function loadTask(){
       metadata=detected.metadata;
     }
 
-    const typeName=isHanziMode()?"國字練習":isClickMode()?"隨機點選測驗":task.recognitionEngine==="coco-ssd"
+    const typeName=isSpeakingMode()?"口語模式":isHanziMode()?"書寫模式":isClickMode()?"點選模式":task.recognitionEngine==="coco-ssd"
       ?"COCO-SSD 開放辨識"
       :task.recognitionEngine==="ocr"
         ?"OCR 文字辨識"
@@ -1477,17 +1902,17 @@ async function loadTask(){
       ? `｜${effectiveAudioRequiredClasses.length}項需要語音辨識`
       : "";
     $("taskMeta").textContent=isHanziMode()
-      ? `國字練習｜${task.hanziSpeechEnabled?`逐項完整文字語音辨識｜每題 ${task.hanziRepeatCount} 次`:"開啟中英文書寫練習"}`
+      ? `${isSpeakingMode()?"口語模式(說)":"書寫模式(寫)"}｜${task.hanziSpeechEnabled?`逐項完整文字語音辨識｜每題 ${task.hanziRepeatCount} 次`:isHanziPracticeMode()?"開啟中英文書寫練習":"學生編號｜設備手寫輸入辨識｜結果回傳"}`
       : isClickMode()
-      ? `隨機點選測驗｜同時 ${task.clickSimultaneousCount} 種｜每個物品 ${task.clickRepeatCount} 次｜每次最多 ${task.clickDisplaySeconds} 秒`
+      ? `點選模式(聽)｜同時 ${task.clickSimultaneousCount} 個文字項目｜每個文字 ${task.clickRepeatCount} 次｜每次最多 ${task.clickDisplaySeconds} 秒`
       : task.taskMode==="teaching"
       ? `專案類型：${typeName}｜教學模式：拍照後顯示名稱與說明`
       : task.taskMode==="advanced"
         ? `專案類型：${typeName}｜進階評量：依語音說明找出正確物品${audioNote}`
         : task.taskMode==="game"
           ? `多人尋物遊戲｜教師開始後，每位學生會收到不同的隨機物品順序${task.skipPhotoRecognition?"｜僅語音辨識":audioNote}`
-          : `專案類型：${typeName}｜${task.promptMode==="description"?"說明文字語音出題":"物品名稱語音出題"}${task.skipPhotoRecognition?"｜僅語音辨識":audioNote}｜順序：${task.targetClasses.join(" → ")}`;
-    if(isHanziMode()&&!task.hanziSpeechEnabled){
+          : `專案類型：${typeName}｜${isReadingMode()?"問答模式(讀)｜":""}${task.promptMode==="description"?"說明文字語音出題":"物品名稱語音出題"}${task.skipPhotoRecognition?"｜僅語音辨識":audioNote}｜順序：${task.targetClasses.join(" → ")}`;
+    if(isHanziPracticeMode()){
       $("joinCard").classList.add("hidden");
       showHanziPracticePicker();
       setStatus("loadStatus","練習載入成功，請點選要練習的中文字或英文字母。","success");
@@ -1505,7 +1930,7 @@ async function loadTask(){
       });
       $("selectedNumberText").textContent="尚未選擇編號";
       $("startBtn").disabled=true;
-      $("startBtn").textContent=isGameMode()?"送出加入申請":isClickMode()?"開始點選測驗":isHanziMode()?"開始文字測試":"開始任務";
+      $("startBtn").textContent=isGameMode()?"送出加入申請":isClickMode()?"開始點選模式":isSpeakingMode()?"開始口語模式":isHanziMode()?"開始書寫模式":isReadingMode()?"開始問答":"開始任務";
 
       $("joinCard").classList.remove("hidden");
       if(isGameMode()){
@@ -1735,9 +2160,79 @@ function showHanziPracticePicker(){
   $("hanziTestPanel").classList.add("hidden");
   $("hanziPicker").classList.remove("hidden");
   $("hanziCopyrightNotice").classList.remove("hidden");
-  $("hanziTaskTitle").textContent=task.title||"國字練習模式";
-  $("hanziPracticeIntro").textContent="請點選中文字或英文字母，開啟對應的書寫練習頁面。";
-  $("hanziPicker").innerHTML=task.targetClasses.map(char=>`<button class="hanzi-char" type="button" data-hanzi="${escapeHtml(char)}">${escapeHtml(char)}</button>`).join("");
+  $("hanziTaskTitle").textContent=task.title||"書寫模式(寫)";
+  hanziPracticeItems=getHanziPracticeItems();
+  renderHanziPracticeCharacter();
+}
+
+function getHanziPracticeItems(){
+  const items=[];
+  getHanziSourceTexts().forEach(value=>{
+    const wordsAndCharacters=String(value||"").match(/[A-Za-z]+|\p{Script=Han}/gu)||[];
+    wordsAndCharacters.forEach(item=>{
+      if(/^[A-Za-z]+$/.test(item)){
+        Array.from(item).forEach(letter=>items.push(letter));
+      }else{
+        items.push(item);
+      }
+    });
+  });
+  return items.length?items:[...(task?.targetClasses||[])];
+}
+
+function getHanziSourceTexts(){
+  const savedTexts=Array.isArray(task?.hanziTexts)
+    ? task.hanziTexts.map(value=>String(value||"").trim()).filter(Boolean)
+    : [];
+  if(savedTexts.length)return savedTexts;
+  const savedText=String(task?.hanziText||"")
+    .split(/\r?\n/)
+    .map(value=>value.trim())
+    .filter(Boolean);
+  if(savedText.length)return savedText;
+  return Array.isArray(task?.targetClasses)
+    ? task.targetClasses.map(value=>String(value||"").trim()).filter(Boolean)
+    : [];
+}
+
+function splitHanziWritingItems(source){
+  const items=[];
+  source.forEach(value=>{
+    const tokens=String(value||"").match(/[A-Za-z]+|\p{Script=Han}/gu)||[];
+    tokens.forEach(token=>items.push(token));
+  });
+  return items;
+}
+
+function prepareHanziWritingQuestionItems(){
+  const source=getHanziSourceTexts();
+  const items=splitHanziWritingItems(source);
+  if(!items.length)return;
+  const originalThumbnails={...(task.classThumbnails||{})};
+  const mappedThumbnails={...originalThumbnails};
+  source.forEach(value=>{
+    const thumbnail=originalThumbnails[value];
+    if(!thumbnail)return;
+    splitHanziWritingItems([value]).forEach(item=>{
+      if(!mappedThumbnails[item])mappedThumbnails[item]=thumbnail;
+    });
+  });
+  task.classThumbnails=mappedThumbnails;
+  task.targetClasses=items;
+  task.hanziQuestionSequence=[...items];
+}
+
+function renderHanziPracticeCharacter(){
+  const picker=$("hanziPicker");
+  const total=hanziPracticeItems.length;
+  picker.classList.remove("single");
+  $("hanziPracticeIntro").textContent=total
+    ? `請點選要練習的文字（共 ${total} 個）`
+    : "沒有可供練習的文字。";
+  picker.innerHTML=hanziPracticeItems.map(character=>{
+    const text=String(character||"");
+    return `<button class="hanzi-char" type="button" data-hanzi="${escapeHtml(text)}">${escapeHtml(text)}</button>`;
+  }).join("");
 }
 
 function disableHanziCamera(){
@@ -1751,23 +2246,85 @@ function renderHanziQuestion(){
   $("hanziProgressText").textContent=`${currentIndex} / ${total}`;
   $("hanziProgressFill").style.width=Math.round(currentIndex/total*100)+"%";
   $("hanziQuestion").textContent=target||"完成";
+  const stageTitle=document.querySelector(".hanzi-stage-title");
+  if(stageTitle)stageTitle.textContent=isSpeakingMode()?"請說出這個文字":"請完成這個文字";
   updateThumbnailElement("hanziTargetThumbnail",target,"文字練習題目縮圖");
-  $("hanziSpeechPanel").classList.remove("hidden");
-  setStatus("hanziStatus","請按下按鈕並完整念出畫面上的文字。");
-  setTimeout(()=>speakHanziPrompt(false),300);
+  $("hanziSpeechPanel").classList.toggle("hidden",!isSpeakingMode());
+  $("hanziWritingPanel").classList.toggle("hidden",isSpeakingMode());
+  if(isSpeakingMode()){
+    setStatus("hanziStatus","請按下按鈕並完整念出畫面上的文字。");
+  }else{
+    const input=$("hanziWritingInput");
+    input.value="";
+    input.disabled=false;
+    $("submitHanziWritingBtn").disabled=false;
+    setStatus("hanziStatus","請使用設備手寫鍵盤輸入畫面上的文字。");
+    setTimeout(()=>{if(!finished&&currentIndex<total)input.focus()},120);
+  }
+  resetQuestionReminderForCurrentQuestion();
+  if(!isAutomaticPromptSpeechDisabled())scheduleQuestionAutoSpeech(()=>speakHanziPrompt(false,true),300);
 }
 
-function speakHanziPrompt(showError=true){
+function speakHanziPrompt(showError=true,autoPlayback=false){
   const target=String(task&&task.targetClasses[currentIndex]||"").trim();
-  if(!target||finished)return;
+  if(!target||finished)return Promise.resolve(false);
   if(!("speechSynthesis" in window)){
     if(showError)setStatus("hanziStatus","此瀏覽器不支援語音提醒。","error");
+    return Promise.resolve(false);
+  }
+  if(autoPlayback){
+    const primed=continueAfterSafariPrimedSpeech(target,{rate:.82});
+    if(primed)return primed;
+  }
+  return speakPlatformText(target,{rate:.82});
+}
+
+async function submitHanziWritingAnswer(){
+  if(!task||finished||isSpeakingMode()||currentIndex>=task.targetClasses.length)return;
+  const input=$("hanziWritingInput");
+  const button=$("submitHanziWritingBtn");
+  const entered=String(input.value||"").trim();
+  if(!entered){
+    setStatus("hanziStatus","請先使用設備手寫鍵盤輸入答案。","error");
+    input.focus();
     return;
   }
-  window.speechSynthesis.cancel();
-  const utterance=new SpeechSynthesisUtterance(target);
-  utterance.lang="zh-TW";utterance.rate=.82;utterance.pitch=1;utterance.volume=1;
-  window.speechSynthesis.speak(utterance);
+  markQuestionPromptInteraction();
+  input.disabled=true;
+  button.disabled=true;
+  const target=String(task.targetClasses[currentIndex]||"");
+  attempts++;
+  if(normalizeSpeechText(entered)!==normalizeSpeechText(target)){
+    localIncorrectClasses.push(target);
+    consecutiveWrongAttempts++;
+    totalErrorCount++;
+    addItemError(target,"image");
+    playTaskErrorSound();
+    showCaptureFeedback("failure","再寫一次");
+    if(resultRef){
+      try{
+        await resultRef.update({
+          attempts,
+          errorCount:totalErrorCount,
+          itemErrorCounts:{...itemErrorCounts},
+          imageItemErrorCounts:{...imageItemErrorCounts},
+          audioItemErrorCounts:{...audioItemErrorCounts},
+          incorrectClasses:firebase.firestore.FieldValue.arrayUnion(target),
+          writingInputRecords:firebase.firestore.FieldValue.arrayUnion({target,input:entered,correct:false}),
+          updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+        });
+      }catch(e){console.warn("書寫錯誤紀錄失敗",e)}
+    }
+    setStatus("hanziStatus",`書寫不正確，請再試一次（已答錯 ${consecutiveWrongAttempts} 次）。`,"error");
+    input.value="";
+    input.disabled=false;
+    button.disabled=false;
+    input.focus();
+    return;
+  }
+  playTaskSuccessSound();
+  showCaptureFeedback("success","書寫答對了");
+  await completeHanziCharacter();
 }
 
 async function saveHanziProgress(done=false){
@@ -1794,13 +2351,17 @@ async function completeHanziCharacter(skipped=false){
   await saveHanziProgress(currentIndex>=task.targetClasses.length);
   if(currentIndex>=task.targetClasses.length){
     finished=true;$("hanziTaskCard").classList.add("hidden");$("completeCard").classList.remove("hidden");$("completeActions").classList.remove("hidden");
-    $("completeIcon").textContent="🎉";$("completeTitle").textContent="國字測驗完成！";$("rankDisplay").classList.add("hidden");$("completeMessage").textContent="已完成全部國字練習，結果已回傳教師端。";renderIncorrectSummary();return;
+    $("completeIcon").textContent="🎉";$("completeTitle").textContent=isSpeakingMode()?"口語模式完成！":"書寫模式完成！";$("rankDisplay").classList.add("hidden");$("completeMessage").textContent=isSpeakingMode()?"已完成全部口語練習，結果已回傳教師端。":"已完成全部書寫練習，結果已回傳教師端。";renderIncorrectSummary();return;
   }
   renderHanziQuestion();
 }
 
 function stopHanziSpeechRecognition(recognitionOverride=null,enableButton=true){
   const recognition=recognitionOverride||hanziSpeechRecognition;
+  if(hanziSpeechStartWatchdog){
+    clearTimeout(hanziSpeechStartWatchdog);
+    hanziSpeechStartWatchdog=null;
+  }
   hanziSpeechStarting=false;
   if(recognition&&hanziSpeechRecognition===recognition)hanziSpeechRecognition=null;
   if(recognition){
@@ -1810,22 +2371,36 @@ function stopHanziSpeechRecognition(recognitionOverride=null,enableButton=true){
     stopSpeechRecognitionInstance(recognition);
   }
   const button=$("speakHanziBtn");
-  if(button)button.disabled=!enableButton;
+  if(button){
+    button.disabled=!enableButton;
+    button.classList.remove("is-listening");
+    button.title="開始語音辨識";
+  }
 }
 
 function recognizeHanziSpeech(){
-  const SpeechRecognition=getBrowserSpeechRecognitionConstructor();
-  if(!SpeechRecognition)return setStatus("hanziStatus","此瀏覽器不支援語音辨識，請改用 Chrome 或 Safari。","error");
-  if("speechSynthesis" in window)window.speechSynthesis.cancel();
-  if(hanziSpeechRecognition)stopHanziSpeechRecognition(hanziSpeechRecognition);
   const target=task.targetClasses[currentIndex];
+  if(requiresMandarinPinyin(target)&&!isPinyinLibraryReady()){
+    return setStatus("hanziStatus",getPinyinLibraryErrorMessage(),"error");
+  }
+  const SpeechRecognition=getBrowserSpeechRecognitionConstructor();
+  if(!SpeechRecognition)return setStatus("hanziStatus","此瀏覽器不支援語音辨識，請改用最新版 Chrome、Edge 或 Safari。","error");
+  stopPlatformSpeech();
+  if(hanziSpeechRecognition)stopHanziSpeechRecognition(hanziSpeechRecognition);
   const recognition=rememberSpeechRecognition(new SpeechRecognition());hanziSpeechRecognition=recognition;hanziSpeechStarting=true;microphoneStartRequestedAt=Date.now();recognition.lang=getSpeechRecognitionLanguage(target);recognition.interimResults=false;recognition.maxAlternatives=3;
-  $("speakHanziBtn").disabled=true;setStatus("hanziStatus","正在聆聽，請念出畫面上的字…");
+  $("speakHanziBtn").disabled=false;
+  $("speakHanziBtn").classList.add("is-listening");
+  $("speakHanziBtn").title="停止語音辨識";
+  setStatus("hanziStatus","正在啟動麥克風…");
   recognition.onstart=()=>{
     hanziSpeechStarting=false;
+    if(hanziSpeechStartWatchdog){clearTimeout(hanziSpeechStartWatchdog);hanziSpeechStartWatchdog=null}
     if(hanziSpeechRecognition!==recognition||mediaRequestsBlocked||document.hidden||pageAutoPaused||finished||paused||exitInProgress){
-      stopSpeechRecognitionInstance(recognition);
+      stopHanziSpeechRecognition(recognition);
+      setStatus("hanziStatus","語音辨識已停止，請再按一次麥克風按鈕。","error");
+      return;
     }
+    setStatus("hanziStatus","正在聆聽，請念出畫面上的字…");
   };
   recognition.onresult=async event=>{
     const alternatives=[...event.results[0]].map(item=>item.transcript);
@@ -1833,7 +2408,8 @@ function recognizeHanziSpeech(){
     try{
       attempts++;
       if(!alternatives.some(text=>speechMatchesTarget(text,target))){
-        localIncorrectAudioClasses.push(target);consecutiveWrongAttempts++;totalErrorCount++;addItemError(target,"audio");playTaskErrorSound();showCaptureFeedback("failure","語音答錯了");
+        const heardText=String(alternatives[0]||"").trim();
+        localIncorrectAudioClasses.push(target);consecutiveWrongAttempts++;totalErrorCount++;addItemError(target,"audio");playTaskErrorSound();showCaptureFeedback("failure","再說一次");
         if(resultRef){
           try{
             await resultRef.update({
@@ -1843,17 +2419,12 @@ function recognizeHanziSpeech(){
               imageItemErrorCounts:{...imageItemErrorCounts},
               audioItemErrorCounts:{...audioItemErrorCounts},
               incorrectAudioClasses:firebase.firestore.FieldValue.arrayUnion(target),
+              ...(heardText?{speechInputRecords:firebase.firestore.FieldValue.arrayUnion({target,input:heardText,correct:false})}:{}),
               updatedAt:firebase.firestore.FieldValue.serverTimestamp()
             });
           }catch(e){console.warn("國字語音錯誤紀錄失敗",e)}
         }
-        if(consecutiveWrongAttempts>=5){
-          setStatus("hanziStatus","已連續答錯 5 次，即將進入下一題。","error");
-          await new Promise(resolve=>setTimeout(resolve,850));
-          await completeHanziCharacter(true);
-          return;
-        }
-        setStatus("hanziStatus",`聽到「${alternatives[0]||""}」，請再試一次（${consecutiveWrongAttempts}/5）。`,"error");
+        setStatus("hanziStatus",`聽到「${alternatives[0]||""}」，請再試一次（已答錯 ${consecutiveWrongAttempts} 次）。`,"error");
         return;
       }
       playTaskSuccessSound();showCaptureFeedback("success","語音答對了");await completeHanziCharacter();
@@ -1864,26 +2435,36 @@ function recognizeHanziSpeech(){
       }
     }
   };
-  recognition.onerror=event=>{const error=event.error||"請再試一次";stopHanziSpeechRecognition(recognition);setStatus("hanziStatus","語音辨識失敗："+error,"error")};
-  recognition.onend=()=>{hanziSpeechStarting=false;$("speakHanziBtn").disabled=false;if(hanziSpeechRecognition===recognition)hanziSpeechRecognition=null};
-  try{recognition.start()}catch(e){stopHanziSpeechRecognition(recognition);trackedSpeechRecognitions.delete(recognition);setStatus("hanziStatus","無法啟動語音辨識："+(e.message||e),"error")}
+  recognition.onerror=event=>{const error=event.error||"請再試一次";stopHanziSpeechRecognition(recognition);$("speakHanziBtn").classList.remove("is-listening");$("speakHanziBtn").title="開始語音辨識";setStatus("hanziStatus","語音辨識失敗："+error,"error")};
+  recognition.onend=()=>{hanziSpeechStarting=false;if(hanziSpeechStartWatchdog){clearTimeout(hanziSpeechStartWatchdog);hanziSpeechStartWatchdog=null}$("speakHanziBtn").disabled=false;$("speakHanziBtn").classList.remove("is-listening");$("speakHanziBtn").title="開始語音辨識";if(hanziSpeechRecognition===recognition)hanziSpeechRecognition=null};
+  try{
+    recognition.start();
+    hanziSpeechStartWatchdog=setTimeout(()=>{
+      if(hanziSpeechStarting&&hanziSpeechRecognition===recognition){
+        stopHanziSpeechRecognition(recognition);
+        $("speakHanziBtn").classList.remove("is-listening");
+        $("speakHanziBtn").title="開始語音辨識";
+        setStatus("hanziStatus","麥克風沒有成功啟動，請再按一次。","error");
+      }
+    },4000);
+  }catch(e){stopHanziSpeechRecognition(recognition);trackedSpeechRecognitions.delete(recognition);$("speakHanziBtn").classList.remove("is-listening");$("speakHanziBtn").title="開始語音辨識";setStatus("hanziStatus","無法啟動語音辨識："+(e.message||e),"error")}
 }
 
 async function startHanziTest(){
   if(!selectedStudentNumber)return setStatus("joinStatus","請先選擇學生編號。","error");
-  $("startBtn").disabled=true;setStatus("joinStatus","正在建立國字測驗紀錄…");
+  $("startBtn").disabled=true;setStatus("joinStatus",isSpeakingMode()?"正在建立口語練習紀錄…":"正在建立文字練習紀錄…");
   try{
     disableHanziCamera();
     const currentUser=await ensureAuth();
-    resultRef=await db.collection("taskResults").add({taskId,teacherId:task.teacherId||"",studentUid:currentUser.uid,studentName:"學生 "+selectedStudentNumber,studentCode:selectedStudentNumber,projectType:"hanzi",targetClasses:[...task.targetClasses],hanziRepeatCount:task.hanziRepeatCount,completedClasses:[],incorrectClasses:[],incorrectAudioClasses:[],progress:0,attempts:0,errorCount:0,itemErrorCounts:{},imageItemErrorCounts:{},audioItemErrorCounts:{},status:"inProgress",taskMode:"hanzi",startedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    resultRef=await db.collection("taskResults").add({taskId,teacherId:task.teacherId||"",studentUid:currentUser.uid,studentName:"學生 "+selectedStudentNumber,studentCode:selectedStudentNumber,projectType:"hanzi",targetClasses:[...task.targetClasses],hanziRepeatCount:task.hanziRepeatCount,completedClasses:[],incorrectClasses:[],incorrectAudioClasses:[],writingInputRecords:[],speechInputRecords:[],progress:0,attempts:0,errorCount:0,itemErrorCounts:{},imageItemErrorCounts:{},audioItemErrorCounts:{},status:"inProgress",taskMode:task.taskMode||"hanzi",startedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
     stopHanziSpeechRecognition(hanziSpeechRecognition,true);
     studentPageMarkedLeft=false;
     currentIndex=0;completed=[];attempts=0;totalErrorCount=0;itemErrorCounts={};imageItemErrorCounts={};audioItemErrorCounts={};finished=false;paused=false;pageAutoPaused=false;localIncorrectClasses=[];localIncorrectAudioClasses=[];consecutiveWrongAttempts=0;
     $("speakHanziBtn").disabled=false;
     $("loadCard").classList.add("hidden");$("joinCard").classList.add("hidden");$("hanziTaskCard").classList.remove("hidden");$("hanziPicker").classList.add("hidden");$("hanziTestPanel").classList.remove("hidden");
     $("hanziCopyrightNotice").classList.add("hidden");
-    $("hanziTaskTitle").textContent=task.title||"國字測驗";$("hanziPracticeIntro").textContent="學生編號 "+selectedStudentNumber;renderHanziQuestion();
-  }catch(e){setStatus("joinStatus","開始國字測驗失敗：\n"+(e.message||e),"error");$("startBtn").disabled=false}
+    $("hanziTaskTitle").textContent=task.title||(isSpeakingMode()?"口語模式(說)":"書寫模式(寫)");$("hanziPracticeIntro").textContent="學生編號 "+selectedStudentNumber;renderHanziQuestion();
+  }catch(e){setStatus("joinStatus",(isSpeakingMode()?"開始口語練習失敗：\n":"開始文字練習失敗：\n")+(e.message||e),"error");$("startBtn").disabled=false}
 }
 
 async function startTask(){
@@ -1940,6 +2521,8 @@ async function startTask(){
         completedClasses:[],
         incorrectClasses:[],
         incorrectAudioClasses:[],
+        writingInputRecords:[],
+        speechInputRecords:[],
         progress:0,
         attempts:0,
         errorCount:0,
@@ -2066,24 +2649,22 @@ function clearClickTimers(preserveRound=false){
   }
 }
 
-function speakClickLabel(label){
-  if(!label||!("speechSynthesis" in window))return Promise.resolve();
-  window.speechSynthesis.cancel();
-  const utterance=new SpeechSynthesisUtterance(label);
-  utterance.lang="zh-TW";utterance.rate=.9;utterance.pitch=1;utterance.volume=1;
-  return new Promise(resolve=>{
-    let settled=false;
-    const fallbackTimer=setTimeout(finish,8000);
-    function finish(){
-      if(settled)return;
-      settled=true;
-      clearTimeout(fallbackTimer);
-      resolve();
+function speakClickLabel(label,autoPlayback=false){
+  if(autoPlayback){
+    const primed=continueAfterSafariPrimedSpeech(label,{rate:.9});
+    if(primed){
+      return Promise.race([
+        Promise.resolve(primed),
+        new Promise(resolve=>setTimeout(resolve,600))
+      ]).then(()=>{
+        platformSpeechLastText="";
+        platformSpeechLastAt=0;
+        platformSpeechLastPromise=null;
+        return speakPlatformText(label,{rate:.9,immediate:true});
+      });
     }
-    utterance.onend=finish;
-    utterance.onerror=finish;
-    try{window.speechSynthesis.speak(utterance)}catch(e){finish()}
-  });
+  }
+  return speakPlatformText(label,{rate:.9});
 }
 
 function updateClickProgress(){
@@ -2143,7 +2724,7 @@ async function saveClickProgress(completedStatus=false){
 function showClickFeedback(isError=false){
   const feedback=document.createElement("div");
   feedback.className="click-feedback"+(isError?" error":"");
-  feedback.textContent=isError?"點錯了！":"答對了！";
+  feedback.textContent=isError?"再試一次！":"答對了！";
   $("clickStage").appendChild(feedback);
   setTimeout(()=>feedback.remove(),700);
 }
@@ -2192,12 +2773,12 @@ async function finishClickRound(timedOut=false,speechFinished=null){
     await finishClickMode();
     return;
   }
-  $("clickWaiting").textContent=timedOut?"時間到，準備下一個物品…":"很好！準備下一個物品…";
+  $("clickWaiting").textContent=timedOut?"時間到，準備下一個文字…":"很好！準備下一個文字…";
   $("clickWaiting").classList.remove("hidden");
   clickNextTimer=setTimeout(showNextClickTrial,timedOut?850:300);
 }
 
-function showNextClickTrial(resumeRound=false){
+async function showNextClickTrial(resumeRound=false){
   clearClickTimers(resumeRound);
   if(finished||clickTrialIndex>=clickSequence.length){finishClickMode();return}
   if(!resumeRound||!clickCurrentTarget||!clickCurrentChoices.length){
@@ -2244,6 +2825,14 @@ function showNextClickTrial(resumeRound=false){
     targets.appendChild(button);
   });
   requestAnimationFrame(()=>positionClickTargets());
+  const spokenTarget=clickCurrentTarget;
+  clickShownAt=performance.now();
+  clickTrialActive=true;
+  await speakClickLabel(spokenTarget,true);
+  if(
+    !clickTrialActive||finished||paused||pageAutoPaused||exitInProgress||
+    clickCurrentTarget!==spokenTarget||clickTrialIndex>=clickSequence.length
+  )return;
   const durationMs=task.clickDisplaySeconds*1000;
   const fill=$("clickCountdownFill");
   $("clickCountdown").classList.remove("hidden");
@@ -2251,8 +2840,6 @@ function showNextClickTrial(resumeRound=false){
   requestAnimationFrame(()=>requestAnimationFrame(()=>{
     fill.style.transition=`width ${durationMs}ms linear`;fill.style.width="0%";
   }));
-  clickShownAt=performance.now();
-  clickTrialActive=true;
   clickTrialTimer=setTimeout(()=>{
     playTaskErrorSound();
     finishClickRound(true);
@@ -2275,6 +2862,8 @@ async function startClickMode(){
       targetClasses:[...task.targetClasses],
       incorrectClasses:[],
       incorrectAudioClasses:[],
+      writingInputRecords:[],
+      speechInputRecords:[],
       clickDisplaySeconds:task.clickDisplaySeconds,
       clickRepeatCount:task.clickRepeatCount,
       clickSimultaneousCount:task.clickSimultaneousCount,
@@ -2289,7 +2878,7 @@ async function startClickMode(){
       updatedAt:firebase.firestore.FieldValue.serverTimestamp()
     });
     clickSequence=buildClickSequence();clickTrialIndex=0;clickRecords=[];finished=false;paused=false;
-    $("clickTaskTitle").textContent=task.title||"隨機點選測驗";
+    $("clickTaskTitle").textContent=task.title||"點選模式(聽)";
     $("clickStudentNumber").textContent="學生編號 "+selectedStudentNumber;
     updateClickProgress();
     $("loadCard").classList.add("hidden");
@@ -2333,15 +2922,15 @@ $("clickTargets").addEventListener("click",event=>{
 });
 
 async function loadSelectedModel(){
+  if(isSpeechOnlyRecognition()){
+    const supportedLabels=[...task.targetClasses];
+    model={
+      getClassLabels:()=>[...supportedLabels],
+      predict:async()=>supportedLabels.map(className=>({className,probability:0}))
+    };
+    return;
+  }
   if(task.recognitionEngine==="ocr"){
-    if(isSpeechOnlyRecognition()){
-      const supportedLabels=[...task.targetClasses];
-      model={
-        getClassLabels:()=>[...supportedLabels],
-        predict:async()=>supportedLabels.map(className=>({className,probability:0}))
-      };
-      return;
-    }
     if(typeof Tesseract==="undefined"){
       throw new Error("OCR 文字辨識套件載入失敗，請確認網路連線後重新整理頁面。");
     }
@@ -2569,10 +3158,25 @@ function getBrowserSpeechRecognitionConstructor(){
   return window.SpeechRecognition||window.webkitSpeechRecognition||null;
 }
 
+function isPinyinLibraryReady(){
+  return !!(window.pinyinPro&&typeof window.pinyinPro.pinyin==="function");
+}
+
+function requiresMandarinPinyin(target){
+  return /\p{Script=Han}/u.test(String(target||""));
+}
+
+function getPinyinLibraryErrorMessage(){
+  return "中文發音比對元件載入失敗，請確認網路後重新整理頁面。";
+}
+
 function validateBrowserSpeechRecognition(){
   const required=getEffectiveAudioRequiredClasses();
   if(required.length&&!getBrowserSpeechRecognitionConstructor()){
-    throw new Error("此瀏覽器不支援語音辨識，請使用最新版 Chrome 或 Safari 開啟學生端。");
+    throw new Error("此瀏覽器不支援語音辨識，請使用最新版 Chrome、Edge 或 Safari 開啟學生端。");
+  }
+  if(required.some(requiresMandarinPinyin)&&!isPinyinLibraryReady()){
+    throw new Error(getPinyinLibraryErrorMessage());
   }
 }
 
@@ -2675,7 +3279,7 @@ function describeCameraError(error){
 
 async function openCompatibleCameraStream(){
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
-    throw new Error("此瀏覽器不支援相機功能，請使用最新版 Chrome 或 Safari。");
+    throw new Error("此瀏覽器不支援相機功能，請使用最新版 Chrome、Edge、Firefox 或 Safari。");
   }
   if(!window.isSecureContext&&!["localhost","127.0.0.1"].includes(location.hostname)){
     throw new Error("相機只能在 HTTPS 安全網址使用。");
@@ -2930,9 +3534,7 @@ async function captureAndRecognize(){
       totalErrorCount++;
       addItemError(target,"image");
       if(isEvaluationMode())consecutiveWrongAttempts++;
-      const shouldSkipQuestion=isEvaluationMode()&&consecutiveWrongAttempts>=5;
-      const shouldContinueToAudio=shouldSkipQuestion&&isOptionalAudioRequired();
-      showCaptureFeedback("failure","辨識失敗");
+      showCaptureFeedback("failure","再試一次");
       playTaskErrorSound();
 
       if(target&&!localIncorrectClasses.includes(target)){
@@ -2940,6 +3542,7 @@ async function captureAndRecognize(){
       }
 
       if(resultRef&&target){
+        const recognizedInput=isOcrRecognition()?String(lastOcrText||"").trim():"";
         try{
           await resultRef.update({
             attempts,
@@ -2948,6 +3551,7 @@ async function captureAndRecognize(){
             imageItemErrorCounts:{...imageItemErrorCounts},
             audioItemErrorCounts:{...audioItemErrorCounts},
             incorrectClasses:firebase.firestore.FieldValue.arrayUnion(target),
+            ...(recognizedInput?{writingInputRecords:firebase.firestore.FieldValue.arrayUnion({target,input:recognizedInput,correct:false})}:{}),
             updatedAt:firebase.firestore.FieldValue.serverTimestamp()
           });
         }catch(e){
@@ -2959,29 +3563,13 @@ async function captureAndRecognize(){
       lastImageOverlayText=$("imageOverlay").textContent;
       setStatus(
         "recognitionStatus",
-        shouldContinueToAudio
-          ?"拍照辨識已連續答錯 5 次，即將進行語音辨識。"
-          :shouldSkipQuestion
-          ?"已連續答錯 5 次，即將進入下一題。"
-          :isAdvancedMode()
+        isAdvancedMode()
           ?"辨識錯誤，請再聽一次語音說明後重新拍照。"
           :isOcrRecognition()
             ?"沒有讀到指定文字，請靠近、對準後重新拍照。"
             :"辨識錯誤，請將指定物品放入框內後重新拍照。",
         "error"
       );
-
-      if(shouldSkipQuestion){
-        setTimeout(async()=>{
-          photoRecognizing=false;
-          if(shouldContinueToAudio){
-            continueEvaluationWithAudioAfterFivePhotoWrong();
-          }else{
-            await skipEvaluationQuestionAfterFiveWrong();
-          }
-        },850);
-        return;
-      }
 
       setTimeout(()=>{
         if(!finished){
@@ -2993,7 +3581,7 @@ async function captureAndRecognize(){
       },850);
     }
   }catch(e){
-    showCaptureFeedback("failure","辨識失敗");
+    showCaptureFeedback("failure","再試一次");
     playTaskErrorSound();
     $("imageOverlay").textContent="拍照辨識失敗，請再試一次";
     lastImageOverlayText=$("imageOverlay").textContent;
@@ -3205,15 +3793,274 @@ function getEnglishPhoneticTokens(text){
   return words.map(englishPhoneticKey).filter(Boolean);
 }
 
+const RELAXED_ENGLISH_VOWEL_ONLY_WORDS=new Set(["a","e","i","o","u","eye","aye","oh","owe","awe","ah","eh","uh"]);
+
+function relaxedEnglishConsonantKey(word){
+  const original=String(word||"").normalize("NFKC").toLowerCase().replace(/[^a-z]/g,"");
+  if(RELAXED_ENGLISH_VOWEL_ONLY_WORDS.has(original))return "∅";
+  let value=normalizeEnglishWord(word);
+  if(!value)return "";
+  value=value
+    .replace(/^(?:kn|gn|pn)/,"n")
+    .replace(/^wr/,"r")
+    .replace(/^wh/,"w")
+    .replace(/^(?:hour|honest|honor|heir)/,match=>match.slice(1))
+    .replace(/ph/g,"f")
+    .replace(/ght/g,"t")
+    .replace(/gh/g,"")
+    .replace(/ck/g,"k")
+    .replace(/mb$/,"m")
+    .replace(/qu/g,"kw")
+    .replace(/ph/g,"f")
+    .replace(/th/g,"Θ")
+    .replace(/ch/g,"Č")
+    .replace(/sh/g,"Š")
+    .replace(/ng/g,"Ŋ")
+    .replace(/c(?=[eiy])/g,"s")
+    .replace(/c/g,"k")
+    .replace(/g(?=[eiy])/g,"j")
+    .replace(/q/g,"k")
+    .replace(/x/g,"ks");
+  const consonants=[...value.replace(/[aeiou]/g,"")].map(char=>char.toUpperCase());
+  return consonants.filter((key,index)=>key&&key!==consonants[index-1]).join("")||"∅";
+}
+
+function getRelaxedEnglishConsonantTokens(text){
+  const words=String(text||"").normalize("NFKC").toLowerCase().match(/[a-z]+(?:'[a-z]+)?/g)||[];
+  return words.map(relaxedEnglishConsonantKey).filter(Boolean);
+}
+
+function englishVowelSoundKey(word){
+  let value=normalizeEnglishWord(word).replace(/y$/,"i");
+  if(!value)return "NONE";
+  if(!/[aeiou]/.test(value)&&value.includes("y"))value=value.replace(/y/g,"i");
+  value=value
+    .replace(/igh/g,"I")
+    .replace(/(?:ee|ea|ie)/g,"I")
+    .replace(/(?:ai|ay|ei|ey)/g,"A")
+    .replace(/(?:oa|ow|oe)/g,"O")
+    .replace(/(?:oo|ou|ue|ew)/g,"U")
+    .replace(/(?:oi|oy)/g,"OI")
+    .replace(/(?:au|aw)/g,"AU");
+  const vowels=[...value].filter(char=>/[AEIOUaeiou]/.test(char)).map(char=>char.toUpperCase());
+  return vowels.join("")||`NO_VOWEL:${value}`;
+}
+
+function getEnglishVowelTokens(text){
+  const words=String(text||"").normalize("NFKC").toLowerCase().match(/[a-z]+(?:'[a-z]+)?/g)||[];
+  return words.map(englishVowelSoundKey).filter(Boolean);
+}
+
+function approximateEnglishConsonantKey(word){
+  const key=relaxedEnglishConsonantKey(word);
+  if(!key||key==="∅")return key;
+  const groups={B:"LIP",P:"LIP",F:"LIP",V:"LIP",M:"LIP",D:"TIP",T:"TIP",Θ:"TIP",K:"BACK",G:"BACK",S:"SIB",Z:"SIB",Š:"SIB",Č:"SIB",J:"SIB",L:"SON",R:"SON",N:"SON",Ŋ:"SON",W:"GLIDE",Y:"GLIDE",H:"GLIDE"};
+  const tokens=[...key].map(char=>groups[char]||char);
+  return tokens.filter((token,index)=>token&&token!==tokens[index-1]).join("-");
+}
+
+function approximateEnglishVowelKey(word){
+  let value=normalizeEnglishWord(word).replace(/y$/,"i");
+  if(!value)return "NONE";
+  const groups={a:"A",e:"A",i:"I",o:"O",u:"O"};
+  const tokens=[...value].map(char=>groups[char]||"").filter(Boolean);
+  return tokens.filter((token,index)=>token!==tokens[index-1]).join("")||"NONE";
+}
+
+function getApproximateEnglishSoundTokens(text){
+  const words=String(text||"").normalize("NFKC").toLowerCase().match(/[a-z]+(?:'[a-z]+)?/g)||[];
+  return words.map(word=>`${approximateEnglishConsonantKey(word)}:${approximateEnglishVowelKey(word)}`);
+}
+
+function getApproximateEnglishConsonantTokens(text){
+  const words=String(text||"").normalize("NFKC").toLowerCase().match(/[a-z]+(?:'[a-z]+)?/g)||[];
+  return words.map(approximateEnglishConsonantKey).filter(Boolean);
+}
+
+function getApproximateEnglishVowelTokens(text){
+  const words=String(text||"").normalize("NFKC").toLowerCase().match(/[a-z]+(?:'[a-z]+)?/g)||[];
+  return words.map(approximateEnglishVowelKey).filter(Boolean);
+}
+
+function normalizeMandarinSpeechToken(token){
+  return normalizeSpeechText(token);
+}
+
+function normalizeStandardMandarinNearSoundToken(token){
+  const value=normalizeMandarinSpeechToken(token);
+  const toneMatch=value.match(/(\d+)$/);
+  const tone=toneMatch?toneMatch[1]:"";
+  let syllable=tone?value.slice(0,-tone.length):value;
+  syllable=syllable
+    .replace(/^zh/,"z")
+    .replace(/^ch/,"c")
+    .replace(/^sh/,"s")
+    .replace(/eng$/,"en");
+  return syllable+tone;
+}
+
+function mandarinConsonantKey(token){
+  const value=normalizeSpeechText(token).replace(/\d+$/g,"");
+  const match=value.match(/^(zh|ch|sh|[bpmfdtnlgkhjqxrzcs])/);
+  return match?match[1]:"∅";
+}
+
+function mandarinVowelKey(token){
+  const value=normalizeSpeechText(token).replace(/\d+$/g,"").replace(/ü/g,"v");
+  const initial=value.match(/^(zh|ch|sh|[bpmfdtnlgkhjqxrzcs])/);
+  const initialText=initial?initial[1]:"";
+  let finalPart="";
+  if(initialText){
+    finalPart=value.slice(initialText.length);
+    if(/^[jqx]$/.test(initialText)&&finalPart.startsWith("u"))finalPart="v"+finalPart.slice(1);
+  }else if(value.startsWith("y")){
+    const yMap={yi:"i",ya:"ia",yo:"io",ye:"ie",yao:"iao",you:"iou",yan:"ian",yin:"in",yang:"iang",ying:"ing",yong:"iong",yu:"v",yue:"ve",yuan:"van",yun:"vn"};
+    finalPart=yMap[value]||("i"+value.slice(1));
+  }else if(value.startsWith("w")){
+    const wMap={wu:"u",wa:"ua",wo:"uo",wai:"uai",wei:"uei",wan:"uan",wen:"uen",wang:"uang",weng:"ueng"};
+    finalPart=wMap[value]||("u"+value.slice(1));
+  }else{
+    finalPart=value;
+  }
+  if(finalPart==="iu")finalPart="iou";
+  else if(finalPart==="ui")finalPart="uei";
+  else if(finalPart==="un")finalPart="uen";
+  return finalPart||"NONE";
+}
+
+const MEDIUM_MANDARIN_CONSONANT_GROUPS=[
+  new Set(["b","p","m"]),
+  new Set(["d","t"]),
+  new Set(["n","l"]),
+  new Set(["g","k","h"]),
+  new Set(["j","q","x"]),
+  new Set(["zh","ch","sh","r"]),
+  new Set(["z","c","s"])
+];
+const MEDIUM_MANDARIN_CROSS_PAIRS=new Set(["z|zh","c|ch","s|sh"]);
+
+function mediumMandarinConsonantsMatch(left,right){
+  if(!left||!right)return false;
+  if(left===right)return true;
+  if(MEDIUM_MANDARIN_CONSONANT_GROUPS.some(group=>group.has(left)&&group.has(right)))return true;
+  return MEDIUM_MANDARIN_CROSS_PAIRS.has([left,right].sort().join("|"));
+}
+
+function mediumMandarinVowelKey(token){
+  const finalPart=mandarinVowelKey(token);
+  return ({eng:"en",ang:"an",ing:"in"})[finalPart]||finalPart;
+}
+
+function getMediumMandarinSyllables(text){
+  if(!window.pinyinPro||typeof window.pinyinPro.pinyin!=="function")return [];
+  try{
+    return window.pinyinPro.pinyin(String(text||""),{
+      toneType:"num",
+      type:"array"
+    }).map(token=>({
+      consonant:mandarinConsonantKey(token),
+      vowel:mediumMandarinVowelKey(token)
+    })).filter(item=>item.consonant&&item.vowel);
+  }catch(e){
+    console.warn("中文中度放寬轉換失敗",e);
+    return [];
+  }
+}
+
+function containsMediumMandarinSequence(source,target,matchMode="both"){
+  if(!target.length||source.length<target.length)return false;
+  for(let i=0;i<=source.length-target.length;i++){
+    const matched=target.every((targetItem,index)=>{
+      const sourceItem=source[i+index];
+      const consonantMatched=mediumMandarinConsonantsMatch(sourceItem.consonant,targetItem.consonant);
+      const vowelMatched=sourceItem.vowel===targetItem.vowel;
+      if(matchMode==="consonant")return consonantMatched;
+      if(matchMode==="vowel")return vowelMatched;
+      return consonantMatched&&vowelMatched;
+    });
+    if(matched)return true;
+  }
+  return false;
+}
+
+function approximateMandarinConsonantKey(token){
+  const initial=mandarinConsonantKey(token);
+  const groups={b:"LIP",p:"LIP",m:"LIP",f:"AIR",h:"AIR",d:"TIP",t:"TIP",n:"SON",l:"SON",r:"SON",g:"BACK",k:"BACK",j:"AFF1",zh:"AFF1",z:"AFF1",q:"AFF2",ch:"AFF2",c:"AFF2",x:"FRIC",sh:"FRIC",s:"FRIC"};
+  return groups[initial]||initial;
+}
+
+function approximateMandarinVowelKey(token){
+  const value=normalizeSpeechText(token).replace(/\d+$/g,"");
+  const initial=value.match(/^(zh|ch|sh|[bpmfdtnlgkhjqxrzcs])/);
+  let finalPart=initial?value.slice(initial[1].length):value.replace(/^[yw]/,"");
+  finalPart=finalPart.replace(/[üv]/g,"u").replace(/ng$/,"n");
+  const hasNasal=/n$/.test(finalPart);
+  const vowel=finalPart.replace(/n$/,"");
+  const nucleus=vowel.includes("a")?"A":/[eo]/.test(vowel)?"E":/[iu]/.test(vowel)?"HIGH":"NONE";
+  return nucleus+(hasNasal?"N":"");
+}
+
 function getPhoneticTokens(text){
   if(!window.pinyinPro||typeof window.pinyinPro.pinyin!=="function")return [];
   try{
     return window.pinyinPro.pinyin(String(text||""),{
       toneType:"num",
       type:"array"
-    }).map(token=>normalizeSpeechText(token).replace(/[23]$/,"23")).filter(Boolean);
+    }).map(normalizeMandarinSpeechToken).filter(Boolean);
   }catch(e){
     console.warn("拼音轉換失敗",e);
+    return [];
+  }
+}
+
+function getStandardMandarinNearSoundTokens(text){
+  if(!window.pinyinPro||typeof window.pinyinPro.pinyin!=="function")return [];
+  try{
+    return window.pinyinPro.pinyin(String(text||""),{
+      toneType:"num",
+      type:"array"
+    }).map(normalizeStandardMandarinNearSoundToken).filter(Boolean);
+  }catch(e){
+    console.warn("中文一般近音轉換失敗",e);
+    return [];
+  }
+}
+
+function getMandarinConsonantTokens(text){
+  if(!window.pinyinPro||typeof window.pinyinPro.pinyin!=="function")return [];
+  try{
+    return window.pinyinPro.pinyin(String(text||""),{
+      toneType:"num",
+      type:"array"
+    }).map(mandarinConsonantKey).filter(Boolean);
+  }catch(e){
+    console.warn("中文子音轉換失敗",e);
+    return [];
+  }
+}
+
+function getMandarinVowelTokens(text){
+  if(!window.pinyinPro||typeof window.pinyinPro.pinyin!=="function")return [];
+  try{
+    return window.pinyinPro.pinyin(String(text||""),{
+      toneType:"num",
+      type:"array"
+    }).map(mandarinVowelKey).filter(Boolean);
+  }catch(e){
+    console.warn("中文母音轉換失敗",e);
+    return [];
+  }
+}
+
+function getApproximateMandarinSoundTokens(text){
+  if(!window.pinyinPro||typeof window.pinyinPro.pinyin!=="function")return [];
+  try{
+    return window.pinyinPro.pinyin(String(text||""),{
+      toneType:"num",
+      type:"array"
+    }).map(token=>`${approximateMandarinConsonantKey(token)}:${approximateMandarinVowelKey(token)}`).filter(Boolean);
+  }catch(e){
+    console.warn("中文近似發音轉換失敗",e);
     return [];
   }
 }
@@ -3226,24 +4073,343 @@ function containsTokenSequence(source,target){
   return false;
 }
 
+function normalizeFuzzySpeechPhrase(text){
+  const source=String(text||"").normalize("NFKC").toLowerCase();
+  if(isEnglishSpeechTarget(source)){
+    const optionalWords=new Set(["a","an","the","to","at","in","on","of","for","please"]);
+    const words=source.match(/[a-z]+(?:'[a-z]+)?/g)||[];
+    return words.filter(word=>!optionalWords.has(word)).join("");
+  }
+  let normalized=normalizeSpeechText(source);
+  if(!normalized)return normalized;
+  ["請問","麻煩","一下"].forEach(phrase=>{normalized=normalized.split(phrase).join("")});
+  return normalized.replace(/[的地得在了著過把被和跟與及請啊呀喔哦欸誒嗯呢吧嘛啦囉耶]/g,"");
+}
+
+const FUZZY_DAILY_SEMANTIC_GROUPS=[
+  ["快樂",["快樂","開心","高興","愉快","歡喜"]],
+  ["難過",["難過","傷心","不開心","悲傷"]],
+  ["生氣",["生氣","氣憤","發火","很氣"]],
+  ["害怕",["害怕","恐懼","很怕","好怕"]],
+  ["緊張",["緊張","不安","擔心"]],
+  ["放心",["放心","安心","不擔心"]],
+  ["喜歡",["喜歡","喜愛","很愛"]],
+  ["討厭",["討厭","不喜歡","不想要"]],
+  ["疲累",["疲倦","疲累","很累","沒力氣"]],
+  ["疼痛",["疼痛","會痛","很痛"]],
+  ["舒服",["舒服","感覺很好"]],
+  ["不舒服",["不舒服","身體不適","怪怪的"]],
+  ["肚子餓",["肚子餓","想吃東西","很餓"]],
+  ["口渴",["口渴","想喝水","很渴"]],
+  ["吃飯",["吃飯","用餐","吃東西"]],
+  ["喝水",["喝水","飲水","補充水分"]],
+  ["睡覺",["睡覺","上床睡覺","去睡"]],
+  ["起床",["起床","醒來","起來了"]],
+  ["休息",["休息","休息一下","坐一下"]],
+  ["上廁所",["上廁所","去廁所","去洗手間"]],
+  ["洗澡",["洗澡","沖澡","沐浴"]],
+  ["洗手",["洗手","清潔雙手","把手洗乾淨"]],
+  ["刷牙",["刷牙","清潔牙齒"]],
+  ["洗臉",["洗臉","把臉洗乾淨"]],
+  ["穿衣服",["穿衣服","穿上衣服","把衣服穿上"]],
+  ["脫衣服",["脫衣服","脫掉衣服","把衣服脫掉"]],
+  ["穿鞋",["穿鞋","穿上鞋子"]],
+  ["脫鞋",["脫鞋","脫掉鞋子"]],
+  ["整理",["整理","收好","收拾"]],
+  ["清潔",["清潔","打掃","弄乾淨"]],
+  ["唱歌",["唱歌","歌唱"]],
+  ["跳舞",["跳舞","跳舞活動","舞蹈"]],
+  ["煮飯",["煮飯","做飯","做菜"]],
+  ["購物",["購物","買東西","去買東西"]],
+  ["工作",["工作","上班","去工作"]],
+  ["生病",["生病","身體不舒服","身體不適"]],
+  ["說話",["說話","講話","回答","說出來"]],
+  ["觀看",["觀看","看見","看到"]],
+  ["聆聽",["聆聽","聽見","仔細聽"]],
+  ["書寫",["書寫","寫字","手寫"]],
+  ["閱讀",["閱讀","念出來","讀出來"]],
+  ["選擇",["選擇","挑選","點選"]],
+  ["拿取",["拿取","拿起來","取出"]],
+  ["放入",["放進去","放入","擺進去"]],
+  ["丟棄",["丟掉","丟棄","投入"]],
+  ["打開",["打開","開啟","開起來"]],
+  ["關閉",["關閉","關起來","關掉"]],
+  ["開始",["開始","開始進行","進行活動"]],
+  ["停止",["停止","停下來","不要繼續"]],
+  ["等待",["等待","等一下","稍等"]],
+  ["尋找",["尋找","找一找","去找"]],
+  ["找到",["找到","發現了","看到了"]],
+  ["幫忙",["幫忙","幫助","協助"]],
+  ["前往",["前往","走到","要去"]],
+  ["返回",["返回","回去","回來"]],
+  ["進入",["進入","走進去","進去裡面"]],
+  ["離開",["離開","走出去","出去外面"]],
+  ["完成",["完成","做完","做好了"]],
+  ["爸爸",["爸爸","父親","我爸爸"]],
+  ["媽媽",["媽媽","母親","我媽媽"]],
+  ["父母",["父母","爸媽","爸爸媽媽"]],
+  ["爺爺",["爺爺","祖父","阿公"]],
+  ["奶奶",["奶奶","祖母","阿嬤"]],
+  ["老師",["老師","教師","導師"]],
+  ["同學",["同學","班上同學"]],
+  ["朋友",["朋友","好朋友","同伴"]],
+  ["醫生",["醫生","醫師","大夫"]],
+  ["護理師",["護理師","護士"]],
+  ["警察",["警察","警員","警察先生"]],
+  ["家",["家裡","住家","家中"]],
+  ["學校",["學校","校園","學校裡"]],
+  ["教室",["教室","班上","班級教室"]],
+  ["廁所",["廁所","洗手間","化妝室"]],
+  ["醫院",["醫院","醫療院所"]],
+  ["診所",["診所","看醫生的地方"]],
+  ["藥局",["藥局","藥房"]],
+  ["商店",["商店","店家","店裡"]],
+  ["便利商店",["便利商店","超商"]],
+  ["超市",["超市","超級市場"]],
+  ["餐廳",["餐廳","吃飯的地方"]],
+  ["公園",["公園","公園裡"]],
+  ["車站",["車站","火車站"]],
+  ["警察局",["警察局","派出所"]],
+  ["公車",["公車","公共汽車"]],
+  ["火車",["火車","列車"]],
+  ["高鐵",["高鐵","高速鐵路"]],
+  ["捷運",["捷運","地下鐵"]],
+  ["汽車",["汽車","轎車","車子"]],
+  ["機車",["機車","摩托車"]],
+  ["腳踏車",["腳踏車","自行車","單車"]],
+  ["計程車",["計程車","小黃","出租車"]],
+  ["搭乘",["搭乘","乘坐","搭車","坐車"]],
+  ["搭公車",["搭公車","坐公車","乘坐公車","搭公共汽車","坐公共汽車","乘坐公共汽車"]],
+  ["上車",["上車","進入車內"]],
+  ["下車",["下車","離開車子"]],
+  ["走路",["走路","步行","用走的"]],
+  ["迷路",["迷路","找不到路","不知道怎麼走"]],
+  ["手機",["手機","行動電話"]],
+  ["電腦",["電腦","電腦設備"]],
+  ["平板",["平板","平板電腦"]],
+  ["冷氣",["冷氣","空調","冷氣機"]],
+  ["冰箱",["冰箱","電冰箱"]],
+  ["垃圾桶",["垃圾桶","垃圾筒"]],
+  ["上課",["上課","進行課程","學習課程"]],
+  ["作業",["作業","功課","學習單"]],
+  ["考試",["考試","測驗","評量"]],
+  ["正確",["正確","答對","對了"]],
+  ["錯誤",["錯誤","答錯","不正確"]],
+  ["再一次",["再一次","重來","重新做"]],
+  ["了解",["了解","知道","明白","懂了"]],
+  ["不知道",["不知道","不清楚","不明白"]],
+  ["記得",["記得","記住","沒有忘記"]],
+  ["忘記",["忘記","不記得","想不起來"]],
+  ["謝謝",["謝謝","感謝","多謝"]],
+  ["對不起",["對不起","抱歉","不好意思"]],
+  ["沒關係",["沒關係","不要緊","沒事"]],
+  ["再見",["再見","拜拜","下次見"]],
+  ["問候",["你好","您好","哈囉","嗨你好"]],
+  ["同意",["好的","好啊","可以啊","沒問題","沒問題啊","行啊"]],
+  ["拒絕",["不要","不想要","不需要","不行","不可以","不能"]],
+  ["想要",["我想要","我要","我需要","想拿","想得到"]],
+  ["請等待",["請等一下","等一下","稍等一下","等一等","等我一下"]],
+  ["請慢一點",["請慢一點","說慢一點","慢慢說","可以說慢一點嗎"]],
+  ["請大聲一點",["請大聲一點","說大聲一點","大聲一點","我聽不到"]],
+  ["沒有聽清楚",["沒有聽清楚","沒聽清楚","聽不清楚","沒有聽到"]],
+  ["可以借我",["可以借我嗎","借我一下","請借給我","能借我嗎"]],
+  ["找不到",["找不到","沒有找到","沒找到","不見了"]],
+  ["在哪裡",["在哪裡","在哪邊","在什麼地方","位置在哪"]],
+  ["多少錢",["多少錢","價格多少","要多少錢","怎麼賣"]],
+  ["購買",["我要買","我想買","想購買","購買這個"]],
+  ["付款",["付款","付錢","結帳","買單"]],
+  ["昂貴",["太貴","很貴","價格太高"]],
+  ["便宜",["便宜","不貴","價格低"]],
+  ["今天",["今天","今日","這一天"]],
+  ["明天",["明天","明日","隔天"]],
+  ["現在",["現在","目前","這時候"]],
+  ["下雨",["下雨","正在下雨","雨很大"]],
+  ["天氣熱",["天氣很熱","天氣熱","很炎熱"]],
+  ["天氣冷",["天氣很冷","天氣冷","很寒冷"]],
+  ["打電話",["打電話","撥電話","電話聯絡"]],
+  ["接電話",["接電話","接聽電話"]],
+  ["充電",["充電","幫手機充電","接上充電器"]],
+  ["沒電",["沒電","沒有電","手機沒電","手機沒有電","電池用完","電量不足"]],
+  ["網路故障",["沒有網路","網路不能用","網路斷線","連不上網路"]],
+  ["請讓一下",["請讓一下","借過一下","不好意思借過"]],
+  ["沒聽懂",["我聽不懂","沒有聽懂","不懂你的意思"]],
+  ["請解釋",["請解釋","可以說明嗎","請告訴我意思","這是什麼意思"]],
+  ["需要幫忙",["請幫我","幫幫我","可以幫忙嗎"]],
+  ["再說一次",["再說一次","請重複"]],
+  ["聽不懂",["聽不懂","不知道意思","沒有聽懂"]],
+  ["頭痛",["頭痛","頭會痛","頭不舒服"]],
+  ["肚子痛",["肚子痛","腹痛","肚子不舒服"]],
+  ["牙痛",["牙痛","牙齒痛"]],
+  ["喉嚨痛",["喉嚨痛","喉嚨不舒服"]],
+  ["發燒",["發燒","發熱","體溫很高"]],
+  ["咳嗽",["咳嗽","一直咳"]],
+  ["流鼻水",["流鼻水","鼻水很多"]],
+  ["頭暈",["頭暈","暈眩"]],
+  ["受傷",["受傷","弄傷","有傷口"]],
+  ["流血",["流血","出血"]],
+  ["吃藥",["吃藥","服藥"]],
+  ["看醫生",["看醫生","就醫","去醫院"]],
+  ["求救",["求救","呼救","請人幫忙"]],
+  ["火災",["火災","失火","著火"]],
+  ["地震",["地震","地面搖動"]],
+  ["逃生",["逃生","撤離","離開危險地方"]],
+  ["報警",["報警","打110","找警察"]],
+  ["救護車",["救護車","打119","叫救護車"]],
+  ["危險",["危險","不安全","會受傷"]],
+  ["小心",["小心","注意安全","要當心"]]
+];
+
+const FUZZY_SEMANTIC_CONFLICTS=[
+  [["左","左邊","左方"],["右","右邊","右方"]],
+  [["前面","前方","向前"],["後面","後方","向後"]],
+  [["上面","上方","向上"],["下面","下方","向下"]],
+  [["打開","開啟"],["關閉","關掉"]],
+  [["進入","進去"],["離開","出去"]],
+  [["可以","能夠"],["不可以","不能"]],
+  [["安全"],["危險","不安全"]],
+  [["喜歡","喜愛"],["討厭","不喜歡"]],
+  [["好的","好啊","可以啊","沒問題","行啊"],["不要","不行","不可以","不能"]],
+  [["昂貴","太貴","很貴"],["便宜","不貴"]],
+  [["今天","今日"],["明天","明日"]],
+  [["天氣很熱","炎熱"],["天氣很冷","寒冷"]]
+];
+
+function normalizedSemanticSource(text){
+  return normalizeSpeechText(text);
+}
+
+const FUZZY_DAILY_SEMANTIC_REPLACEMENTS=FUZZY_DAILY_SEMANTIC_GROUPS.flatMap(([concept,terms],index)=>
+  [...new Set([concept,...terms])].map(term=>({
+    token:`q${index}q`,
+    term:normalizedSemanticSource(term)
+  }))
+).filter(entry=>entry.term.length>=2).sort((a,b)=>b.term.length-a.term.length);
+
+function canonicalizeFuzzyDailySemanticText(text){
+  if(isEnglishSpeechTarget(text))return normalizeFuzzySpeechPhrase(text);
+  let value=normalizedSemanticSource(text);
+  FUZZY_DAILY_SEMANTIC_REPLACEMENTS.forEach(({token,term})=>{
+    value=value.split(term).join(token);
+  });
+  ["請問","麻煩","一下"].forEach(phrase=>{value=value.split(phrase).join("")});
+  return value.replace(/[的地得在了著過把被和跟與及請啊呀喔哦欸誒嗯呢吧嘛啦囉耶]/g,"");
+}
+
+function hasFuzzyNegation(text){
+  let source=String(text||"").normalize("NFKC").toLowerCase();
+  ["不舒服","不開心","不安","不清楚","不明白","不知道","不記得","不好意思","不安全","沒問題","沒有問題","沒有聽清楚","沒聽清楚","聽不清楚","沒有聽到","找不到","沒有找到","沒找到","不見了","不貴","沒電","沒有電","電量不足","沒有網路","網路不能用","連不上網路","聽不懂","沒有聽懂","不懂你的意思"].forEach(phrase=>{
+    source=source.split(phrase).join("");
+  });
+  return /(?:不|沒|没有|沒有|未|別|无|無|不能|不要|不是|不會|不可以)/.test(source)||/\b(?:no|not|never|cannot|can't|dont|don't|doesnt|doesn't|isnt|isn't)\b/.test(source);
+}
+
+function containsAnySemanticTerm(source,terms){
+  return terms.some(term=>source.includes(normalizedSemanticSource(term)));
+}
+
+function hasFuzzySemanticConflict(spoken,target){
+  if(hasFuzzyNegation(spoken)!==hasFuzzyNegation(target))return true;
+  const spokenSource=normalizedSemanticSource(spoken);
+  const targetSource=normalizedSemanticSource(target);
+  return FUZZY_SEMANTIC_CONFLICTS.some(([sideA,sideB])=>
+    containsAnySemanticTerm(spokenSource,sideA)&&containsAnySemanticTerm(targetSource,sideB)||
+    containsAnySemanticTerm(spokenSource,sideB)&&containsAnySemanticTerm(targetSource,sideA)
+  );
+}
+
+function getFuzzyDailySemanticConcepts(text){
+  const source=canonicalizeFuzzyDailySemanticText(text);
+  const concepts=new Set();
+  FUZZY_DAILY_SEMANTIC_GROUPS.forEach(([concept],index)=>{
+    if(source.includes(`q${index}q`))concepts.add(concept);
+  });
+  return concepts;
+}
+
+function fuzzyDailySemanticMatchesTarget(spoken,target){
+  if(hasFuzzySemanticConflict(spoken,target))return false;
+  const spokenConcepts=getFuzzyDailySemanticConcepts(spoken);
+  const targetConcepts=getFuzzyDailySemanticConcepts(target);
+  if(targetConcepts.size<2||spokenConcepts.size<2)return false;
+  let overlap=0;
+  targetConcepts.forEach(concept=>{if(spokenConcepts.has(concept))overlap++});
+  const required=Math.max(2,Math.ceil(targetConcepts.size*0.75));
+  const combinedSize=Math.max(targetConcepts.size,spokenConcepts.size);
+  return overlap>=required&&overlap/combinedSize>=0.60;
+}
+
+function fuzzySpeechMatchesTarget(spoken,target){
+  if(!task?.fuzzySpeechRecognition)return false;
+  if(hasFuzzySemanticConflict(spoken,target))return false;
+  const spokenText=normalizeFuzzySpeechPhrase(spoken);
+  const targetText=normalizeFuzzySpeechPhrase(target);
+  if(!spokenText||!targetText)return false;
+  if(targetText.length>=2&&spokenText===targetText)return true;
+  if(canonicalizeFuzzyDailySemanticText(spoken)===canonicalizeFuzzyDailySemanticText(target))return true;
+  if(targetText.length<2)return false;
+  return fuzzyDailySemanticMatchesTarget(spoken,target);
+}
+
 function speechMatchesTarget(spoken,target){
   const spokenText=normalizeSpeechText(spoken);
   const targetText=normalizeSpeechText(target);
   if(!spokenText||!targetText)return false;
   if(spokenText===targetText||spokenText.includes(targetText))return true;
+  if(fuzzySpeechMatchesTarget(spoken,target))return true;
   if(isEnglishSpeechTarget(target)){
     const spokenPhonetics=getEnglishPhoneticTokens(spoken);
     const targetPhonetics=getEnglishPhoneticTokens(target);
-    return containsTokenSequence(spokenPhonetics,targetPhonetics);
+    if(containsTokenSequence(spokenPhonetics,targetPhonetics))return true;
+    if(!task?.relaxedSpeechRecognition)return false;
+    if(containsTokenSequence(
+      getApproximateEnglishConsonantTokens(spoken),
+      getApproximateEnglishConsonantTokens(target)
+    ))return true;
+    if(containsTokenSequence(
+      getApproximateEnglishVowelTokens(spoken),
+      getApproximateEnglishVowelTokens(target)
+    ))return true;
+    if(containsTokenSequence(
+      getRelaxedEnglishConsonantTokens(spoken),
+      getRelaxedEnglishConsonantTokens(target)
+    ))return true;
+    if(containsTokenSequence(
+      getEnglishVowelTokens(spoken),
+      getEnglishVowelTokens(target)
+    ))return true;
+    return containsTokenSequence(
+      getApproximateEnglishSoundTokens(spoken),
+      getApproximateEnglishSoundTokens(target)
+    );
   }
   const spokenPhonetics=getPhoneticTokens(spoken);
   const targetPhonetics=getPhoneticTokens(target);
-  return containsTokenSequence(spokenPhonetics,targetPhonetics);
+  if(containsTokenSequence(spokenPhonetics,targetPhonetics))return true;
+  if(containsTokenSequence(
+    getStandardMandarinNearSoundTokens(spoken),
+    getStandardMandarinNearSoundTokens(target)
+  ))return true;
+  if(!task?.relaxedSpeechRecognition)return false;
+  const spokenMediumSyllables=getMediumMandarinSyllables(spoken);
+  const targetMediumSyllables=getMediumMandarinSyllables(target);
+  if(containsMediumMandarinSequence(spokenMediumSyllables,targetMediumSyllables))return true;
+  if(containsMediumMandarinSequence(spokenMediumSyllables,targetMediumSyllables,"consonant"))return true;
+  if(containsMediumMandarinSequence(spokenMediumSyllables,targetMediumSyllables,"vowel"))return true;
+  if(containsTokenSequence(getMandarinConsonantTokens(spoken),getMandarinConsonantTokens(target)))return true;
+  if(containsTokenSequence(getMandarinVowelTokens(spoken),getMandarinVowelTokens(target)))return true;
+  return containsTokenSequence(
+    getApproximateMandarinSoundTokens(spoken),
+    getApproximateMandarinSoundTokens(target)
+  );
 }
 
 function stopOptionalAudioRecognition(updateUI=true){
   optionalAudioListening=false;
   optionalAudioStarting=false;
+  if(optionalAudioStartWatchdog){
+    clearTimeout(optionalAudioStartWatchdog);
+    optionalAudioStartWatchdog=null;
+  }
   if(optionalAudioTimer){
     clearTimeout(optionalAudioTimer);
     optionalAudioTimer=null;
@@ -3260,8 +4426,9 @@ function stopOptionalAudioRecognition(updateUI=true){
   if(updateUI)updateVerificationUI();
 }
 
-async function recordOptionalAudioFailure(target,countTowardLimit=true){
+async function recordOptionalAudioFailure(target,countTowardLimit=true,inputText=""){
   attempts++;
+  const heardText=String(inputText||"").trim();
   if(countTowardLimit){totalErrorCount++;addItemError(target,"audio")}
   if(target&&!localIncorrectAudioClasses.includes(target)){
     localIncorrectAudioClasses.push(target);
@@ -3275,6 +4442,7 @@ async function recordOptionalAudioFailure(target,countTowardLimit=true){
         imageItemErrorCounts:{...imageItemErrorCounts},
         audioItemErrorCounts:{...audioItemErrorCounts},
         incorrectAudioClasses:firebase.firestore.FieldValue.arrayUnion(target),
+        ...(heardText?{speechInputRecords:firebase.firestore.FieldValue.arrayUnion({target,input:heardText,correct:false})}:{}),
         updatedAt:firebase.firestore.FieldValue.serverTimestamp()
       });
     }catch(e){
@@ -3283,7 +4451,6 @@ async function recordOptionalAudioFailure(target,countTowardLimit=true){
   }
   if(isEvaluationMode()&&countTowardLimit){
     consecutiveWrongAttempts++;
-    if(consecutiveWrongAttempts>=5)return skipEvaluationQuestionAfterFiveWrong();
   }
   return false;
 }
@@ -3298,16 +4465,23 @@ async function startOptionalAudioRecognition(){
     paused
   )return;
 
+  const target=currentTarget();
+  if(requiresMandarinPinyin(target)&&!isPinyinLibraryReady()){
+    setVoiceResult(getPinyinLibraryErrorMessage(),"error");
+    showCaptureFeedback("failure","元件未載入");
+    playTaskErrorSound();
+    return;
+  }
+
   const SpeechRecognition=getBrowserSpeechRecognitionConstructor();
   if(!SpeechRecognition){
-    setVoiceResult("此瀏覽器不支援語音辨識，請使用最新版 Chrome 或 Safari。","error");
+    setVoiceResult("此瀏覽器不支援語音辨識，請使用最新版 Chrome、Edge 或 Safari。","error");
     showCaptureFeedback("failure","不支援語音");
     playTaskErrorSound();
     return;
   }
 
-  if("speechSynthesis" in window)window.speechSynthesis.cancel();
-  const target=currentTarget();
+  stopPlatformSpeech();
   const recognition=rememberSpeechRecognition(new SpeechRecognition());
   browserSpeechRecognition=recognition;
   optionalAudioListening=true;
@@ -3322,9 +4496,10 @@ async function startOptionalAudioRecognition(){
   recognition.maxAlternatives=5;
 
   updateVerificationUI();
-  setVoiceResult(`正在聆聽，請說出「${target}」…`);
+  setVoiceResult("正在聆聽");
   recognition.onstart=()=>{
     optionalAudioStarting=false;
+    if(optionalAudioStartWatchdog){clearTimeout(optionalAudioStartWatchdog);optionalAudioStartWatchdog=null}
     if(
       browserSpeechRecognition!==recognition||
       !optionalAudioListening||
@@ -3335,8 +4510,11 @@ async function startOptionalAudioRecognition(){
       exitInProgress||
       mediaRequestsBlocked
     ){
-      stopSpeechRecognitionInstance(recognition);
+      failRecognition("語音辨識已停止，請再按一次麥克風按鈕。",false);
+      return;
     }
+    setVoiceResult("正在聆聽");
+    updateVerificationUI();
   };
 
   const failRecognition=async(message,countTowardLimit=true)=>{
@@ -3345,9 +4523,9 @@ async function startOptionalAudioRecognition(){
     stopOptionalAudioRecognition(false);
     setVoiceResult(message,"error");
     updateVerificationUI();
-    showCaptureFeedback("failure","語音失敗");
+    showCaptureFeedback("failure","再說一次");
     playTaskErrorSound();
-    await recordOptionalAudioFailure(target,countTowardLimit);
+    await recordOptionalAudioFailure(target,countTowardLimit,lastHeard);
   };
 
   recognition.onresult=event=>{
@@ -3374,13 +4552,7 @@ async function startOptionalAudioRecognition(){
     currentAudioPassed=true;
     currentAudioConfidence=1;
     stopOptionalAudioRecognition(false);
-    const sameText=normalizeSpeechText(matched.transcript)===normalizeSpeechText(target);
-    setVoiceResult(
-      sameText
-        ? `語音辨識成功：${matched.transcript}`
-        : `語音辨識成功：${matched.transcript}（與「${target}」同音）`,
-      "success"
-    );
+    setVoiceResult(`語音辨識成功：${matched.transcript}`,"success");
     updateVerificationUI();
     showCaptureFeedback("success","語音成功");
     playTaskSuccessSound();
@@ -3405,7 +4577,7 @@ async function startOptionalAudioRecognition(){
     if(!settled&&optionalAudioListening){
       failRecognition(
         lastHeard
-          ? `辨識到「${lastHeard}」，與「${target}」發音不同，請重新嘗試。`
+          ? `辨識到「${lastHeard}」，請重新嘗試。`
           :"沒有辨識到語音，請重新嘗試。"
       );
     }
@@ -3419,6 +4591,11 @@ async function startOptionalAudioRecognition(){
 
   try{
     recognition.start();
+    optionalAudioStartWatchdog=setTimeout(()=>{
+      if(!settled&&optionalAudioStarting&&browserSpeechRecognition===recognition){
+        failRecognition("麥克風沒有成功啟動，請再按一次。",false);
+      }
+    },4000);
   }catch(e){
     optionalAudioStarting=false;
     trackedSpeechRecognitions.delete(recognition);
@@ -3850,6 +5027,7 @@ async function completeCurrent(confidence,evidenceCanvas,evidenceDataURL="",audi
   currentIndex++;
   resetCurrentVerification();
   renderTask();
+  if(currentIndex<task.targetClasses.length)prepareCurrentQuestionPrompt(true);
 
   const evidence={
     targetClass:item,
@@ -3900,7 +5078,6 @@ async function completeCurrent(confidence,evidenceCanvas,evidenceDataURL="",audi
     }else{
       setStatus("recognitionStatus",`已完成「${item}」，請進行下一項。`,"success");
     }
-    prepareCurrentQuestionPrompt(true);
   }
 }
 
@@ -3928,6 +5105,7 @@ function renderTask(){
     </div>`).join("");
   updateVerificationUI();
   restoreCaptureButtonForCurrentQuestion();
+  resetQuestionReminderForCurrentQuestion();
 }
 
 function finishTask(){
@@ -4009,7 +5187,7 @@ async function endTask(){
     : Promise.resolve();
   if(!studentLeaveConfirmed)requestStudentTabClose();
   stopGameListeners();
-  if("speechSynthesis" in window)window.speechSynthesis.cancel();
+  stopPlatformSpeech();
   if(captureFeedbackTimer){
     clearTimeout(captureFeedbackTimer);
     captureFeedbackTimer=null;
@@ -4042,6 +5220,8 @@ async function endTask(){
 function stopAll(preserveClickRound=false){
   taskSuccessAnimating=false;
   photoRecognizing=false;
+  clearQuestionAutoSpeechTimer();
+  clearQuestionReminderTimer(false);
   clearClickTimers(preserveClickRound);
   if($("captureBtn"))$("captureBtn").disabled=false;
   stopImage();
@@ -4085,6 +5265,7 @@ async function resumeStudentPageFromBackground(){
       if(audioStopPromise)await audioStopPromise;
       if(document.hidden||pageAutoPaused)return;
       await startSelectedProject();
+      scheduleQuestionReminder(false);
     }
   }catch(e){
     setStatus(
@@ -4114,29 +5295,59 @@ async function togglePause(){
   }
 }
 
+function handleOptionalSpeechButton(){
+  markQuestionPromptInteraction();
+  if(optionalAudioListening||optionalAudioStarting){
+    stopOptionalAudioRecognition(true);
+    setVoiceResult("語音辨識已停止，請再按一次重新辨識。");
+    return;
+  }
+  return startOptionalAudioRecognition();
+}
+
+function handleHanziSpeechButton(){
+  markQuestionPromptInteraction();
+  if(hanziSpeechRecognition||hanziSpeechStarting){
+    stopHanziSpeechRecognition(hanziSpeechRecognition);
+    setStatus("hanziStatus","語音辨識已停止，請再按一次重新辨識。");
+    return;
+  }
+  return recognizeHanziSpeech();
+}
+
 $("speakTeachingBtn").onclick=speakTeachingLabel;
 $("speakTeachingBtnTop").onclick=speakTeachingLabel;
 $("speakDescriptionBtn").onclick=speakTeachingDescription;
 $("speakDescriptionBtnTop").onclick=speakTeachingDescription;
-$("repeatAdvancedPromptBtn").onclick=speakAdvancedPrompt;
-$("speakEvaluationTargetBtn").onclick=speakEvaluationTarget;
+$("repeatAdvancedPromptBtn").onclick=()=>{markQuestionPromptInteraction();return speakAdvancedPrompt()};
+$("speakEvaluationTargetBtn").onclick=()=>{markQuestionPromptInteraction();return speakEvaluationTarget()};
 $("loadBtn").onclick=loadTask;
-$("startBtn").onclick=()=>isGameMode()?requestGameJoin():startTask();
+$("startBtn").onclick=()=>{if(!primeSafariFirstQuestionSpeech())unlockPlatformSpeech();return isGameMode()?requestGameJoin():startTask()};
 $("captureBtn").onclick=captureAndRecognize;
-$("voiceRecognizeBtn").onclick=startOptionalAudioRecognition;
-$("repeatHanziPromptBtn").onclick=()=>speakHanziPrompt(true);
-$("speakHanziBtn").onclick=recognizeHanziSpeech;
+$("voiceRecognizeBtn").onclick=handleOptionalSpeechButton;
+$("repeatHanziPromptBtn").onclick=()=>{markQuestionPromptInteraction();return speakHanziPrompt(true)};
+$("speakHanziBtn").onclick=handleHanziSpeechButton;
+$("submitHanziWritingBtn").onclick=submitHanziWritingAnswer;
+$("hanziWritingInput").addEventListener("input",markQuestionPromptInteraction);
+$("hanziWritingInput").addEventListener("keydown",event=>{
+  if(event.key==="Enter"&&!event.isComposing&&event.keyCode!==229){
+    event.preventDefault();
+    submitHanziWritingAnswer();
+  }
+});
 $("hanziPicker").addEventListener("click",event=>{
   const button=event.target.closest("[data-hanzi]");if(!button)return;
   const character=String(button.dataset.hanzi||"");
-  if(/^[A-Za-z]$/.test(character)){
-    const pair=character.toUpperCase().charCodeAt(0)-65;
-    const step=character===character.toLowerCase()?1:0;
+  if(/^[A-Za-z]+$/.test(character)){
     const url=new URL("https://tinystepslearning.com/free-letter-tracing-game-for-kids");
-    url.searchParams.set("fs","1");
-    url.searchParams.set("level","1");
-    url.searchParams.set("pair",String(pair));
-    url.searchParams.set("step",String(step));
+    if(character.length===1){
+      const pair=character.toUpperCase().charCodeAt(0)-65;
+      const step=character===character.toLowerCase()?1:0;
+      url.searchParams.set("fs","1");
+      url.searchParams.set("level","1");
+      url.searchParams.set("pair",String(pair));
+      url.searchParams.set("step",String(step));
+    }
     window.open(url.toString(),"_blank","noopener");
     return;
   }
@@ -4146,7 +5357,7 @@ $("hanziPicker").addEventListener("click",event=>{
     window.open(url.toString(),"_blank","noopener");
   }
 });
-$("againBtn").onclick=repeatTask;
+$("againBtn").onclick=()=>{if(!primeSafariFirstQuestionSpeech())unlockPlatformSpeech();return repeatTask()};
 $("endBtn").addEventListener("pointerdown",beginStudentExitAndCloseTab,{capture:true});
 $("endBtn").addEventListener("touchstart",beginStudentExitAndCloseTab,{capture:true,passive:true});
 $("endBtn").addEventListener("click",beginStudentExitAndCloseTab,{capture:true});
