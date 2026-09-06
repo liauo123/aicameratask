@@ -1395,7 +1395,10 @@ function getCurrentQuestionSpeechConfig(){
     return description?{text:description,rate:.85}:null;
   }
   if(isHanziMode())return {text:target,rate:.82};
-  if(isClickMode())return {text:target,rate:.9};
+  if(isClickMode()){
+    const description=String(task?.classDescriptions?.[target]||"").trim();
+    return {text:task.promptMode==="description"&&description?description:target,rate:.9};
+  }
   if(isEvaluationMode())return {text:target,rate:.9};
   return null;
 }
@@ -1709,7 +1712,7 @@ function prepareAdvancedPrompt(autoSpeak=true){
 
   const target=task.targetClasses[currentIndex];
   currentAdvancedDescription=String(task.classDescriptions?.[target]||"").trim();
-  $("advancedPromptLabel").textContent=isReadingMode()?(currentAdvancedDescription||"說明文字"):"語音題目";
+  $("advancedPromptLabel").textContent=(isReadingMode()||isDescriptionPromptMode())?(currentAdvancedDescription||"說明文字"):"語音題目";
   updateAdvancedTargetThumbnail();
 
   $("normalTargetCard").classList.add("hidden");
@@ -1847,7 +1850,7 @@ async function loadTask(){
     task.speechRecognitionMode="browser";
     task.speechRecognitionLanguage="zh-TW";
     task.disableAutoPromptSpeech=isSpeakingMode()&&!!task.disableAutoPromptSpeech;
-    task.clickDisplaySeconds=Math.min(8,Math.max(3,Number(task.clickDisplaySeconds||5)));
+    task.clickDisplaySeconds=Math.min(10,Math.max(3,Number(task.clickDisplaySeconds||5)));
     task.clickRepeatCount=Math.min(5,Math.max(3,Number(task.clickRepeatCount||3)));
     task.clickSimultaneousCount=Math.min(3,Math.max(1,Number(task.clickSimultaneousCount||1)),task.targetClasses.length);
     task.hanziSpeechEnabled=isHanziMode()&&!!task.hanziSpeechEnabled;
@@ -1904,7 +1907,7 @@ async function loadTask(){
     $("taskMeta").textContent=isHanziMode()
       ? `${isSpeakingMode()?"口語模式(說)":"書寫模式(寫)"}｜${task.hanziSpeechEnabled?`逐項完整文字語音辨識｜每題 ${task.hanziRepeatCount} 次`:isHanziPracticeMode()?"開啟中英文書寫練習":"學生編號｜設備手寫輸入辨識｜結果回傳"}`
       : isClickMode()
-      ? `點選模式(聽)｜同時 ${task.clickSimultaneousCount} 個文字項目｜每個文字 ${task.clickRepeatCount} 次｜每次最多 ${task.clickDisplaySeconds} 秒`
+      ? `點選模式(聽)｜${task.promptMode==="description"?"說明文字出題｜":""}同時 ${task.clickSimultaneousCount} 個文字項目｜每個文字 ${task.clickRepeatCount} 次｜每次最多 ${task.clickDisplaySeconds} 秒`
       : task.taskMode==="teaching"
       ? `專案類型：${typeName}｜教學模式：拍照後顯示名稱與說明`
       : task.taskMode==="advanced"
@@ -2791,12 +2794,17 @@ async function showNextClickTrial(resumeRound=false){
   const useTextChoices=task.recognitionEngine==="ocr";
   const promptThumbnail=String(task.classThumbnails?.[clickCurrentTarget]||"");
   const hasPromptThumbnail=/^data:image\/jpeg;base64,/i.test(promptThumbnail);
-  const showPromptText=useTextChoices||!hasPromptThumbnail;
-  $("clickPromptInstruction").textContent=showPromptText?"請點選這個文字":"請點選這個縮圖";
-  $("clickPromptText").textContent=showPromptText?clickCurrentTarget:"";
+  const useDescriptionPrompt=task.promptMode==="description";
+  const description=String(task.classDescriptions?.[clickCurrentTarget]||"").trim();
+  const promptSpeechText=useDescriptionPrompt&&description?description:clickCurrentTarget;
+  const showPromptImage=!useDescriptionPrompt&&hasPromptThumbnail;
+  const showPromptText=useDescriptionPrompt||useTextChoices||!hasPromptThumbnail;
+  $("clickPromptInstruction").textContent=useDescriptionPrompt?"":showPromptText?"請點選這個文字":"請點選這個縮圖";
+  $("clickPromptInstruction").classList.toggle("hidden",useDescriptionPrompt);
+  $("clickPromptText").textContent=showPromptText?promptSpeechText:"";
   $("clickPromptText").classList.toggle("hidden",!showPromptText);
-  $("clickPromptImage").classList.toggle("hidden",!hasPromptThumbnail);
-  if(hasPromptThumbnail){
+  $("clickPromptImage").classList.toggle("hidden",!showPromptImage);
+  if(showPromptImage){
     $("clickPromptImage").src=promptThumbnail;
   }else{
     $("clickPromptImage").removeAttribute("src");
@@ -2828,7 +2836,7 @@ async function showNextClickTrial(resumeRound=false){
   const spokenTarget=clickCurrentTarget;
   clickShownAt=performance.now();
   clickTrialActive=true;
-  await speakClickLabel(spokenTarget,true);
+  await speakClickLabel(promptSpeechText,true);
   if(
     !clickTrialActive||finished||paused||pageAutoPaused||exitInProgress||
     clickCurrentTarget!==spokenTarget||clickTrialIndex>=clickSequence.length

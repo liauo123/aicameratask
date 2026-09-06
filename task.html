@@ -618,6 +618,7 @@ async function render(docs){
           <button class="s restoreTeacherBtn" type="button" onclick="restoreTeacherPlatform('${doc.id}')">回復教師平台</button>
         </div>
         <div class="meta">文字：${(t.targetClasses||[]).map(esc).join("、")}</div>
+        <div class="meta">出題方式：${t.promptMode==="description"?"說明文字出題":"名稱文字出題"}</div>
         <div class="meta">每個文字出現 ${Number(t.clickRepeatCount||3)} 次｜每次最多 ${Number(t.clickDisplaySeconds||5)} 秒</div>
       </div></div>
       <div class="row" style="margin-top:12px">
