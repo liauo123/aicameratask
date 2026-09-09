@@ -1155,7 +1155,7 @@ function flashTaskResultBox(){
   },850);
 }
 
-function showCaptureFeedback(type,text){
+function showCaptureFeedback(type,text,durationMs=null){
   const feedback=$("captureFeedback");
   if(!feedback)return;
   if(captureFeedbackTimer)clearTimeout(captureFeedbackTimer);
@@ -1167,7 +1167,7 @@ function showCaptureFeedback(type,text){
   captureFeedbackTimer=setTimeout(()=>{
     feedback.classList.remove("success","failure");
     captureFeedbackTimer=null;
-  },type==="failure"?8000:1050);
+  },durationMs??(type==="failure"?8000:1050));
 }
 
 function playTaskSuccessSound(){
@@ -2469,7 +2469,7 @@ async function submitHanziWritingAnswer(){
     totalErrorCount++;
     addItemError(target,"image");
     playTaskErrorSound();
-    showCaptureFeedback("failure","再寫一次");
+    showCaptureFeedback("failure","再寫一次",4000);
     if(resultRef){
       try{
         await resultRef.update({
@@ -2611,7 +2611,7 @@ function recognizeHanziSpeech({automatic=false,resumeSession=false}={}){
       attempts++;
       if(!matched){
         const heardText=String(alternatives[0]||"").trim();
-        localIncorrectAudioClasses.push(target);consecutiveWrongAttempts++;totalErrorCount++;addItemError(target,"audio");playTaskErrorSound();showCaptureFeedback("failure","再說一次");
+        localIncorrectAudioClasses.push(target);consecutiveWrongAttempts++;totalErrorCount++;addItemError(target,"audio");playTaskErrorSound();showCaptureFeedback("failure","再說一次",6000);
         if(resultRef){
           try{
             await resultRef.update({
@@ -3793,7 +3793,7 @@ async function captureAndRecognize(){
       totalErrorCount++;
       addItemError(target,"image");
       if(isEvaluationMode())consecutiveWrongAttempts++;
-      showCaptureFeedback("failure","再試一次");
+      showCaptureFeedback("failure","再試一次",4000);
       playTaskErrorSound();
 
       if(target&&!localIncorrectClasses.includes(target)){
@@ -3840,7 +3840,7 @@ async function captureAndRecognize(){
       },850);
     }
   }catch(e){
-    showCaptureFeedback("failure","再試一次");
+    showCaptureFeedback("failure","再試一次",4000);
     playTaskErrorSound();
     $("imageOverlay").textContent="拍照辨識失敗，請再試一次";
     lastImageOverlayText=$("imageOverlay").textContent;
@@ -4804,7 +4804,7 @@ async function startOptionalAudioRecognition({automatic=false,resumeSession=fals
     stopOptionalAudioRecognition(false);
     setVoiceResult(message,"error");
     updateVerificationUI();
-    showCaptureFeedback("failure","再說一次");
+    showCaptureFeedback("failure","再說一次",6000);
     playTaskErrorSound();
     await recordOptionalAudioFailure(target,countTowardLimit,lastHeard);
     if(automatic&&allowAutomaticRestart)scheduleAutomaticSpeechRecognition(550);
@@ -4850,7 +4850,7 @@ async function startOptionalAudioRecognition({automatic=false,resumeSession=fals
         const heardText=lastHeard;
         lastHeard="";
         setVoiceResult(`辨識到「${heardText}」，請再說一次。`,"error");
-        showCaptureFeedback("failure","再說一次");
+        showCaptureFeedback("failure","再說一次",6000);
         playTaskErrorSound();
         await recordOptionalAudioFailure(target,true,heardText);
         resultProcessing=false;
