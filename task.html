@@ -81,7 +81,7 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
 <header>
   <div class="head">
     <div class="brand">
-      <div class="brandMark">多</div>
+      <div class="brandMark">AI</div>
       <div><h1>教師平台</h1><div class="small">任務列表</div></div>
     </div>
     <div id="userArea" class="hidden">
@@ -155,7 +155,7 @@ function getItemErrorGroups(data,fieldName,legacyItems=[],includeSkipped=false){
   const entries=Object.entries(counts)
     .map(([name,count])=>[String(name).trim(),Math.max(0,Number(count)||0)])
     .filter(([name])=>name);
-  const twoOnly=entries.filter(([,count])=>count===2).map(([name])=>name);
+  const twoOnly=entries.filter(([,count])=>count>=1&&count<=2).map(([name])=>name);
   const threeToFour=entries.filter(([,count])=>count>=3&&count<=4).map(([name])=>name);
   const fiveOrMore=entries.filter(([,count])=>count>=5).map(([name])=>name);
   if(includeSkipped){
@@ -165,7 +165,7 @@ function getItemErrorGroups(data,fieldName,legacyItems=[],includeSkipped=false){
   if(!entries.length&&fieldName==="itemErrorCounts"){
     const distinctLegacy=[...new Set(legacyItems.filter(Boolean).map(String))];
     const total=Math.max(0,Number(data&&data.errorCount)||0);
-    if(distinctLegacy.length===1&&total===2)twoOnly.push(distinctLegacy[0]);
+    if(distinctLegacy.length===1&&total>=1&&total<=2)twoOnly.push(distinctLegacy[0]);
     if(distinctLegacy.length===1&&total>=3&&total<=4)threeToFour.push(distinctLegacy[0]);
   }
   const fiveSet=new Set(fiveOrMore);
@@ -527,13 +527,13 @@ async function render(docs){
       const audioErrors=getItemErrorGroups(d,"audioItemErrorCounts",incorrectAudioItems);
       const legacyErrors=hasTypedCounts?{twoOnly:[],threeToFour:[],fiveOrMore:[]}:getItemErrorGroups(d,"itemErrorCounts",[...incorrectItems,...incorrectAudioItems],true);
       const incorrectText=[
-        imageErrors.twoOnly.length?`拍照辨識：<span class="lowErrorMark">⚠ 答錯 2 次：${imageErrors.twoOnly.map(esc).join("、")}</span>`:"",
+        imageErrors.twoOnly.length?`拍照辨識：<span class="lowErrorMark">⚠ 答錯 1～2 次：${imageErrors.twoOnly.map(esc).join("、")}</span>`:"",
         imageErrors.threeToFour.length?`拍照辨識：<span class="errorCountMark">⚠ 答錯 3～4 次：${imageErrors.threeToFour.map(esc).join("、")}</span>`:"",
         imageErrors.fiveOrMore.length?`拍照辨識：<span class="fiveWrongMark">⚠ 答錯 5 次以上：${imageErrors.fiveOrMore.map(esc).join("、")}</span>`:"",
-        audioErrors.twoOnly.length?`語音辨識：<span class="lowErrorMark">⚠ 答錯 2 次：${audioErrors.twoOnly.map(esc).join("、")}</span>`:"",
+        audioErrors.twoOnly.length?`語音辨識：<span class="lowErrorMark">⚠ 答錯 1～2 次：${audioErrors.twoOnly.map(esc).join("、")}</span>`:"",
         audioErrors.threeToFour.length?`語音辨識：<span class="errorCountMark">⚠ 答錯 3～4 次：${audioErrors.threeToFour.map(esc).join("、")}</span>`:"",
         audioErrors.fiveOrMore.length?`語音辨識：<span class="fiveWrongMark">⚠ 答錯 5 次以上：${audioErrors.fiveOrMore.map(esc).join("、")}</span>`:"",
-        legacyErrors.twoOnly.length?`<span class="lowErrorMark">⚠ 答錯 2 次：${legacyErrors.twoOnly.map(esc).join("、")}</span>`:"",
+        legacyErrors.twoOnly.length?`<span class="lowErrorMark">⚠ 答錯 1～2 次：${legacyErrors.twoOnly.map(esc).join("、")}</span>`:"",
         legacyErrors.threeToFour.length?`<span class="errorCountMark">⚠ 答錯 3～4 次：${legacyErrors.threeToFour.map(esc).join("、")}</span>`:"",
         legacyErrors.fiveOrMore.length?`<span class="fiveWrongMark">⚠ 答錯 5 次以上：${legacyErrors.fiveOrMore.map(esc).join("、")}</span>`:""
       ].filter(Boolean).join("<br>");
@@ -604,7 +604,7 @@ async function render(docs){
       const data=resultDoc.data();
       const averageSeconds=Number(data.clickAverageReactionMs||0)/1000;
       return `<div class="clickRecord">
-        <b>${esc(data.studentName||("學生 "+(data.studentCode||"")))}</b>｜${resultStatusText(data.status)}｜答對 ${Number(data.clickCorrectCount||0)} 次｜逾時 ${Number(data.clickMissCount||0)} 次｜平均 ${averageSeconds?averageSeconds.toFixed(2):"—"} 秒
+        <b>${esc(data.studentName||("學生 "+(data.studentCode||"")))}</b>｜${resultStatusText(data.status)}｜答對 ${Number(data.clickCorrectCount||0)} 次｜答錯 ${Number(data.clickWrongCount||0)} 次｜逾時 ${Number(data.clickMissCount||0)} 次｜平均 ${averageSeconds?averageSeconds.toFixed(2):"—"} 秒
       </div>`;
     }).join("");
     const resultSection=resultError
@@ -650,7 +650,7 @@ async function render(docs){
       const {twoOnly,threeToFour,fiveOrMore}=getItemErrorGroups(d,errorField,incorrect,true);
       const recognitionLabel=isSpeaking?"語音辨識":"書寫辨識";
       const errors=[
-        twoOnly.length?`${recognitionLabel}：<span class="lowErrorMark">⚠ 答錯 2 次：${twoOnly.map(esc).join("、")}</span>`:"",
+        twoOnly.length?`${recognitionLabel}：<span class="lowErrorMark">⚠ 答錯 1～2 次：${twoOnly.map(esc).join("、")}</span>`:"",
         threeToFour.length?`${recognitionLabel}：<span class="errorCountMark">⚠ 答錯 3～4 次：${threeToFour.map(esc).join("、")}</span>`:"",
         fiveOrMore.length?`${recognitionLabel}：<span class="fiveWrongMark">⚠ 答錯 5 次以上：${fiveOrMore.map(esc).join("、")}</span>`:""
       ].filter(Boolean).join("<br>");
@@ -985,7 +985,7 @@ window.exportTaskCSV=async taskId=>{
     if(!resultDocs.length){alert("此任務目前沒有學生結果可以匯出。");return}
     const title=taskSnap?(taskSnap.data().title||"任務結果"):"任務結果";
     const sorted=[...resultDocs].sort((a,b)=>Number(a.data().studentCode||999)-Number(b.data().studentCode||999));
-    const header=["任務名稱","學生編號","學生名稱","完成進度","狀態","錯誤次數","錯誤 1～2 次","錯誤 3～4 次","錯誤 5 次以上","辨識錯誤項目","遊戲名次","點選答對次數","點選逾時次數","平均點選時間(秒)","開始時間","完成時間"];
+    const header=["任務名稱","學生編號","學生名稱","完成進度","狀態","錯誤次數","錯誤 1～2 次","錯誤 3～4 次","錯誤 5 次以上","辨識錯誤項目","遊戲名次","點選答對次數","點選答錯次數","點選逾時次數","平均點選時間(秒)","開始時間","完成時間"];
     const rows=sorted.map(doc=>{
       const data=doc.data();
       const writtenWrong=Array.isArray(data.incorrectClasses)?[...new Set(data.incorrectClasses.filter(Boolean))]:[];
@@ -998,7 +998,7 @@ window.exportTaskCSV=async taskId=>{
         title,data.studentCode||"",data.studentName||"",`${Number(data.progress||0)}%`,
         resultStatusText(data.status),Number(data.attempts||0),
         csvErrorRange(data,1,2),csvErrorRange(data,3,4),csvErrorRange(data,5,Infinity),incorrect,
-        data.gameRank?`第 ${data.gameRank} 名`:"",Number(data.clickCorrectCount||0),Number(data.clickMissCount||0),
+        data.gameRank?`第 ${data.gameRank} 名`:"",Number(data.clickCorrectCount||0),Number(data.clickWrongCount||0),Number(data.clickMissCount||0),
         Number(data.clickAverageReactionMs||0)?(Number(data.clickAverageReactionMs)/1000).toFixed(2):"",timestampText(data.startedAt),timestampText(data.completedAt)
       ].map(csvValue).join(",");
     });
