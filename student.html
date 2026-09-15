@@ -4359,6 +4359,12 @@ function speechNumbersMatch(spokenText,targetText){
   return containsTokenSequence(spokenNumbers,targetNumbers);
 }
 
+function speechNumberRecognitionAliasMatches(spoken,targetText){
+  if(targetText!=="40")return false;
+  const heard=normalizeSpeechText(spoken);
+  return heard==="事實"||heard==="事实";
+}
+
 function isEnglishSpeechTarget(text){
   const value=String(text||"").normalize("NFKC");
   return /[A-Za-z]/.test(value)&&!/\p{Script=Han}/u.test(value);
@@ -5020,6 +5026,7 @@ function speechMatchesTarget(spoken,target){
   const targetText=normalizeSpeechComparisonText(target);
   if(!spokenText||!targetText)return false;
   if(spokenText===targetText||speechTextSafelyContainsTarget(spokenText,targetText))return true;
+  if(speechNumberRecognitionAliasMatches(spoken,targetText))return true;
   if(!speechNumbersMatch(spokenText,targetText))return false;
   if(fuzzySpeechMatchesTarget(spokenText,targetText))return true;
   if(isEnglishSpeechTarget(target)){
