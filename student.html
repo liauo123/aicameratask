@@ -4504,6 +4504,18 @@ function getApproximateEnglishVowelTokens(text){
   return words.map(approximateEnglishVowelKey).filter(Boolean);
 }
 
+function mediumEnglishSoundKey(word){
+  const consonantKey=approximateEnglishConsonantKey(word);
+  const vowelKey=englishVowelSoundKey(word);
+  if(!consonantKey||!vowelKey)return "";
+  return `${consonantKey}:${vowelKey}`;
+}
+
+function getMediumEnglishSoundTokens(text){
+  const words=String(text||"").normalize("NFKC").toLowerCase().match(/[a-z]+(?:'[a-z]+)?/g)||[];
+  return words.map(mediumEnglishSoundKey).filter(Boolean);
+}
+
 function normalizeMandarinSpeechToken(token){
   return normalizeSpeechText(token);
 }
@@ -5032,8 +5044,12 @@ function speechMatchesTarget(spoken,target){
   if(isEnglishSpeechTarget(target)){
     const spokenPhonetics=getEnglishPhoneticTokens(spokenText);
     const targetPhonetics=getEnglishPhoneticTokens(targetText);
-    if(containsTokenSequence(spokenPhonetics,targetPhonetics))return true;
+    if(containsTokenSequence(
+      getMediumEnglishSoundTokens(spokenText),
+      getMediumEnglishSoundTokens(targetText)
+    ))return true;
     if(!task?.relaxedSpeechRecognition)return false;
+    if(containsTokenSequence(spokenPhonetics,targetPhonetics))return true;
     if(containsTokenSequence(
       getApproximateEnglishConsonantTokens(spokenText),
       getApproximateEnglishConsonantTokens(targetText)

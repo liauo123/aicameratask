@@ -183,7 +183,11 @@ function recognitionEngineName(engine){
   return "Teachable Machine 自訂辨識";
 }
 function speechRecognitionStandardInfo(task){
-  const standard=task&&task.relaxedSpeechRecognition?"放寬（子音或母音符合即可）":"一般標準";
+  const targets=Array.isArray(task&&task.targetClasses)?task.targetClasses:[];
+  const englishTask=targets.length>0&&targets.every(target=>/[A-Za-z]/.test(String(target||""))&&!/\p{Script=Han}/u.test(String(target||"")));
+  const standard=task&&task.relaxedSpeechRecognition
+    ?"高度放寬（子音或母音符合即可）"
+    :(englishTask?"中度放寬（相近子音與主要母音須同時符合）":"一般標準");
   const fuzzy=task&&task.fuzzySpeechRecognition?"開啟（日常生活近義詞、語意關鍵詞及可忽略功能詞）":"關閉";
   return `<div class="meta">語音辨識標準：${standard}</div><div class="meta">語音模糊辨識：${fuzzy}</div>`;
 }
