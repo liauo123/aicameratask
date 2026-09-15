@@ -320,6 +320,9 @@ const firestorePersistenceReady=db.enablePersistence({synchronizeTabs:true}).cat
   if(!["failed-precondition","unimplemented"].includes(error.code))console.warn("Firestore 本機快取啟用失敗：",error);
 });
 let user=null,model=null,modelURL="",labels=[],unsub=null,classThumbnails={};
+const THUMBNAIL_OUTPUT_SIZE=240;
+const THUMBNAIL_MAX_BYTES=40*1024;
+const THUMBNAILS_TOTAL_MAX_BYTES=700*1024;
 const $=id=>document.getElementById(id);const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));function status(id,msg,type=""){const e=$(id);e.textContent=msg;e.className="status "+type}
 const TEACHER_DRAFT_PREFIX="teacherInputDraftV1:";
 let restoringTeacherDraft=false,teacherDraftSaveTimer=null;
@@ -848,10 +851,23 @@ function resizeThumbnail(file){
         const side=Math.min(img.naturalWidth,img.naturalHeight);
         const sx=(img.naturalWidth-side)/2;
         const sy=(img.naturalHeight-side)/2;
-        canvas.width=120;
-        canvas.height=120;
-        ctx.drawImage(img,sx,sy,side,side,0,0,120,120);
-        resolve(canvas.toDataURL("image/jpeg",0.75));
+        canvas.width=THUMBNAIL_OUTPUT_SIZE;
+        canvas.height=THUMBNAIL_OUTPUT_SIZE;
+        ctx.imageSmoothingEnabled=true;
+        ctx.imageSmoothingQuality="high";
+        ctx.drawImage(img,sx,sy,side,side,0,0,THUMBNAIL_OUTPUT_SIZE,THUMBNAIL_OUTPUT_SIZE);
+        const qualities=[0.75,0.68,0.60,0.52,0.45,0.38];
+        let dataURL="";
+        for(const quality of qualities){
+          dataURL=canvas.toDataURL("image/jpeg",quality);
+          const base64=dataURL.split(",")[1]||"";
+          const bytes=Math.ceil(base64.length*3/4);
+          if(bytes<=THUMBNAIL_MAX_BYTES){
+            resolve(dataURL);
+            return;
+          }
+        }
+        reject(new Error("照片內容過於複雜，壓縮後仍超過縮圖容量限制，請更換背景較單純的照片。"));
       };
       img.src=reader.result;
     };
@@ -886,7 +902,14 @@ async function handleThumbnailFile(item,file){
   drop.classList.remove("is-dragover");
   prompt.textContent="正在處理照片…";
   try{
-    classThumbnails[item.dataset.label]=await resizeThumbnail(file);
+    const label=item.dataset.label;
+    const previousThumbnail=classThumbnails[label];
+    classThumbnails[label]=await resizeThumbnail(file);
+    if(new Blob([JSON.stringify(classThumbnails)]).size>THUMBNAILS_TOTAL_MAX_BYTES){
+      if(previousThumbnail)classThumbnails[label]=previousThumbnail;
+      else delete classThumbnails[label];
+      throw new Error("目前全部縮圖容量已接近任務資料上限，請刪除部分縮圖後再上傳。");
+    }
     updateThumbnailUI(item);
     scheduleTeacherDraftSave();
   }catch(e){
