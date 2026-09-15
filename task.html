@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="copyright" content="Copyright © 2026 LIAO CHIH CHIA. All rights reserved.">
 <title>教師平台｜教學與評量列表</title>
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
@@ -16,7 +17,7 @@
 body{margin:0;background:linear-gradient(180deg,#f6f9fd 0,#edf3f9 100%);font-family:"Noto Sans TC","Microsoft JhengHei",Arial,sans-serif;color:#172033;min-height:100vh}
 header{background:rgba(255,255,255,.96);border-bottom:1px solid #dbe5f0;box-shadow:0 4px 18px rgba(15,23,42,.07);padding:13px 20px;position:sticky;top:0;z-index:20;backdrop-filter:blur(10px)}
 .head{max-width:1180px;margin:auto;display:flex;justify-content:space-between;align-items:center;gap:18px}
-.brand{display:flex;align-items:center;gap:12px}.brandMark{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(135deg,#2563eb,#4f46e5);color:#fff;font-size:21px;font-weight:900;box-shadow:0 7px 18px rgba(37,99,235,.24)}
+.brand{display:flex;align-items:center;gap:12px}.brandMark{min-width:86px;height:42px;padding:0 12px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(135deg,#2563eb,#4f46e5);color:#fff;font-size:15px;font-weight:900;white-space:nowrap;box-shadow:0 7px 18px rgba(37,99,235,.24)}
 h1{margin:0;color:#17376b;font-size:22px;letter-spacing:.04em}
 main{max-width:1180px;margin:auto;padding:22px 18px 40px}
 .card{background:var(--surface);border:1px solid var(--surface-border);border-radius:18px;padding:22px;margin-bottom:16px;box-shadow:0 8px 24px rgba(15,23,42,.065)}
@@ -69,7 +70,7 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
 .box{background:var(--surface);border:1px solid var(--surface-border);padding:22px;border-radius:18px;text-align:center;max-width:390px;width:100%;box-shadow:0 20px 55px rgba(15,23,42,.24)}
 .url{word-break:break-all;background:#eef2f7;padding:10px;border-radius:8px;margin:10px 0}
 @media(max-width:650px){
-  header{padding:11px 12px}.brandMark{width:38px;height:38px}.head{align-items:flex-start}
+  header{padding:11px 12px}.brandMark{min-width:78px;height:38px;padding:0 10px;font-size:14px}.head{align-items:flex-start}
   main{padding:14px 10px 28px}.card{padding:16px;border-radius:15px}
   .modeTabs{grid-template-columns:repeat(3,minmax(0,1fr));gap:5px}.modeTab{font-size:11px;padding:8px 4px}
   .modeSection{padding:13px;margin-top:13px}.rr,.rr.inputResultRow{grid-template-columns:1fr 1fr}.rr.inputResultRow>:last-child{grid-column:1/-1}.playerRow{grid-template-columns:.6fr 1fr 1fr}.playerActions{grid-column:1/-1}.playerActions button{flex:1}
@@ -81,8 +82,8 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
 <header>
   <div class="head">
     <div class="brand">
-      <div class="brandMark">AI</div>
-      <div><h1>教師平台</h1><div class="small">任務列表</div></div>
+      <div class="brandMark">教師平台</div>
+      <div><div class="small">任務列表</div></div>
     </div>
     <div id="userArea" class="hidden">
       <button id="logoutBtn" class="s">關閉</button>
@@ -400,6 +401,13 @@ modeTabs.forEach(btn=>btn.addEventListener("click",()=>{
   syncActiveResultListeners();
 }));
 
+function getClickAverageSeconds(data){
+  const seconds=Number(data.clickAverageReactionSeconds||0);
+  if(Number.isFinite(seconds)&&seconds>0)return seconds;
+  const legacyMilliseconds=Number(data.clickAverageReactionMs||0);
+  return Number.isFinite(legacyMilliseconds)&&legacyMilliseconds>0?legacyMilliseconds/1000:0;
+}
+
 async function render(docs){
   const generation=++renderGeneration;
   const getTime=doc=>{
@@ -602,7 +610,7 @@ async function render(docs){
     }catch(e){resultError=e.message||String(e)}
     const studentRecords=resultDocs.map(resultDoc=>{
       const data=resultDoc.data();
-      const averageSeconds=Number(data.clickAverageReactionMs||0)/1000;
+      const averageSeconds=getClickAverageSeconds(data);
       return `<div class="clickRecord">
         <b>${esc(data.studentName||("學生 "+(data.studentCode||"")))}</b>｜${resultStatusText(data.status)}｜答對 ${Number(data.clickCorrectCount||0)} 次｜答錯 ${Number(data.clickWrongCount||0)} 次｜逾時 ${Number(data.clickMissCount||0)} 次｜平均 ${averageSeconds?averageSeconds.toFixed(2):"—"} 秒
       </div>`;
@@ -999,7 +1007,7 @@ window.exportTaskCSV=async taskId=>{
         resultStatusText(data.status),Number(data.attempts||0),
         csvErrorRange(data,1,2),csvErrorRange(data,3,4),csvErrorRange(data,5,Infinity),incorrect,
         data.gameRank?`第 ${data.gameRank} 名`:"",Number(data.clickCorrectCount||0),Number(data.clickWrongCount||0),Number(data.clickMissCount||0),
-        Number(data.clickAverageReactionMs||0)?(Number(data.clickAverageReactionMs)/1000).toFixed(2):"",timestampText(data.startedAt),timestampText(data.completedAt)
+        getClickAverageSeconds(data)?getClickAverageSeconds(data).toFixed(2):"",timestampText(data.startedAt),timestampText(data.completedAt)
       ].map(csvValue).join(",");
     });
     const csv="\uFEFF"+[header.map(csvValue).join(","),...rows].join("\r\n");

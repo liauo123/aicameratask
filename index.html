@@ -2,6 +2,7 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="copyright" content="Copyright © 2026 LIAO CHIH CHIA. All rights reserved.">
 <title>教師平台</title>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
@@ -23,7 +24,7 @@ body{margin:0;background:linear-gradient(180deg,#f6f9fd 0,#edf3f9 100%);font-fam
 header{background:rgba(255,255,255,.96);border-bottom:1px solid #dbe5f0;box-shadow:0 4px 18px rgba(15,23,42,.07);padding:13px 20px;position:sticky;top:0;z-index:20;backdrop-filter:blur(10px)}
 .head{max-width:1180px;margin:auto;display:flex;justify-content:space-between;align-items:center;gap:18px}
 .brand{display:flex;align-items:center;gap:12px}
-.brandMark{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(135deg,#2563eb,#4f46e5);color:#fff;font-size:21px;font-weight:900;box-shadow:0 7px 18px rgba(37,99,235,.24)}
+.brandMark{min-width:86px;height:42px;padding:0 12px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(135deg,#2563eb,#4f46e5);color:#fff;font-size:15px;font-weight:900;white-space:nowrap;box-shadow:0 7px 18px rgba(37,99,235,.24)}
 h1{margin:0;color:#17376b;font-size:22px;letter-spacing:.04em}
 h2{margin:0 0 14px;font-size:20px}
 main{max-width:1180px;margin:auto;padding:22px 18px 40px}
@@ -102,6 +103,7 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
 .speechMatchingSettings{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:7px}
 .relaxedSpeechSetting{display:flex;align-items:center;justify-content:flex-end;gap:7px;color:#1d4ed8;font-size:13px;font-weight:900;line-height:1.45;cursor:pointer;text-align:right}
 .relaxedSpeechSetting input{width:auto;margin:0;accent-color:#2563eb;flex:0 0 auto}
+.clickMode .relaxedSpeechSetting{color:#92400e}.clickMode .relaxedSpeechSetting input{accent-color:#d97706}
 #createTaskCard .relaxedSpeechSetting{color:#166534}#createTaskCard .relaxedSpeechSetting input{accent-color:#16a34a}
 .readingMode .relaxedSpeechSetting{color:#0e7490}.readingMode .relaxedSpeechSetting input{accent-color:#0891b2}
 .gameMode .relaxedSpeechSetting{color:#6d28d9}.gameMode .relaxedSpeechSetting input{accent-color:#7c3aed}
@@ -114,11 +116,13 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
 .removedMode{display:none!important}
 .modeSettings{display:grid;gap:8px;margin:11px 0;padding:11px 12px;border:1px solid rgba(148,163,184,.45);border-radius:11px;background:rgba(255,255,255,.72)}
 .modeSetting{display:flex;align-items:flex-start;gap:8px;color:var(--ink);font-size:13px;font-weight:850;line-height:1.55;cursor:pointer}.modeSetting input{width:auto;margin:3px 0 0;accent-color:currentColor;flex:0 0 auto}
+.modeSetting.slowSpeechSetting,.modeSetting.repeatPromptAfterErrorSetting{color:#111827!important}
 .rangeSetting{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px 12px;align-items:center;margin:12px 0;padding:11px;border:1px solid #fcd34d;border-radius:11px;background:rgba(255,255,255,.72)}
 .rangeSetting label{font-size:13px;font-weight:900}.rangeSetting output{min-width:54px;text-align:center;padding:5px 8px;border-radius:999px;background:#fef3c7;color:#92400e;font-weight:900}.rangeSetting input[type="range"]{grid-column:1/-1;width:100%;padding:0;accent-color:#d97706}
+.clickMode .rangeSetting{background:#fff8ed}
 .hanziMode .rangeSetting{border-color:#fda4af}.hanziMode .rangeSetting output{background:#ffe4e6;color:#9f1239}.hanziMode .rangeSetting input[type="range"]{accent-color:#dc2626}
 @media(max-width:700px){
-  header{padding:11px 12px}.head{align-items:flex-start}.brandMark{width:38px;height:38px}.head #userArea{text-align:right}.head #userEmail{display:none}
+  header{padding:11px 12px}.head{align-items:flex-start}.brandMark{min-width:78px;height:38px;padding:0 10px;font-size:14px}.head #userArea{text-align:right}.head #userEmail{display:none}
   main{padding:14px 10px 28px}.card{padding:16px;border-radius:15px}
   .workspace{gap:13px}.rightStack{gap:13px}.modelCard{min-height:0}
   .classBox{grid-template-columns:auto minmax(0,1fr);align-items:start}.dragHandle{padding-top:8px}
@@ -131,7 +135,7 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
 </style>
 </head>
 <body>
-<header><div class="head"><div class="brand"><div class="brandMark">AI</div><div><h1>教師平台</h1><div class="small">建立教學與評量・產生學生 QR Code</div></div></div><div id="userArea" class="hidden"><span id="userEmail" class="small"></span> <a class="navBtn" href="task.html" target="_blank" rel="noopener noreferrer">任務列表</a> <button id="logoutBtn" class="s">登出</button></div></div></header>
+<header><div class="head"><div class="brand"><div class="brandMark">教師平台</div><div><div class="small">建立教學與評量・產生學生 QR Code</div></div></div><div id="userArea" class="hidden"><span id="userEmail" class="small"></span> <a class="navBtn" href="task.html" target="_blank" rel="noopener noreferrer">任務列表</a> <button id="logoutBtn" class="s">登出</button></div></div></header>
 <main>
 <section id="authCard" class="card">
   <h2>教師登入</h2>
@@ -164,11 +168,14 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
 
     <div class="rightStack">
       <section id="clickModeCard" class="card modeCard clickMode hidden">
-        <h2>點選模式(聽)</h2>
+        <div class="speakingTitleRow">
+          <h2>點選模式(聽)</h2>
+        </div>
         <div id="clickModeHint" class="clickHint">有縮圖的文字會顯示縮圖，沒有縮圖時只顯示名稱文字；1–3 種文字選項會隨機出現。</div>
         <input id="clickTitle" placeholder="點選模式(聽)名稱">
         <div class="modeSettings">
           <label class="modeSetting"><input id="clickDescriptionPrompt" type="checkbox">說明文字出題</label>
+          <label class="modeSetting slowSpeechSetting"><input id="clickSlowSpeech" type="checkbox">放慢語音速度</label>
         </div>
         <div class="rangeSetting">
           <label for="clickDisplaySeconds">每次文字顯示時間</label>
@@ -215,8 +222,10 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
         <div class="clickHint">每一個勾選的文字項目會成為一題完整語音辨識。</div>
         <input id="speakingTaskTitle" placeholder="口語模式(說)名稱">
         <div class="modeSettings">
-          <label class="modeSetting speakingAutoSpeechSetting"><input id="speakingDisableAutoSpeech" type="checkbox">停用自動唸出語音</label>
-          <label class="modeSetting speakingButtonSpeechSetting"><input id="speakingButtonSpeechRecognition" type="checkbox">按鈕語音辨識</label>
+          <label class="modeSetting slowSpeechSetting"><input id="speakingSlowSpeech" type="checkbox">放慢語音速度</label>
+          <label class="modeSetting speakingAutoSpeechSetting"><input id="speakingDisableAutoSpeech" type="checkbox">取消自動唸出語音</label>
+          <label class="modeSetting speakingButtonSpeechSetting"><input id="speakingButtonSpeechRecognition" type="checkbox">取消自動語音辨識</label>
+          <label class="modeSetting repeatPromptAfterErrorSetting"><input id="speakingRepeatPromptAfterError" type="checkbox">錯誤後語音再唸一次</label>
         </div>
         <input id="speakingSpeechRecognition" type="checkbox" class="hidden" checked aria-hidden="true">
         <div class="rangeSetting">
@@ -236,11 +245,14 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
       </section>
 
       <section id="createTaskCard" class="card modeCard hidden">
-        <h2>拍照辨識模式</h2>
+        <div class="speakingTitleRow">
+          <h2>拍照辨識模式</h2>
+        </div>
         <div class="modeHint">需配合載入文字或圖片方式，使用拍照功能進行文字或圖片(實物)辨識，可勾選下列選項增加功能。</div>
         <input id="taskTitle" placeholder="拍照辨識模式名稱">
         <div class="modeSettings">
           <label class="modeSetting"><input id="evaluationDescriptionPrompt" type="checkbox">說明文字出題</label>
+          <label class="modeSetting slowSpeechSetting"><input id="evaluationSlowSpeech" type="checkbox">放慢語音速度</label>
         </div>
         <button id="createBtn" class="p" style="width:100%" disabled>產生拍照辨識 QR</button>
         <div id="createStatus" class="status">尚未建立。</div>
@@ -257,8 +269,10 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
         <div class="modeHint">每一個勾選的文字項目，需填寫說明文字才會成為一題完整語音回答辨識。</div>
         <input id="readingTitle" placeholder="問答模式(讀)名稱">
         <div class="modeSettings">
-          <label class="modeSetting"><input id="readingDisableAutoSpeech" type="checkbox">停用自動唸出語音</label>
-          <label class="modeSetting"><input id="readingButtonSpeechRecognition" type="checkbox">按鈕語音辨識</label>
+          <label class="modeSetting slowSpeechSetting"><input id="readingSlowSpeech" type="checkbox">放慢語音速度</label>
+          <label class="modeSetting"><input id="readingDisableAutoSpeech" type="checkbox">取消自動唸出語音</label>
+          <label class="modeSetting"><input id="readingButtonSpeechRecognition" type="checkbox">取消自動語音辨識</label>
+          <label class="modeSetting repeatPromptAfterErrorSetting"><input id="readingRepeatPromptAfterError" type="checkbox">錯誤後語音再唸一次</label>
         </div>
         <input id="readingDescriptionPrompt" type="checkbox" class="hidden" checked aria-hidden="true">
         <input id="readingThumbnailHint" type="checkbox" class="hidden" checked aria-hidden="true">
@@ -286,6 +300,7 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
         <input id="gameTitle" placeholder="遊戲名稱或題目名稱">
         <div class="modeSettings">
           <label class="modeSetting"><input id="gameDescriptionPrompt" type="checkbox">說明文字出題</label>
+          <label class="modeSetting slowSpeechSetting"><input id="gameSlowSpeech" type="checkbox">放慢語音速度</label>
           <label class="modeSetting"><input id="gameSpeechRecognition" type="checkbox">語音辨識</label>
           <label id="gameSkipPhotoSetting" class="modeSetting"><input id="gameSkipPhotoRecognition" type="checkbox">取消拍照辨識</label>
         </div>
@@ -366,7 +381,9 @@ function saveTeacherDraft(){
     advancedTitle:$("advancedTitle").value,
     gameTitle:$("gameTitle").value,
     evaluationDescriptionPrompt:$("evaluationDescriptionPrompt").checked,
+    evaluationSlowSpeech:$("evaluationSlowSpeech").checked,
     gameDescriptionPrompt:$("gameDescriptionPrompt").checked,
+    gameSlowSpeech:$("gameSlowSpeech").checked,
     gameSpeechRecognition:$("gameSpeechRecognition").checked,
     gameFuzzySpeechRecognition:$("gameFuzzySpeechRecognition").checked,
     gameRelaxedSpeechRecognition:$("gameRelaxedSpeechRecognition").checked,
@@ -377,18 +394,23 @@ function saveTeacherDraft(){
     hanziRepeatCount:1,
     speakingTaskTitle:$("speakingTaskTitle").value,
     speakingRepeatCount:Number($("speakingRepeatCount").value||1),
+    speakingSlowSpeech:$("speakingSlowSpeech").checked,
     speakingDisableAutoSpeech:$("speakingDisableAutoSpeech").checked,
     speakingButtonSpeechRecognition:$("speakingButtonSpeechRecognition").checked,
+    speakingRepeatPromptAfterError:$("speakingRepeatPromptAfterError").checked,
     fuzzySpeechRecognition:$("fuzzySpeechRecognition").checked,
     relaxedSpeechRecognition:$("relaxedSpeechRecognition").checked,
     readingTitle:$("readingTitle").value,
+    readingSlowSpeech:$("readingSlowSpeech").checked,
     readingDisableAutoSpeech:$("readingDisableAutoSpeech").checked,
     readingButtonSpeechRecognition:$("readingButtonSpeechRecognition").checked,
+    readingRepeatPromptAfterError:$("readingRepeatPromptAfterError").checked,
     readingFuzzySpeechRecognition:$("readingFuzzySpeechRecognition").checked,
     readingRelaxedSpeechRecognition:$("readingRelaxedSpeechRecognition").checked,
     readingDescriptionPrompt:$("readingDescriptionPrompt").checked,
     readingThumbnailHint:$("readingThumbnailHint").checked,
     clickTitle:$("clickTitle").value,
+    clickSlowSpeech:$("clickSlowSpeech").checked,
     clickDescriptionPrompt:$("clickDescriptionPrompt").checked,
     clickDisplaySeconds:Number($("clickDisplaySeconds").value||5),
     clickRepeatCount:Number($("clickRepeatCount").value||3),
@@ -430,7 +452,9 @@ function restoreTeacherDraftBase(){
   $("advancedTitle").value=String(draft.advancedTitle||"");
   $("gameTitle").value=String(draft.gameTitle||"");
   $("evaluationDescriptionPrompt").checked=!!draft.evaluationDescriptionPrompt;
+  $("evaluationSlowSpeech").checked=!!draft.evaluationSlowSpeech;
   $("gameDescriptionPrompt").checked=!!draft.gameDescriptionPrompt;
+  $("gameSlowSpeech").checked=!!draft.gameSlowSpeech;
   $("gameSpeechRecognition").checked=!!draft.gameSpeechRecognition;
   $("gameFuzzySpeechRecognition").checked=!!draft.gameFuzzySpeechRecognition;
   $("gameRelaxedSpeechRecognition").checked=!!draft.gameRelaxedSpeechRecognition;
@@ -444,20 +468,25 @@ function restoreTeacherDraftBase(){
   $("speakingTaskTitle").value=String(draft.speakingTaskTitle||"");
   $("speakingSpeechRecognition").checked=true;
   $("speakingRepeatCount").value=String(Math.min(5,Math.max(1,Number(draft.speakingRepeatCount||1))));
+  $("speakingSlowSpeech").checked=!!draft.speakingSlowSpeech;
   $("speakingDisableAutoSpeech").checked=!!draft.speakingDisableAutoSpeech;
   $("speakingButtonSpeechRecognition").checked=!!draft.speakingButtonSpeechRecognition;
+  $("speakingRepeatPromptAfterError").checked=!!draft.speakingRepeatPromptAfterError;
   $("fuzzySpeechRecognition").checked=!!draft.fuzzySpeechRecognition;
   $("relaxedSpeechRecognition").checked=!!draft.relaxedSpeechRecognition;
   updateSpeakingRepeatLabel();
   $("readingTitle").value=String(draft.readingTitle||"");
+  $("readingSlowSpeech").checked=!!draft.readingSlowSpeech;
   $("readingDescriptionPrompt").checked=true;
   $("readingThumbnailHint").checked=true;
   $("readingSpeechRecognition").checked=true;
   $("readingDisableAutoSpeech").checked=!!draft.readingDisableAutoSpeech;
   $("readingButtonSpeechRecognition").checked=!!draft.readingButtonSpeechRecognition;
+  $("readingRepeatPromptAfterError").checked=!!draft.readingRepeatPromptAfterError;
   $("readingFuzzySpeechRecognition").checked=!!draft.readingFuzzySpeechRecognition;
   $("readingRelaxedSpeechRecognition").checked=!!draft.readingRelaxedSpeechRecognition;
   $("clickTitle").value=String(draft.clickTitle||"");
+  $("clickSlowSpeech").checked=!!draft.clickSlowSpeech;
   $("clickDescriptionPrompt").checked=!!draft.clickDescriptionPrompt;
   $("clickDisplaySeconds").value=String(Math.min(10,Math.max(3,Number(draft.clickDisplaySeconds||5))));
   $("clickRepeatCount").value=String(Math.min(5,Math.max(3,Number(draft.clickRepeatCount||3))));
@@ -526,7 +555,20 @@ function syncRecognitionEngineUI(){
   $("loadModelBtn").textContent=isOcr?"載入文字辨識":"載入模型";
   status("modelStatus",isOcr?"請輸入要辨識的文字，一行一項。":"尚未載入模型。");
 }
+function refreshTeacherControlsAfterRecognitionLoad(){
+  updateLabelsFromDOM();
+  updateClickRangeLabels();
+  updateHanziRepeatLabel();
+  updateSpeakingRepeatLabel();
+  document.querySelectorAll("#classes .classBox").forEach(updateThumbnailUI);
+  if($("gameSkipPhotoRecognition").checked)$("gameSpeechRecognition").checked=true;
+}
+function waitForTeacherInterfacePaint(){
+  return new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve)));
+}
 $("loadModelBtn").onclick=async()=>{
+  const loadButton=$("loadModelBtn");
+  if(loadButton.disabled)return;
   $("teachMode").classList.add("hidden");
   $("createTaskCard").classList.add("hidden");
   $("advancedModeCard").classList.add("hidden");
@@ -539,6 +581,7 @@ $("loadModelBtn").onclick=async()=>{
   modelURL=engine==="ocr"?"":$("modelURL").value.trim();
   if(engine==="teachable-machine"&&!modelURL)return status("modelStatus","請輸入模型網址。","err");
   if(engine==="teachable-machine"&&!modelURL.endsWith("/"))modelURL+="/";
+  loadButton.disabled=true;
   status("modelStatus",engine==="ocr"?"正在建立文字項目…":"正在載入模型…");
   try{
     if(engine==="ocr"){
@@ -568,12 +611,17 @@ $("loadModelBtn").onclick=async()=>{
     $("hanziModeCard").classList.remove("hidden");
     $("speakingModeCard").classList.remove("hidden");
     $("readingModeCard").classList.remove("hidden");
+    refreshTeacherControlsAfterRecognitionLoad();
+    await waitForTeacherInterfacePaint();
+    refreshTeacherControlsAfterRecognitionLoad();
     status("modelStatus",engine==="ocr"
       ? "文字辨識已載入，共 "+labels.length+" 項文字。可拖拉調整順序並選擇性加入縮圖。"
       : "模型載入成功，共 "+labels.length+" 類。可拖拉或點擊加入縮圖。","ok");
     saveTeacherDraft();
   }catch(e){
     status("modelStatus","模型載入失敗：\n"+e.message,"err");
+  }finally{
+    loadButton.disabled=false;
   }
 };
 
@@ -619,14 +667,21 @@ async function restoreTaskFromTaskList(taskId){
       ? task.targetClasses.join("\n")
       : "";
     syncRecognitionEngineUI();
+    $("clickSlowSpeech").checked=taskMode==="click"&&!!task.slowSpeechPlayback;
+    $("speakingSlowSpeech").checked=taskMode==="speaking"&&!!task.slowSpeechPlayback;
+    $("readingSlowSpeech").checked=taskMode==="reading"&&!!task.slowSpeechPlayback;
+    $("evaluationSlowSpeech").checked=taskMode==="evaluation"&&!!task.slowSpeechPlayback;
+    $("gameSlowSpeech").checked=taskMode==="game"&&!!task.slowSpeechPlayback;
     $("relaxedSpeechRecognition").checked=taskMode==="speaking"&&!!task.relaxedSpeechRecognition;
     $("fuzzySpeechRecognition").checked=taskMode==="speaking"&&!!task.fuzzySpeechRecognition;
     $("speakingDisableAutoSpeech").checked=taskMode==="speaking"&&!!task.disableAutoPromptSpeech;
     $("speakingButtonSpeechRecognition").checked=taskMode==="speaking"&&!!task.buttonSpeechRecognition;
+    $("speakingRepeatPromptAfterError").checked=taskMode==="speaking"&&!!task.repeatPromptAfterSpeechError;
     $("readingRelaxedSpeechRecognition").checked=taskMode==="reading"&&!!task.relaxedSpeechRecognition;
     $("readingFuzzySpeechRecognition").checked=taskMode==="reading"&&!!task.fuzzySpeechRecognition;
     $("readingDisableAutoSpeech").checked=taskMode==="reading"&&!!task.disableAutoPromptSpeech;
     $("readingButtonSpeechRecognition").checked=taskMode==="reading"&&!!task.buttonSpeechRecognition;
+    $("readingRepeatPromptAfterError").checked=taskMode==="reading"&&!!task.repeatPromptAfterSpeechError;
     $("gameRelaxedSpeechRecognition").checked=taskMode==="game"&&!!task.relaxedSpeechRecognition;
     $("gameFuzzySpeechRecognition").checked=taskMode==="game"&&!!task.fuzzySpeechRecognition;
     if(taskMode==="teaching")$("teachingTitle").value=String(task.title||"");
@@ -1110,6 +1165,7 @@ async function createGameModeQR(){
       skipPhotoRecognition,
       showNameText,
       showThumbnailHint,
+      slowSpeechPlayback:!!$("gameSlowSpeech").checked,
       speechRecognitionMode:"browser",
       speechRecognitionLanguage:"zh-TW",
       requiredConsecutiveFrames:1,
@@ -1170,6 +1226,7 @@ async function createClickModeQR(){
       classDescriptions:getClassDescriptions(false),
       classThumbnails:getClassThumbnails(false),
       promptMode,
+      slowSpeechPlayback:!!$("clickSlowSpeech").checked,
       clickDisplaySeconds,
       clickRepeatCount,
       clickSimultaneousCount,
@@ -1296,8 +1353,10 @@ async function createSpeakingModeQR(){
       hanziText:hanziTexts.join("\n"),hanziTexts,hanziQuestionSequence:questionSequence,
       hanziWritingEnabled:false,hanziSpeechEnabled:true,hanziRepeatCount:repeatCount,
       speechRecognitionMode:"browser",speechRecognitionLanguage:"zh-TW",
+      slowSpeechPlayback:!!$("speakingSlowSpeech").checked,
       disableAutoPromptSpeech:!!$("speakingDisableAutoSpeech").checked,
       buttonSpeechRecognition:!!$("speakingButtonSpeechRecognition").checked,
+      repeatPromptAfterSpeechError:!!$("speakingRepeatPromptAfterError").checked,
       fuzzySpeechRecognition:!!$("fuzzySpeechRecognition").checked,
       relaxedSpeechRecognition:!!$("relaxedSpeechRecognition").checked,
       orderMode:"fixed",taskMode:"speaking",maxPlayers:15,status:"active",
@@ -1350,6 +1409,7 @@ $("createBtn").onclick=async()=>{
       skipPhotoRecognition,
       showNameText,
       showThumbnailHint,
+      slowSpeechPlayback:!!$("evaluationSlowSpeech").checked,
       speechRecognitionMode:"browser",
       speechRecognitionLanguage:"zh-TW",
       requiredConsecutiveFrames:10,
@@ -1387,8 +1447,10 @@ $("createReadingBtn").onclick=async()=>{
       classDescriptions:getClassDescriptions(false),classThumbnails:getClassThumbnails(false),
       audioRequiredClasses:[...targets],promptMode,speechRecognitionEnabled:true,
       skipPhotoRecognition:true,showNameText:false,showThumbnailHint,
+      slowSpeechPlayback:!!$("readingSlowSpeech").checked,
       disableAutoPromptSpeech:!!$("readingDisableAutoSpeech").checked,
       buttonSpeechRecognition:!!$("readingButtonSpeechRecognition").checked,
+      repeatPromptAfterSpeechError:!!$("readingRepeatPromptAfterError").checked,
       speechRecognitionMode:"browser",speechRecognitionLanguage:"zh-TW",
       requiredConsecutiveFrames:10,orderMode:"fixed",taskMode:"reading",
       interactionMode:"reading",
@@ -1406,7 +1468,7 @@ function studentURL(id,mode=""){const base=new URL("student.html",location.href)
 ["modelURL","ocrKeywords","teachingTitle","taskTitle","advancedTitle","gameTitle","clickTitle","hanziTaskTitle","speakingTaskTitle","readingTitle"].forEach(id=>{
   $(id).addEventListener("input",scheduleTeacherDraftSave);
 });
-["relaxedSpeechRecognition","readingRelaxedSpeechRecognition","gameRelaxedSpeechRecognition","fuzzySpeechRecognition","readingFuzzySpeechRecognition","gameFuzzySpeechRecognition","speakingDisableAutoSpeech","speakingButtonSpeechRecognition","readingDisableAutoSpeech","readingButtonSpeechRecognition","clickDescriptionPrompt"].forEach(id=>{
+["clickSlowSpeech","speakingSlowSpeech","readingSlowSpeech","evaluationSlowSpeech","gameSlowSpeech","relaxedSpeechRecognition","readingRelaxedSpeechRecognition","gameRelaxedSpeechRecognition","fuzzySpeechRecognition","readingFuzzySpeechRecognition","gameFuzzySpeechRecognition","speakingDisableAutoSpeech","speakingButtonSpeechRecognition","speakingRepeatPromptAfterError","readingDisableAutoSpeech","readingButtonSpeechRecognition","readingRepeatPromptAfterError","clickDescriptionPrompt"].forEach(id=>{
   $(id).addEventListener("change",scheduleTeacherDraftSave);
 });
 $("recognitionEngine").addEventListener("change",()=>{
