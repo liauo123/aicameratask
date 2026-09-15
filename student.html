@@ -4325,11 +4325,15 @@ function chineseSpeechNumeralToArabic(value){
 }
 
 function normalizeSpeechComparisonText(text){
-  const converted=String(text||"").normalize("NFKC").replace(
+  const convertedNumbers=String(text||"").normalize("NFKC").replace(
     /[零〇○Ｏ一壹二貳贰兩两三參叁四肆五伍六陸陆七柒八捌九玖十拾百佰千仟萬万億亿]+/g,
     chineseSpeechNumeralToArabic
   );
-  return normalizeSpeechText(converted);
+  const convertedCurrency=convertedNumbers.replace(
+    /(?:NT|TWD|US|HK)?\s*\$\s*(\d+)(?:\s*元)?(?![\d.])/gi,
+    "$1元"
+  );
+  return normalizeSpeechText(convertedCurrency);
 }
 
 function speechTextSafelyContainsTarget(source,target){
