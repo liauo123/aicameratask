@@ -4286,6 +4286,75 @@ function normalizeSpeechText(text){
     .replace(/[^\p{L}\p{N}]/gu,"");
 }
 
+const CHINESE_SPEECH_DIGITS={
+  零:0,"〇":0,"○":0,"Ｏ":0,一:1,壹:1,二:2,貳:2,贰:2,兩:2,两:2,
+  三:3,參:3,叁:3,四:4,肆:4,五:5,伍:5,六:6,陸:6,陆:6,
+  七:7,柒:7,八:8,捌:8,九:9,玖:9
+};
+const CHINESE_SPEECH_SMALL_UNITS={十:10,拾:10,百:100,佰:100,千:1000,仟:1000};
+const CHINESE_SPEECH_LARGE_UNITS={萬:10000,万:10000,億:100000000,亿:100000000};
+
+function chineseSpeechNumeralToArabic(value){
+  const source=String(value||"");
+  if(!source)return "";
+  const hasUnit=[...source].some(char=>CHINESE_SPEECH_SMALL_UNITS[char]||CHINESE_SPEECH_LARGE_UNITS[char]);
+  if(!hasUnit){
+    return [...source].map(char=>CHINESE_SPEECH_DIGITS[char]).join("");
+  }
+  let total=0,section=0,currentDigit=0;
+  for(const char of source){
+    if(Object.prototype.hasOwnProperty.call(CHINESE_SPEECH_DIGITS,char)){
+      currentDigit=CHINESE_SPEECH_DIGITS[char];
+      continue;
+    }
+    const smallUnit=CHINESE_SPEECH_SMALL_UNITS[char];
+    if(smallUnit){
+      section+=(currentDigit||1)*smallUnit;
+      currentDigit=0;
+      continue;
+    }
+    const largeUnit=CHINESE_SPEECH_LARGE_UNITS[char];
+    if(largeUnit){
+      section+=currentDigit;
+      total+=(section||1)*largeUnit;
+      section=0;
+      currentDigit=0;
+    }
+  }
+  return String(total+section+currentDigit);
+}
+
+function normalizeSpeechComparisonText(text){
+  const converted=String(text||"").normalize("NFKC").replace(
+    /[零〇○Ｏ一壹二貳贰兩两三參叁四肆五伍六陸陆七柒八捌九玖十拾百佰千仟萬万億亿]+/g,
+    chineseSpeechNumeralToArabic
+  );
+  return normalizeSpeechText(converted);
+}
+
+function speechTextSafelyContainsTarget(source,target){
+  let fromIndex=0;
+  while(fromIndex<=source.length-target.length){
+    const foundIndex=source.indexOf(target,fromIndex);
+    if(foundIndex<0)return false;
+    const before=source[foundIndex-1]||"";
+    const after=source[foundIndex+target.length]||"";
+    const numberBoundaryIsSafe=
+      !(/^\d/.test(target)&&/\d/.test(before))&&
+      !(/\d$/.test(target)&&/\d/.test(after));
+    if(numberBoundaryIsSafe)return true;
+    fromIndex=foundIndex+1;
+  }
+  return false;
+}
+
+function speechNumbersMatch(spokenText,targetText){
+  const targetNumbers=targetText.match(/\d+/g)||[];
+  if(!targetNumbers.length)return true;
+  const spokenNumbers=spokenText.match(/\d+/g)||[];
+  return containsTokenSequence(spokenNumbers,targetNumbers);
+}
+
 function isEnglishSpeechTarget(text){
   const value=String(text||"").normalize("NFKC");
   return /[A-Za-z]/.test(value)&&!/\p{Script=Han}/u.test(value);
@@ -4943,55 +5012,56 @@ function fuzzySpeechMatchesTarget(spoken,target){
 }
 
 function speechMatchesTarget(spoken,target){
-  const spokenText=normalizeSpeechText(spoken);
-  const targetText=normalizeSpeechText(target);
+  const spokenText=normalizeSpeechComparisonText(spoken);
+  const targetText=normalizeSpeechComparisonText(target);
   if(!spokenText||!targetText)return false;
-  if(spokenText===targetText||spokenText.includes(targetText))return true;
-  if(fuzzySpeechMatchesTarget(spoken,target))return true;
+  if(spokenText===targetText||speechTextSafelyContainsTarget(spokenText,targetText))return true;
+  if(!speechNumbersMatch(spokenText,targetText))return false;
+  if(fuzzySpeechMatchesTarget(spokenText,targetText))return true;
   if(isEnglishSpeechTarget(target)){
-    const spokenPhonetics=getEnglishPhoneticTokens(spoken);
-    const targetPhonetics=getEnglishPhoneticTokens(target);
+    const spokenPhonetics=getEnglishPhoneticTokens(spokenText);
+    const targetPhonetics=getEnglishPhoneticTokens(targetText);
     if(containsTokenSequence(spokenPhonetics,targetPhonetics))return true;
     if(!task?.relaxedSpeechRecognition)return false;
     if(containsTokenSequence(
-      getApproximateEnglishConsonantTokens(spoken),
-      getApproximateEnglishConsonantTokens(target)
+      getApproximateEnglishConsonantTokens(spokenText),
+      getApproximateEnglishConsonantTokens(targetText)
     ))return true;
     if(containsTokenSequence(
-      getApproximateEnglishVowelTokens(spoken),
-      getApproximateEnglishVowelTokens(target)
+      getApproximateEnglishVowelTokens(spokenText),
+      getApproximateEnglishVowelTokens(targetText)
     ))return true;
     if(containsTokenSequence(
-      getRelaxedEnglishConsonantTokens(spoken),
-      getRelaxedEnglishConsonantTokens(target)
+      getRelaxedEnglishConsonantTokens(spokenText),
+      getRelaxedEnglishConsonantTokens(targetText)
     ))return true;
     if(containsTokenSequence(
-      getEnglishVowelTokens(spoken),
-      getEnglishVowelTokens(target)
+      getEnglishVowelTokens(spokenText),
+      getEnglishVowelTokens(targetText)
     ))return true;
     return containsTokenSequence(
-      getApproximateEnglishSoundTokens(spoken),
-      getApproximateEnglishSoundTokens(target)
+      getApproximateEnglishSoundTokens(spokenText),
+      getApproximateEnglishSoundTokens(targetText)
     );
   }
-  const spokenPhonetics=getPhoneticTokens(spoken);
-  const targetPhonetics=getPhoneticTokens(target);
+  const spokenPhonetics=getPhoneticTokens(spokenText);
+  const targetPhonetics=getPhoneticTokens(targetText);
   if(containsTokenSequence(spokenPhonetics,targetPhonetics))return true;
   if(containsTokenSequence(
-    getStandardMandarinNearSoundTokens(spoken),
-    getStandardMandarinNearSoundTokens(target)
+    getStandardMandarinNearSoundTokens(spokenText),
+    getStandardMandarinNearSoundTokens(targetText)
   ))return true;
   if(!task?.relaxedSpeechRecognition)return false;
-  const spokenMediumSyllables=getMediumMandarinSyllables(spoken);
-  const targetMediumSyllables=getMediumMandarinSyllables(target);
+  const spokenMediumSyllables=getMediumMandarinSyllables(spokenText);
+  const targetMediumSyllables=getMediumMandarinSyllables(targetText);
   if(containsMediumMandarinSequence(spokenMediumSyllables,targetMediumSyllables))return true;
   if(containsMediumMandarinSequence(spokenMediumSyllables,targetMediumSyllables,"consonant"))return true;
   if(containsMediumMandarinSequence(spokenMediumSyllables,targetMediumSyllables,"vowel"))return true;
-  if(containsTokenSequence(getMandarinConsonantTokens(spoken),getMandarinConsonantTokens(target)))return true;
-  if(containsTokenSequence(getMandarinVowelTokens(spoken),getMandarinVowelTokens(target)))return true;
+  if(containsTokenSequence(getMandarinConsonantTokens(spokenText),getMandarinConsonantTokens(targetText)))return true;
+  if(containsTokenSequence(getMandarinVowelTokens(spokenText),getMandarinVowelTokens(targetText)))return true;
   return containsTokenSequence(
-    getApproximateMandarinSoundTokens(spoken),
-    getApproximateMandarinSoundTokens(target)
+    getApproximateMandarinSoundTokens(spokenText),
+    getApproximateMandarinSoundTokens(targetText)
   );
 }
 
