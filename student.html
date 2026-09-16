@@ -802,7 +802,7 @@ function playButtonPressSound(){
       oscillator.frequency.setValueAtTime(620,now);
       oscillator.frequency.exponentialRampToValueAtTime(820,now+0.07);
       gain.gain.setValueAtTime(0.0001,now);
-      gain.gain.exponentialRampToValueAtTime(0.16,now+0.008);
+      gain.gain.exponentialRampToValueAtTime(0.4,now+0.008);
       gain.gain.exponentialRampToValueAtTime(0.0001,now+0.085);
       oscillator.connect(gain);gain.connect(buttonSoundContext.destination);
       oscillator.start(now);oscillator.stop(now+0.09);
@@ -983,7 +983,7 @@ function stopPlatformSpeech(){
 function speakPlatformText(text,{lang="zh-TW",rate=.9,pitch=1,volume=1,immediate=false}={}){
   const value=String(text||"").trim();
   if(!value||!("speechSynthesis" in window))return Promise.resolve(false);
-  const playbackRate=task?.slowSpeechPlayback ? .4 : rate;
+  const playbackRate=task?.slowSpeechPlayback ? .6 : rate;
   const now=Date.now();
   if(value===platformSpeechLastText&&now-platformSpeechLastAt<2200&&platformSpeechLastPromise){
     return platformSpeechLastPromise;
@@ -1304,7 +1304,7 @@ function playTaskSuccessSound(){
     gain.connect(ctx.destination);
 
     gain.gain.setValueAtTime(0.0001,now);
-    gain.gain.exponentialRampToValueAtTime(0.28,now+0.02);
+    gain.gain.exponentialRampToValueAtTime(0.4,now+0.02);
     gain.gain.exponentialRampToValueAtTime(0.0001,now+0.7);
 
     const first=ctx.createOscillator();
@@ -1349,7 +1349,7 @@ function playTaskErrorSound(){
     gain.connect(ctx.destination);
 
     gain.gain.setValueAtTime(0.0001,now);
-    gain.gain.exponentialRampToValueAtTime(0.11,now+0.025);
+    gain.gain.exponentialRampToValueAtTime(0.4,now+0.025);
     gain.gain.exponentialRampToValueAtTime(0.0001,now+0.5);
 
     const first=ctx.createOscillator();
@@ -1793,6 +1793,20 @@ function scheduleQuestionAutoSpeech(callback,delay){
       scheduleQuestionReminder(true);
     }
   },delay);
+}
+
+function waitForStudentTaskScreenPaint(){
+  return new Promise(resolve=>{
+    let settled=false;
+    const finish=()=>{
+      if(settled)return;
+      settled=true;
+      clearTimeout(fallbackTimer);
+      resolve();
+    };
+    const fallbackTimer=setTimeout(finish,300);
+    requestAnimationFrame(()=>requestAnimationFrame(finish));
+  });
 }
 
 function scheduleQuestionReminder(resetForQuestion=false){
@@ -3115,13 +3129,20 @@ async function startTask(){
       }
 
       renderTask();
-      prepareCurrentQuestionPrompt(true);
+      if(!((isEvaluationMode()&&!isReadingMode())||isGameMode())){
+        prepareCurrentQuestionPrompt(true);
+      }
     }
 
     $("loadCard").classList.add("hidden");
     $("joinCard").classList.add("hidden");
     $("gameWaitingCard").classList.add("hidden");
     $("taskCard").classList.remove("hidden");
+
+    if((isEvaluationMode()&&!isReadingMode())||isGameMode()){
+      await waitForStudentTaskScreenPaint();
+      prepareCurrentQuestionPrompt(true);
+    }
 
     await startSelectedProject();
   }catch(error){
