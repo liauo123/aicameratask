@@ -789,27 +789,39 @@ function loadRuntimeScript(url,globalName,label){
 }
 
 let buttonSoundContext=null;
-function playButtonPressSound(){
+function playWithSharedInterfaceSound(play,label){
   try{
     const AudioContextClass=window.AudioContext||window.webkitAudioContext;
     if(!AudioContextClass)return;
     if(!buttonSoundContext||buttonSoundContext.state==="closed")buttonSoundContext=new AudioContextClass();
-    const play=()=>{
-      const now=buttonSoundContext.currentTime;
-      const oscillator=buttonSoundContext.createOscillator();
-      const gain=buttonSoundContext.createGain();
+    const start=()=>{
+      if(!buttonSoundContext||buttonSoundContext.state==="closed")return;
+      try{play(buttonSoundContext)}catch(error){console.warn(label+"播放失敗",error)}
+    };
+    if(buttonSoundContext.state==="suspended"||buttonSoundContext.state==="interrupted"){
+      buttonSoundContext.resume().then(start).catch(error=>console.warn(label+"啟用失敗",error));
+    }else{
+      start();
+    }
+  }catch(error){
+    console.warn(label+"播放失敗",error);
+  }
+}
+
+function playButtonPressSound(){
+  playWithSharedInterfaceSound(ctx=>{
+      const now=ctx.currentTime;
+      const oscillator=ctx.createOscillator();
+      const gain=ctx.createGain();
       oscillator.type="sine";
       oscillator.frequency.setValueAtTime(620,now);
       oscillator.frequency.exponentialRampToValueAtTime(820,now+0.07);
       gain.gain.setValueAtTime(0.0001,now);
       gain.gain.exponentialRampToValueAtTime(0.4,now+0.008);
       gain.gain.exponentialRampToValueAtTime(0.0001,now+0.085);
-      oscillator.connect(gain);gain.connect(buttonSoundContext.destination);
+      oscillator.connect(gain);gain.connect(ctx.destination);
       oscillator.start(now);oscillator.stop(now+0.09);
-    };
-    if(buttonSoundContext.state==="suspended")buttonSoundContext.resume().then(play).catch(()=>{});
-    else play();
-  }catch(e){console.warn("按鈕音效播放失敗",e)}
+  },"按鈕音效");
 }
 function getEnabledButton(target){
   const button=target&&target.closest?target.closest("button"):null;
@@ -1293,12 +1305,7 @@ function showCaptureFeedback(type,text,durationMs=null){
 
 function playTaskSuccessSound(){
   if(isTeachingMode())return;
-
-  try{
-    const AudioContextClass=window.AudioContext||window.webkitAudioContext;
-    if(!AudioContextClass)return;
-
-    const ctx=new AudioContextClass();
+  playWithSharedInterfaceSound(ctx=>{
     const now=ctx.currentTime;
     const gain=ctx.createGain();
     gain.connect(ctx.destination);
@@ -1327,23 +1334,12 @@ function playTaskSuccessSound(){
     third.connect(gain);
     third.start(now+0.42);
     third.stop(now+0.7);
-
-    setTimeout(()=>{
-      try{ctx.close()}catch(e){}
-    },850);
-  }catch(e){
-    console.warn("成功音效播放失敗",e);
-  }
+  },"成功音效");
 }
 
 function playTaskErrorSound(){
   if(isTeachingMode())return;
-
-  try{
-    const AudioContextClass=window.AudioContext||window.webkitAudioContext;
-    if(!AudioContextClass)return;
-
-    const ctx=new AudioContextClass();
+  playWithSharedInterfaceSound(ctx=>{
     const now=ctx.currentTime;
     const gain=ctx.createGain();
     gain.connect(ctx.destination);
@@ -1366,13 +1362,7 @@ function playTaskErrorSound(){
     second.connect(gain);
     second.start(now+0.24);
     second.stop(now+0.5);
-
-    setTimeout(()=>{
-      try{ctx.close()}catch(e){}
-    },650);
-  }catch(e){
-    console.warn("錯誤音效播放失敗",e);
-  }
+  },"錯誤音效");
 }
 function norm(url){url=(url||"").trim();return url.endsWith("/")?url:url+"/"}
 function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
@@ -1807,6 +1797,18 @@ function waitForStudentTaskScreenPaint(){
     const fallbackTimer=setTimeout(finish,300);
     requestAnimationFrame(()=>requestAnimationFrame(finish));
   });
+}
+
+function scheduleFirstPhotoOrGamePromptLikeSpeakingMode(){
+  if(!task||currentIndex>=task.targetClasses.length)return;
+  prepareCurrentQuestionPrompt(false);
+  scheduleQuestionAutoSpeech(async()=>{
+    if(isAdvancedMode()||isDescriptionPromptMode()){
+      await speakAdvancedPrompt(true);
+    }else{
+      await speakEvaluationTarget(true);
+    }
+  },300);
 }
 
 function scheduleQuestionReminder(resetForQuestion=false){
@@ -3141,7 +3143,7 @@ async function startTask(){
 
     if((isEvaluationMode()&&!isReadingMode())||isGameMode()){
       await waitForStudentTaskScreenPaint();
-      prepareCurrentQuestionPrompt(true);
+      scheduleFirstPhotoOrGamePromptLikeSpeakingMode();
     }
 
     await startSelectedProject();
