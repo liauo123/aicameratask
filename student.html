@@ -3141,12 +3141,20 @@ async function startTask(){
     $("gameWaitingCard").classList.add("hidden");
     $("taskCard").classList.remove("hidden");
 
-    if((isEvaluationMode()&&!isReadingMode())||isGameMode()){
+    const shouldScheduleFirstPhotoOrGamePrompt=(isEvaluationMode()&&!isReadingMode())||isGameMode();
+    let selectedProjectStarted=false;
+    if(shouldScheduleFirstPhotoOrGamePrompt){
       await waitForStudentTaskScreenPaint();
-      scheduleFirstPhotoOrGamePromptLikeSpeakingMode();
+      if(projectType==="image"&&!isSpeechOnlyRecognition()){
+        await startSelectedProject();
+        selectedProjectStarted=true;
+        scheduleFirstPhotoOrGamePromptLikeSpeakingMode();
+      }else{
+        scheduleFirstPhotoOrGamePromptLikeSpeakingMode();
+      }
     }
 
-    await startSelectedProject();
+    if(!selectedProjectStarted)await startSelectedProject();
   }catch(error){
     console.error(error);
     if(isGameMode()){
