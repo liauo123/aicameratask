@@ -75,6 +75,25 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
   gap:10px;
   margin-top:10px;
 }
+.number-grid.selection-attention{
+  border-radius:18px;
+  animation:numberSelectionAttention .9s ease-in-out infinite;
+}
+#startBtn.start-attention{
+  animation:startButtonAttention .9s ease-in-out infinite;
+}
+@keyframes numberSelectionAttention{
+  0%,100%{box-shadow:0 0 0 0 rgba(37,99,235,0);background:rgba(219,234,254,0)}
+  50%{box-shadow:0 0 0 7px rgba(37,99,235,.34);background:rgba(219,234,254,.62)}
+}
+@keyframes startButtonAttention{
+  0%,100%{filter:brightness(1);box-shadow:0 0 0 0 rgba(37,99,235,0)}
+  50%{filter:brightness(1.2);box-shadow:0 0 0 7px rgba(37,99,235,.34),0 10px 24px rgba(37,99,235,.3)}
+}
+@media(prefers-reduced-motion:reduce){
+  .number-grid.selection-attention{animation:none;box-shadow:0 0 0 5px rgba(37,99,235,.3);background:rgba(219,234,254,.45)}
+  #startBtn.start-attention{animation:none;box-shadow:0 0 0 5px rgba(37,99,235,.3)}
+}
 .number-btn{
   min-height:54px;
   border:2px solid #cbd5e1;
@@ -2306,6 +2325,7 @@ async function loadTask(){
       $("startBtn").textContent=isGameMode()?"送出加入申請":isClickMode()?"開始點選模式":isSpeakingMode()?"開始口語模式":isHanziMode()?"開始書寫模式":isReadingMode()?"開始問答":"開始任務";
 
       $("joinCard").classList.remove("hidden");
+      setSelectionAttention("number");
       if(isGameMode()){
         listenGameSeats();
         setStatus("loadStatus","遊戲載入成功，請選擇學生編號後送出加入申請。","success");
@@ -2321,6 +2341,11 @@ async function loadTask(){
 
 
 
+function setSelectionAttention(target){
+  $("studentNumberGrid").classList.toggle("selection-attention",target==="number");
+  $("startBtn").classList.toggle("start-attention",target==="start");
+}
+
 function selectStudentNumber(number){
   selectedStudentNumber=String(number);
 
@@ -2333,6 +2358,7 @@ function selectStudentNumber(number){
 
   $("selectedNumberText").textContent="已選擇學生編號："+selectedStudentNumber;
   $("startBtn").disabled=false;
+  setSelectionAttention("start");
   $("joinStatus").classList.add("hidden");
 }
 
@@ -2364,6 +2390,7 @@ function listenGameSeats(){
         selectedStudentNumber="";button.classList.remove("selected");
         $("selectedNumberText").textContent="此號碼已被選取，請重新選擇";
         $("startBtn").disabled=true;
+        setSelectionAttention("number");
       }
     });
   });
@@ -6199,11 +6226,13 @@ function handleHanziSpeechButton(){
 }
 
 async function handleStartButtonClick(){
+  setSelectionAttention(null);
   if(!primeSafariFirstQuestionSpeech())unlockPlatformSpeech();
   const needsMicrophone=taskUsesBrowserSpeechRecognition();
   const microphoneReady=await primeBrowserSpeechMicrophoneFromGesture();
   if(needsMicrophone&&!microphoneReady){
     setStatus("joinStatus","無法啟用麥克風，請在瀏覽器網站設定中允許麥克風後再試一次。","error");
+    setSelectionAttention("start");
     return;
   }
   return isGameMode()?requestGameJoin():startTask();
