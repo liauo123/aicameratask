@@ -135,11 +135,11 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
 .target small{display:block;color:#475569}.target strong{display:block;font-size:30px;color:#1d4ed8;margin-top:5px}
 .target-question-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:5px}
 .target-question-row strong{margin-top:0}
-.target-thumbnail{width:72px;height:72px;object-fit:cover;border-radius:14px;border:2px solid #93c5fd;background:#fff;box-shadow:0 5px 14px rgba(37,99,235,.16);flex:0 0 auto}
+.target-thumbnail{width:72px;height:72px;object-fit:contain;border-radius:14px;border:2px solid #93c5fd;background:#fff;box-shadow:0 5px 14px rgba(37,99,235,.16);flex:0 0 auto}
 #advancedPromptCard.speech-only-prompt .target-thumbnail{width:144px;height:144px;border-radius:28px}
-body[data-mode-theme="click"] #clickPrompt #clickPromptImage{width:min(144px,76vw);height:min(144px,76vw);border-radius:24px;object-fit:cover}
+body[data-mode-theme="click"] #clickPrompt #clickPromptImage{width:min(144px,76vw);height:min(144px,76vw);border-radius:24px;object-fit:contain;background:#fff}
 body[data-mode-theme="speaking"] #hanziTargetThumbnail,
-body[data-mode-theme="reading"] #advancedPromptCard.speech-only-prompt #advancedTargetThumbnail{width:min(288px,76vw);height:min(288px,76vw);border-radius:28px;object-fit:cover}
+body[data-mode-theme="reading"] #advancedPromptCard.speech-only-prompt #advancedTargetThumbnail{width:min(288px,76vw);height:min(288px,76vw);border-radius:28px;object-fit:contain}
 body[data-mode-theme="speaking"] .hanzi-question-row,
 body[data-mode-theme="reading"] #advancedPromptCard .target-question-row{flex-direction:column}
 .progress-label{display:flex;justify-content:space-between;color:var(--muted);margin-bottom:7px}
@@ -231,11 +231,11 @@ body[data-mode-theme="reading"] #advancedPromptCard .target-question-row{flex-di
 .click-task{padding:12px;background:linear-gradient(145deg,#fff7ed,#fef3c7);border:2px solid #fbbf24}
 .click-task-head{padding:4px 4px 10px}.click-task-head h2{margin:0 0 5px;color:#92400e}.click-task-meta{display:flex;justify-content:space-between;gap:10px;color:#78350f;font-weight:800}
 .click-prompt{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;margin:0 auto 10px;padding:9px 16px;width:max-content;max-width:100%;border:2px solid #f59e0b;border-radius:16px;background:#fff;color:#92400e;font-weight:900;text-align:center;box-shadow:0 6px 18px rgba(146,64,14,.14)}
-.click-prompt img{width:clamp(76px,19vw,112px);height:clamp(76px,19vw,112px);object-fit:cover;border-radius:13px}
+.click-prompt img{width:clamp(76px,19vw,112px);height:clamp(76px,19vw,112px);object-fit:contain;border-radius:13px;background:#fff}
 .click-prompt-text{font-size:clamp(25px,7vw,38px);font-weight:1000;line-height:1.25;overflow-wrap:anywhere}
 .click-stage{position:relative;width:100%;height:clamp(420px,68vh,720px);height:clamp(420px,68svh,720px);overflow:hidden;border-radius:18px;background:radial-gradient(circle at top,#fffbeb,#fde68a);border:2px solid #f59e0b;touch-action:manipulation}
 .click-target{position:absolute;width:clamp(118px,31vw,176px);min-height:0;padding:10px;border:3px solid #fff;border-radius:20px;background:#fff;color:#92400e;box-shadow:0 12px 30px rgba(146,64,14,.25);display:flex;flex-direction:column;align-items:center;gap:7px;transform:scale(1);animation:clickTargetPop .22s ease;user-select:none;-webkit-user-select:none}
-.click-target img{width:clamp(88px,24vw,138px);height:clamp(88px,24vw,138px);object-fit:cover;border-radius:14px}.click-target span{font-size:clamp(18px,5vw,25px);font-weight:1000;line-height:1.2;text-align:center}.click-target:active{transform:scale(.94)}
+.click-target img{width:clamp(88px,24vw,138px);height:clamp(88px,24vw,138px);object-fit:contain;border-radius:14px;background:#fff}.click-target span{font-size:clamp(18px,5vw,25px);font-weight:1000;line-height:1.2;text-align:center}.click-target:active{transform:scale(.94)}
 .click-waiting{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:#92400e;font-size:22px;font-weight:900;padding:28px}.click-countdown{position:absolute;left:12px;right:12px;bottom:10px;height:9px;border-radius:999px;background:rgba(255,255,255,.75);overflow:hidden}.click-countdown>div{height:100%;width:100%;background:#f97316;transform-origin:left center}
 .click-feedback{position:absolute;inset:0;display:grid;place-items:center;background:rgba(22,163,74,.88);color:#fff;font-size:clamp(42px,13vw,84px);font-weight:1000;z-index:4;pointer-events:none;animation:clickFeedback .65s ease forwards}
 .click-feedback.error{background:rgba(251,146,60,.82)}
