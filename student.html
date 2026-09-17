@@ -556,6 +556,11 @@ button,input{max-width:100%}
   .click-target{width:clamp(96px,40vw,128px);max-width:46%}
 }
 
+/* Safari 問答模式：麥克風尺寸與口語模式一致，不受極窄螢幕縮小規則影響 */
+body.safari-browser[data-mode-theme="reading"] .recognition-actions #voiceRecognizeBtn{
+  width:96px;height:96px;min-height:96px;flex:0 0 96px;font-size:45px;border-width:3px
+}
+
 /* 觸控裝置維持足夠的點按尺寸 */
 @media(pointer:coarse){
   button{min-height:48px}
@@ -942,6 +947,7 @@ let platformSpeechRequestId=0;
 let preferredPlatformVoice=null;
 let platformSpeechLastText="",platformSpeechLastAt=0,platformSpeechLastPromise=null;
 let safariPrimedSpeechText="",safariPrimedSpeechPromise=null;
+let safariFirstQuestionFullVolumePending=false;
 let questionAutoSpeechTimer=null,questionAutoSpeechKey="",questionAutoSpeechInFlightKey="";
 let questionReminderTimer=null,questionReminderCount=0,questionReminderKey="",questionReminderManuallyStopped=false,questionReminderBusy=false;
 let automaticSpeechRestartTimer=null,automaticSpeechIdleTimer=null,automaticSpeechQuestionKey="",automaticSpeechFallbackToButton=false;
@@ -1049,6 +1055,7 @@ function speakPlatformText(text,{lang="zh-TW",rate=.9,pitch=1,volume=1,immediate
   }
   const requestId=++platformSpeechRequestId;
   const synthesis=window.speechSynthesis;
+  const useSafariFirstQuestionFullVolume=safariFirstQuestionFullVolumePending&&isSafariBrowser()&&currentIndex===0;
   try{synthesis.cancel()}catch(e){}
   try{synthesis.resume()}catch(e){}
   refreshPlatformSpeechVoice();
@@ -1072,7 +1079,7 @@ function speakPlatformText(text,{lang="zh-TW",rate=.9,pitch=1,volume=1,immediate
         utterance.lang=lang;
         utterance.rate=playbackRate;
         utterance.pitch=pitch;
-        utterance.volume=volume;
+        utterance.volume=useSafariFirstQuestionFullVolume?1:volume;
         const voice=preferredPlatformVoice||refreshPlatformSpeechVoice();
         if(voice&&/^zh/i.test(lang))utterance.voice=voice;
         utterance.onend=()=>finish(true);
@@ -1081,6 +1088,7 @@ function speakPlatformText(text,{lang="zh-TW",rate=.9,pitch=1,volume=1,immediate
           ()=>finish(false),
           Math.max(8000,value.length*650*(.9/Math.max(.1,playbackRate)))
         );
+        if(useSafariFirstQuestionFullVolume)safariFirstQuestionFullVolumePending=false;
         synthesis.speak(utterance);
         setTimeout(()=>{
           if(requestId===platformSpeechRequestId&&synthesis.paused){
@@ -1091,8 +1099,8 @@ function speakPlatformText(text,{lang="zh-TW",rate=.9,pitch=1,volume=1,immediate
         finish(false);
       }
     };
-    if(immediate)speakNow();
-    else setTimeout(speakNow,45);
+    if(immediate&&!useSafariFirstQuestionFullVolume)speakNow();
+    else setTimeout(speakNow,useSafariFirstQuestionFullVolume?280:45);
   });
   platformSpeechLastText=value;
   platformSpeechLastAt=now;
@@ -1104,6 +1112,8 @@ function isSafariBrowser(){
   const ua=navigator.userAgent||"";
   return /Safari/i.test(ua)&&!/Chrome|Chromium|CriOS|Edg|OPR|Android/i.test(ua);
 }
+
+if(isSafariBrowser())document.body.classList.add("safari-browser");
 
 if("speechSynthesis" in window){
   refreshPlatformSpeechVoice();
@@ -1627,6 +1637,7 @@ function getCurrentQuestionSpeechConfig(){
 }
 
 function primeSafariFirstQuestionSpeech(){
+  safariFirstQuestionFullVolumePending=false;
   if(!isSafariBrowser()||!task||isAutomaticPromptSpeechDisabled())return false;
   const savedIndex=currentIndex;
   if(currentIndex>=task.targetClasses.length)currentIndex=0;
@@ -1648,8 +1659,10 @@ function primeSafariFirstQuestionSpeech(){
     if(voice)utterance.voice=voice;
     synthesis.speak(utterance);
     platformSpeechUnlocked=true;
+    safariFirstQuestionFullVolumePending=true;
   }catch(e){
     platformSpeechUnlocked=false;
+    safariFirstQuestionFullVolumePending=false;
     return false;
   }
   safariPrimedSpeechText="";
