@@ -412,9 +412,7 @@ function renderPronunciationAnalysis(data){
   })).filter(record=>record.targetSyllables.length&&record.spokenSyllables.length);
   const effectiveCount=prepared.reduce((sum,record)=>sum+record.weight,0);
   const reminder='<div class="pronunciationAnalysisNote">本結果依瀏覽器語音辨識文字自動推測，僅供教師安排發音練習參考，不作為構音或醫療診斷。</div>';
-  if(effectiveCount<5){
-    return `<div class="pronunciationAnalysis"><div class="pronunciationAnalysisTitle">可能的發音困難分析</div><div class="pronunciationAnalysisMessage">目前錯誤語音資料不足，完成更多語音練習後再進行分析。</div>${reminder}</div>`;
-  }
+  if(effectiveCount<5)return "";
   const directionStats=new Map();
   const recordHits=new Map();
   const multiSyllable={label:"多音節語句",count:0,examples:[],typeCounts:{漏字:0,增字:0,音節替換:0,音節順序改變:0,只說出部分內容:0}};
@@ -468,9 +466,7 @@ function renderPronunciationAnalysis(data){
   if(multiSyllable.count>=3)ranked.push(multiSyllable);
   ranked.sort((a,b)=>b.count-a.count||a.label.localeCompare(b.label,"zh-Hant"));
   ranked.forEach((item,index)=>item.rank=index+1);
-  if(!ranked.length){
-    return `<div class="pronunciationAnalysis"><div class="pronunciationAnalysisTitle">可能的發音困難分析</div><div class="pronunciationAnalysisMessage">目前尚未發現重複達3次的發音混淆，建議繼續累積語音練習紀錄。</div>${reminder}</div>`;
-  }
+  if(!ranked.length)return "";
   const rows=ranked.map(item=>{
     const teaching=pronunciationTeachingContent(item);
     const frequent=pronunciationFrequentSummary(item.examples);
@@ -852,15 +848,13 @@ async function render(docs){
       const studentInputs=isCustomPhotoRecognition
         ?"—"
         :formatStudentInputRecords(d,isOcrPhotoRecognition?"辨識輸入":"書寫輸入");
-      const pronunciationAnalysis=isReading?renderPronunciationAnalysis(d):"";
-
       return `<div class="rr inputResultRow${hasFiveWrong?" hasFiveWrong":hasGeneralError?" hasAnyError":""}">
         <span>${esc(d.studentName||"未命名")}</span>
         <span>${d.progress||0}%</span>
         <span>${resultStatusText(d.status)}</span>
         <span>${incorrectText||"—"}</span>
         <span class="studentInputRecords">${studentInputs}</span>
-      </div>${pronunciationAnalysis}`;
+      </div>`;
     }).join("");
 
     const resultSection=resultError
@@ -1303,31 +1297,88 @@ function csvErrorRange(data,min,max){
   return parts.join("；");
 }
 
+function csvTaskMode(task){
+  if(task&&task.taskMode==="click")return "click";
+  if(task&&task.taskMode==="game")return "game";
+  if(task&&(task.taskMode==="speaking"||task.taskMode==="hanzi"&&task.hanziSpeechEnabled))return "speaking";
+  if(task&&task.taskMode==="hanzi")return "hanzi";
+  if(task&&task.taskMode==="reading")return "reading";
+  return "evaluation";
+}
+
+function csvTotalErrorCount(data,mode){
+  const explicit=Number(data&&data.errorCount);
+  if(Number.isFinite(explicit)&&explicit>=0)return explicit;
+  if(mode==="click")return Math.max(0,Number(data&&data.clickWrongCount)||0)+Math.max(0,Number(data&&data.clickMissCount)||0);
+  const typedFields=["imageItemErrorCounts","audioItemErrorCounts"];
+  let total=0,hasTyped=false;
+  typedFields.forEach(field=>{
+    const source=data&&data[field];
+    if(!source||typeof source!=="object"||Array.isArray(source))return;
+    hasTyped=true;
+    total+=Object.values(source).reduce((sum,count)=>sum+Math.max(0,Number(count)||0),0);
+  });
+  if(hasTyped)return total;
+  const legacy=data&&data.itemErrorCounts;
+  if(legacy&&typeof legacy==="object"&&!Array.isArray(legacy))return Object.values(legacy).reduce((sum,count)=>sum+Math.max(0,Number(count)||0),0);
+  return Math.max(0,Number(data&&data.attempts)||0);
+}
+
+function csvIncorrectItems(data,mode){
+  const written=Array.isArray(data&&data.incorrectClasses)?[...new Set(data.incorrectClasses.filter(Boolean).map(String))]:[];
+  const spoken=Array.isArray(data&&data.incorrectAudioClasses)?[...new Set(data.incorrectAudioClasses.filter(Boolean).map(String))]:[];
+  if(mode==="speaking"||mode==="reading")return spoken.join("、");
+  if(mode==="hanzi")return written.join("、");
+  return [
+    written.length?`拍照辨識：${written.join("、")}`:"",
+    spoken.length?`語音辨識：${spoken.join("、")}`:""
+  ].filter(Boolean).join("；");
+}
+
+function csvPronunciationAnalysis(data){
+  const html=renderPronunciationAnalysis(data);
+  if(!html)return "";
+  const container=document.createElement("div");
+  container.innerHTML=html;
+  return String(container.textContent||"").replace(/\s+/g," ").trim();
+}
+
+function csvDefinitionForMode(mode){
+  const base=["任務名稱","學生編號","學生名稱","完成進度","狀態","錯誤次數"];
+  if(mode==="click")return [...base,"點選答對次數","點選答錯次數","點選逾時次數","平均點選時間(秒)"];
+  const errors=["錯誤 1～2 次","錯誤 3～4 次","錯誤 5 次以上","辨識錯誤項目"];
+  if(mode==="speaking")return [...base,...errors,"可能的發音困難分析"];
+  if(mode==="game")return [...base,...errors,"遊戲名次"];
+  return [...base,...errors];
+}
+
+function csvRowForMode(title,data,mode){
+  const base=[
+    title,data.studentCode||"",data.studentName||"",`${Number(data.progress||0)}%`,
+    resultStatusText(data.status),csvTotalErrorCount(data,mode)
+  ];
+  if(mode==="click"){
+    const averageSeconds=getClickAverageSeconds(data);
+    return [...base,Number(data.clickCorrectCount||0),Number(data.clickWrongCount||0),Number(data.clickMissCount||0),averageSeconds?averageSeconds.toFixed(2):""];
+  }
+  const errors=[csvErrorRange(data,1,2),csvErrorRange(data,3,4),csvErrorRange(data,5,Infinity),csvIncorrectItems(data,mode)];
+  if(mode==="speaking")return [...base,...errors,csvPronunciationAnalysis(data)];
+  if(mode==="game")return [...base,...errors,data.gameRank?`第 ${data.gameRank} 名`:""];
+  return [...base,...errors];
+}
+
 window.exportTaskCSV=async taskId=>{
   try{
     const taskSnap=latestTaskDocs.find(doc=>doc.id===taskId);
     const canUseResultCache=resultListenerReady&&resultTaskDocsForActiveMode().some(doc=>doc.id===taskId);
     const resultDocs=canUseResultCache?[...getCachedTaskResultDocs(taskId)]:await getTaskResultDocs(taskId);
     if(!resultDocs.length){alert("此任務目前沒有學生結果可以匯出。");return}
-    const title=taskSnap?(taskSnap.data().title||"任務結果"):"任務結果";
+    const taskData=taskSnap?taskSnap.data():{};
+    const title=taskData.title||"任務結果";
+    const mode=csvTaskMode(taskData);
     const sorted=[...resultDocs].sort((a,b)=>Number(a.data().studentCode||999)-Number(b.data().studentCode||999));
-    const header=["任務名稱","學生編號","學生名稱","完成進度","狀態","錯誤次數","錯誤 1～2 次","錯誤 3～4 次","錯誤 5 次以上","辨識錯誤項目","遊戲名次","點選答對次數","點選答錯次數","點選逾時次數","平均點選時間(秒)","開始時間","完成時間"];
-    const rows=sorted.map(doc=>{
-      const data=doc.data();
-      const writtenWrong=Array.isArray(data.incorrectClasses)?[...new Set(data.incorrectClasses.filter(Boolean))]:[];
-      const spokenWrong=Array.isArray(data.incorrectAudioClasses)?[...new Set(data.incorrectAudioClasses.filter(Boolean))]:[];
-      const incorrect=[
-        writtenWrong.length?`寫錯：${writtenWrong.join("、")}`:"",
-        spokenWrong.length?`念錯：${spokenWrong.join("、")}`:""
-      ].filter(Boolean).join("；");
-      return [
-        title,data.studentCode||"",data.studentName||"",`${Number(data.progress||0)}%`,
-        resultStatusText(data.status),Number(data.attempts||0),
-        csvErrorRange(data,1,2),csvErrorRange(data,3,4),csvErrorRange(data,5,Infinity),incorrect,
-        data.gameRank?`第 ${data.gameRank} 名`:"",Number(data.clickCorrectCount||0),Number(data.clickWrongCount||0),Number(data.clickMissCount||0),
-        getClickAverageSeconds(data)?getClickAverageSeconds(data).toFixed(2):"",timestampText(data.startedAt),timestampText(data.completedAt)
-      ].map(csvValue).join(",");
-    });
+    const header=csvDefinitionForMode(mode);
+    const rows=sorted.map(doc=>csvRowForMode(title,doc.data(),mode).map(csvValue).join(","));
     const csv="\uFEFF"+[header.map(csvValue).join(","),...rows].join("\r\n");
     const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
     const url=URL.createObjectURL(blob);
