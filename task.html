@@ -66,7 +66,7 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
 .rr.inputResultRow{grid-template-columns:1fr .55fr .65fr 1.2fr 1.45fr}
 .rr.hasAnyError{background:#fff7ed;border-left:4px solid #f97316}.rr.hasFiveWrong{background:#fff1f2;border-left:4px solid #dc2626}.lowErrorMark,.errorCountMark,.fiveWrongMark{display:inline-block;margin-top:5px;padding:4px 7px;border-radius:7px;font-weight:900;line-height:1.5}.lowErrorMark{background:#f3f4f6;color:#111827;border:none}.errorCountMark{background:#ffedd5;color:#c2410c;border:1px solid #fdba74}.fiveWrongMark{background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5}
 .studentInputRecords{font-size:13px;line-height:1.65;overflow-wrap:anywhere}.studentInputRecords b{color:#334155}
-.pronunciationAnalysis{margin:0 0 12px;padding:12px 14px;border:1px solid #bfdbfe;border-left:4px solid #2563eb;border-radius:0 0 12px 12px;background:#f8fbff;color:#334155}.readingTask .pronunciationAnalysis{border-color:#a5f3fc;border-left-color:#0891b2;background:#f4feff}.pronunciationAnalysisTitle{font-size:14px;font-weight:900;color:#1e3a8a;margin-bottom:7px}.readingTask .pronunciationAnalysisTitle{color:#0e7490}.pronunciationAnalysisMessage,.pronunciationAnalysisNote{font-size:12px;line-height:1.65}.pronunciationAnalysisTable{display:grid;gap:5px;margin-top:7px}.pronunciationAnalysisRow{display:grid;grid-template-columns:52px minmax(105px,.8fr) 78px minmax(180px,1.8fr);gap:8px;align-items:center;padding:7px 8px;border-radius:8px;background:#fff;border:1px solid #dbeafe;font-size:12px;line-height:1.5}.pronunciationAnalysisRow.header{background:#dbeafe;color:#1e3a8a;font-weight:900}.readingTask .pronunciationAnalysisRow{border-color:#cffafe}.readingTask .pronunciationAnalysisRow.header{background:#cffafe;color:#0e7490}.pronunciationAnalysisNote{margin-top:8px;color:#64748b}
+.pronunciationAnalysis{margin:0 0 12px;padding:12px 14px;border:1px solid #bfdbfe;border-left:4px solid #2563eb;border-radius:0 0 12px 12px;background:#f8fbff;color:#334155}.readingTask .pronunciationAnalysis{border-color:#a5f3fc;border-left-color:#0891b2;background:#f4feff}.pronunciationAnalysisTitle{font-size:14px;font-weight:900;color:#1e3a8a;margin-bottom:7px}.readingTask .pronunciationAnalysisTitle{color:#0e7490}.pronunciationAnalysisMessage,.pronunciationAnalysisNote{font-size:12px;line-height:1.65}.pronunciationAnalysisTable{display:grid;gap:5px;margin-top:7px}.pronunciationAnalysisRow{display:grid;grid-template-columns:52px minmax(105px,.8fr) 78px minmax(180px,1.8fr);gap:8px;align-items:center;padding:7px 8px;border-radius:8px;background:#fff;border:1px solid #dbeafe;font-size:12px;line-height:1.5}.pronunciationAnalysisRow.header{background:#dbeafe;color:#1e3a8a;font-weight:900}.readingTask .pronunciationAnalysisRow{border-color:#cffafe}.readingTask .pronunciationAnalysisRow.header{background:#cffafe;color:#0e7490}.pronunciationAnalysisDetail{margin:-1px 4px 6px;padding:9px 11px;border:1px solid #dbeafe;border-radius:0 0 9px 9px;background:#fff;font-size:12px;line-height:1.7}.readingTask .pronunciationAnalysisDetail{border-color:#cffafe}.pronunciationAnalysisDetail b{color:#1e40af}.readingTask .pronunciationAnalysisDetail b{color:#0e7490}.pronunciationAnalysisDetailLine+.pronunciationAnalysisDetailLine{margin-top:3px}.pronunciationAnalysisNote{margin-top:8px;color:#64748b}
 .clickRecord{margin-top:8px;padding:9px 11px;border-radius:10px;background:#fff;border:1px solid #fde68a;font-size:13px;line-height:1.75}.clickRecord b{color:#92400e}
 .modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:20px;z-index:99}
 .box{background:var(--surface);border:1px solid var(--surface-border);padding:22px;border-radius:18px;text-align:center;max-width:390px;width:100%;box-shadow:0 20px 55px rgba(15,23,42,.24)}
@@ -211,13 +211,32 @@ const PRONUNCIATION_CONFUSION_RULES=[
   {label:"ㄧㄤ／ㄧㄠ",part:"final",members:new Set(["iang","iao"])}
 ];
 
+const PRONUNCIATION_SYMBOLS={
+  initial:{b:"ㄅ",p:"ㄆ",m:"ㄇ",f:"ㄈ",d:"ㄉ",t:"ㄊ",n:"ㄋ",l:"ㄌ",g:"ㄍ",k:"ㄎ",h:"ㄏ",j:"ㄐ",q:"ㄑ",x:"ㄒ",zh:"ㄓ",ch:"ㄔ",sh:"ㄕ",r:"ㄖ",z:"ㄗ",c:"ㄘ",s:"ㄙ","∅":"無聲母"},
+  final:{en:"ㄣ",eng:"ㄥ",an:"ㄢ",ang:"ㄤ",in:"ㄧㄣ",ing:"ㄧㄥ",iang:"ㄧㄤ",iao:"ㄧㄠ"}
+};
+
+const PRONUNCIATION_TEACHING_RULES={
+  "ㄈ／ㄅ／ㄆ":{practice:["發—八","飛—杯","風—崩","奮—笨"],tip:"發ㄈ時，上排牙齒輕碰下嘴唇，讓氣持續吹出；發ㄅ時雙唇先閉合再突然放開。可在嘴前放薄紙觀察持續氣流。"},
+  "ㄌ／ㄋ":{practice:["拉—拿","來—奶","老—腦","藍—南","亮—尿"],tip:"發ㄌ時舌尖輕碰上齒齦，氣流從舌頭兩側通過；發ㄋ時氣流由鼻腔通過。可先分開練，再練最小對立詞。"},
+  "ㄓ／ㄗ":{practice:["知—資","張—髒","主—組"],tip:"ㄓ需要舌尖微微捲起；ㄗ的舌尖靠近下齒背。先用鏡子觀察舌位，再由單音進入詞語。"},
+  "ㄔ／ㄘ":{practice:["吃—雌","長—藏","初—粗"],tip:"ㄔ需要舌尖微捲並送氣；ㄘ舌尖靠近下齒背並送氣。可用薄紙比較兩者氣流與舌位。"},
+  "ㄕ／ㄙ":{practice:["詩—司","山—三","是—四"],tip:"ㄕ需要舌尖微捲；ㄙ的舌尖靠近下齒背。先慢速拉長摩擦音，再接上韻母。"},
+  "ㄐ／ㄑ／ㄒ":{practice:["雞—七—西","家—掐—蝦","精—青—星"],tip:"三個音都在舌面前部形成；可先區分是否送氣，再利用鏡子與慢速示範練習。"},
+  "ㄣ／ㄥ":{practice:["真—爭","盆—棚","身—生"],tip:"ㄣ收音位置較前；ㄥ的舌根較後並帶鼻音。可先延長韻尾，再比較口腔共鳴位置。"},
+  "ㄢ／ㄤ":{practice:["班—幫","看—抗","南—囊"],tip:"ㄢ收音位置較前；ㄤ的舌根較後。可用誇張慢速示範，先練韻母再放回詞語。"},
+  "ㄧㄣ／ㄧㄥ":{practice:["音—英","近—靜","心—星"],tip:"ㄧㄣ收音較前；ㄧㄥ的舌根較後。可先分辨尾音，再加入前面的聲母。"},
+  "ㄧㄤ／ㄧㄠ":{practice:["亮—料","香—消","將—交"],tip:"ㄧㄤ最後要保留後鼻音；ㄧㄠ最後滑向ㄨ音。可先分段慢念，再逐漸加快。"},
+  "多音節語句":{practice:["先分成2至4字短語","逐段仿說","最後串成完整句子"],tip:"先用節奏、拍手或圖卡標示每個音節，再由短語逐步延長，避免一次要求完整長句。"}
+};
+
 function pronunciationHanText(value){
   return (String(value||"").match(/\p{Script=Han}+/gu)||[]).join("");
 }
 
 function isExcludedPronunciationInput(value){
   const text=String(value||"").normalize("NFKC").trim();
-  if(!text||/^[\d\s.,，。:：;；/\\+\-]+$/.test(text))return true;
+  if(!text||/\d/.test(text))return true;
   return /(?:siri|hey\s*siri|嘿\s*siri|小愛同學|google\s*(?:助理|assistant)|語音助理)/i.test(text);
 }
 
@@ -311,26 +330,77 @@ function pronunciationErrorCountMap(data){
 }
 
 function weightedPronunciationRecords(data){
-  const source=(Array.isArray(data&&data.speechInputRecords)?data.speechInputRecords:[]).map(record=>{
+  return (Array.isArray(data&&data.speechInputRecords)?data.speechInputRecords:[]).map(record=>{
     const item=record&&typeof record==="object"?record:{};
     return {target:String(item.target||"").trim(),input:String(item.input||"").trim(),correct:item.correct===true};
-  }).filter(item=>!item.correct&&pronunciationHanText(item.target)&&pronunciationHanText(item.input)&&!isExcludedPronunciationInput(item.input));
-  const grouped=new Map();
-  source.forEach(record=>{
-    if(!grouped.has(record.target))grouped.set(record.target,[]);
-    grouped.get(record.target).push(record);
-  });
-  const errorCounts=pronunciationErrorCountMap(data),weighted=[];
-  grouped.forEach((records,target)=>{
-    const total=Math.max(records.length,Math.max(0,Number(errorCounts[target])||0));
-    const base=Math.floor(total/records.length),remainder=total%records.length;
-    records.forEach((record,index)=>weighted.push({...record,weight:Math.max(1,base+(index<remainder?1:0))}));
-  });
-  return weighted;
+  }).filter(item=>!item.correct&&pronunciationHanText(item.target)&&pronunciationHanText(item.input)&&!isExcludedPronunciationInput(item.input))
+    .map(record=>({...record,weight:1}));
+}
+
+function pronunciationFinalsClose(left,right){
+  return left===right||pronunciationRelatedPart(left,right,"final");
 }
 
 function pronunciationExampleText(record){
   return `${record.target} → ${record.input}`;
+}
+
+function pronunciationSymbol(part,value){
+  return (PRONUNCIATION_SYMBOLS[part]&&PRONUNCIATION_SYMBOLS[part][value])||String(value||"");
+}
+
+function pronunciationDirectionLabel(part,from,to){
+  return `${pronunciationSymbol(part,from)}→${pronunciationSymbol(part,to)}`;
+}
+
+function pronunciationFrequentSummary(examples){
+  const groups=new Map();
+  (examples||[]).forEach(record=>{
+    if(!groups.has(record.target))groups.set(record.target,[]);
+    const inputs=groups.get(record.target);
+    if(!inputs.includes(record.input))inputs.push(record.input);
+  });
+  const best=[...groups.entries()].sort((a,b)=>b[1].length-a[1].length||a[0].localeCompare(b[0],"zh-Hant"))[0];
+  if(!best)return "";
+  return `「${best[0]}」常出現「${best[1].slice(0,5).join("、")}」等辨識結果。`;
+}
+
+function pronunciationTeachingContent(item){
+  const familyLabels=[...new Set((item.directions||[]).map(direction=>direction.familyLabel).filter(Boolean))];
+  if(item.label==="多音節語句")familyLabels.push("多音節語句");
+  const rules=familyLabels.map(label=>PRONUNCIATION_TEACHING_RULES[label]).filter(Boolean);
+  return {
+    practice:[...new Set(rules.flatMap(rule=>rule.practice||[]))].slice(0,8),
+    tips:[...new Set(rules.map(rule=>rule.tip).filter(Boolean))]
+  };
+}
+
+function mergeRelatedPronunciationStats(directionStats){
+  const pairCandidates=[];
+  for(let i=0;i<directionStats.length;i++)for(let j=i+1;j<directionStats.length;j++){
+    const left=directionStats[i],right=directionStats[j];
+    if(left.part===right.part)continue;
+    const overlap=[...left.recordIds].filter(id=>right.recordIds.has(id)).length;
+    const ratio=overlap/Math.max(1,Math.min(left.recordIds.size,right.recordIds.size));
+    if(overlap>=3&&ratio>=.6)pairCandidates.push({left,right,overlap,ratio});
+  }
+  pairCandidates.sort((a,b)=>b.overlap-a.overlap||b.ratio-a.ratio);
+  const used=new Set(),merged=[];
+  pairCandidates.forEach(candidate=>{
+    if(used.has(candidate.left.key)||used.has(candidate.right.key))return;
+    used.add(candidate.left.key);used.add(candidate.right.key);
+    const directions=[candidate.left,candidate.right].sort((a,b)=>a.part==="initial"?-1:b.part==="initial"?1:0);
+    merged.push({
+      key:directions.map(item=>item.key).join("+"),
+      label:directions.map(item=>item.label).join("及"),
+      count:Math.max(...directions.map(item=>item.count)),
+      countText:directions.map(item=>`${item.label} ${item.count}次`).join("；"),
+      examples:[...new Map(directions.flatMap(item=>item.examples).map(record=>[`${record.target}\u0000${record.input}`,record])).values()].slice(0,8),
+      directions
+    });
+  });
+  directionStats.filter(item=>!used.has(item.key)).forEach(item=>merged.push({...item,directions:[item]}));
+  return merged;
 }
 
 function renderPronunciationAnalysis(data){
@@ -345,24 +415,30 @@ function renderPronunciationAnalysis(data){
   if(effectiveCount<5){
     return `<div class="pronunciationAnalysis"><div class="pronunciationAnalysisTitle">可能的發音困難分析</div><div class="pronunciationAnalysisMessage">目前錯誤語音資料不足，完成更多語音練習後再進行分析。</div>${reminder}</div>`;
   }
-  const stats=new Map(PRONUNCIATION_CONFUSION_RULES.map(rule=>[rule.label,{label:rule.label,count:0,examples:[]} ]));
-  stats.set("多音節語句",{label:"多音節語句",count:0,examples:[]});
-  const addResult=(label,weight,record)=>{
-    if(!stats.has(label))stats.set(label,{label,count:0,examples:[]});
-    const item=stats.get(label);
-    item.count+=weight;
-    const example=pronunciationExampleText(record);
-    if(!item.examples.includes(example)&&item.examples.length<2)item.examples.push(example);
+  const directionStats=new Map();
+  const recordHits=new Map();
+  const multiSyllable={label:"多音節語句",count:0,examples:[],typeCounts:{漏字:0,增字:0,音節替換:0,音節順序改變:0,只說出部分內容:0}};
+  const addExample=(item,record)=>{
+    if(!item.examples.some(existing=>existing.target===record.target&&existing.input===record.input)&&item.examples.length<8)item.examples.push({target:record.target,input:record.input});
   };
-  prepared.forEach(record=>{
+  const addDirection=(rule,part,from,to,weight,record,recordIndex)=>{
+    const key=`${part}:${from}>${to}`;
+    if(!directionStats.has(key))directionStats.set(key,{key,part,from,to,familyLabel:rule.label,label:pronunciationDirectionLabel(part,from,to),count:0,examples:[],recordIds:new Set()});
+    const item=directionStats.get(key);
+    item.count+=weight;item.recordIds.add(recordIndex);addExample(item,record);
+    if(!recordHits.has(recordIndex))recordHits.set(recordIndex,new Set());
+    recordHits.get(recordIndex).add(key);
+  };
+  prepared.forEach((record,recordIndex)=>{
     const aligned=alignPronunciationSyllables(record.targetSyllables,record.spokenSyllables);
     aligned.forEach(pair=>{
       if(pair.type!=="pair"||!pair.target||!pair.spoken)return;
-      const matchedLabels=PRONUNCIATION_CONFUSION_RULES.filter(rule=>{
+      PRONUNCIATION_CONFUSION_RULES.forEach(rule=>{
         const left=pair.target[rule.part],right=pair.spoken[rule.part];
-        return left!==right&&rule.members.has(left)&&rule.members.has(right);
-      }).map(rule=>rule.label);
-      if(matchedLabels.length)addResult(matchedLabels.join("、"),record.weight,record);
+        if(left===right||!rule.members.has(left)||!rule.members.has(right))return;
+        if(rule.part==="initial"&&!pronunciationFinalsClose(pair.target.final,pair.spoken.final))return;
+        addDirection(rule,rule.part,left,right,record.weight,record,recordIndex);
+      });
     });
     if(record.targetSyllables.length>=3){
       const deletionCount=aligned.filter(item=>item.type==="delete").length;
@@ -372,15 +448,40 @@ function renderPronunciationAnalysis(data){
       const spokenOrder=record.spokenSyllables.map(item=>item.plain).join("|");
       const sameMembers=record.targetSyllables.length===record.spokenSyllables.length&&[...record.targetSyllables].map(item=>item.plain).sort().join("|")===[...record.spokenSyllables].map(item=>item.plain).sort().join("|");
       const orderChanged=sameMembers&&targetOrder!==spokenOrder;
-      const partialAnswer=record.spokenSyllables.length<record.targetSyllables.length;
-      if(deletionCount||insertionCount||substitutionCount||orderChanged||partialAnswer)addResult("多音節語句",record.weight,record);
+      const partialAnswer=record.spokenSyllables.length<=Math.max(1,Math.floor(record.targetSyllables.length*.65));
+      const types=[];
+      if(deletionCount)types.push("漏字");
+      if(insertionCount)types.push("增字");
+      if(substitutionCount)types.push("音節替換");
+      if(orderChanged)types.push("音節順序改變");
+      if(partialAnswer)types.push("只說出部分內容");
+      if(types.length){
+        multiSyllable.count+=record.weight;addExample(multiSyllable,record);
+        types.forEach(type=>multiSyllable.typeCounts[type]+=record.weight);
+      }
     }
   });
-  const ranked=[...stats.values()].filter(item=>item.count>=3).sort((a,b)=>b.count-a.count||a.label.localeCompare(b.label,"zh-Hant")).slice(0,3);
+  const phonetic=mergeRelatedPronunciationStats([...directionStats.values()].filter(item=>item.count>=3))
+    .sort((a,b)=>b.count-a.count||a.label.localeCompare(b.label,"zh-Hant"))
+    .slice(0,2);
+  const ranked=[...phonetic];
+  if(multiSyllable.count>=3)ranked.push(multiSyllable);
+  ranked.sort((a,b)=>b.count-a.count||a.label.localeCompare(b.label,"zh-Hant"));
+  ranked.forEach((item,index)=>item.rank=index+1);
   if(!ranked.length){
     return `<div class="pronunciationAnalysis"><div class="pronunciationAnalysisTitle">可能的發音困難分析</div><div class="pronunciationAnalysisMessage">目前尚未發現重複達3次的發音混淆，建議繼續累積語音練習紀錄。</div>${reminder}</div>`;
   }
-  const rows=ranked.map((item,index)=>`<div class="pronunciationAnalysisRow"><span>${index+1}.</span><b>${esc(item.label)}</b><span>${item.count}次</span><span>${esc(item.examples[0]||"—")}</span></div>`).join("");
+  const rows=ranked.map(item=>{
+    const teaching=pronunciationTeachingContent(item);
+    const frequent=pronunciationFrequentSummary(item.examples);
+    const typeSummary=item.label==="多音節語句"?Object.entries(item.typeCounts).filter(([,count])=>count>0).sort((a,b)=>b[1]-a[1]).map(([type,count])=>`${type}${count}次`).join("、"):"";
+    const details=[
+      frequent?`<div class="pronunciationAnalysisDetailLine"><b>錯誤摘要：</b>${esc(frequent)}</div>`:"",
+      typeSummary?`<div class="pronunciationAnalysisDetailLine"><b>錯誤類型：</b>${esc(typeSummary)}</div>`:"",
+      teaching.practice.length?`<div class="pronunciationAnalysisDetailLine"><b>建議練習：</b>${esc(teaching.practice.join("、"))}</div>`:""
+    ].filter(Boolean).join("");
+    return `<div class="pronunciationAnalysisRow"><span>${item.rank}.</span><b>${esc(item.label)}</b><span>${esc(item.countText||`${item.count}次`)}</span><span>${esc(item.examples[0]?pronunciationExampleText(item.examples[0]):"—")}</span></div><div class="pronunciationAnalysisDetail">${details}</div>`;
+  }).join("");
   return `<div class="pronunciationAnalysis"><div class="pronunciationAnalysisTitle">可能的發音困難分析</div><div class="pronunciationAnalysisTable"><div class="pronunciationAnalysisRow header"><span>順位</span><span>練習重點</span><span>出現次數</span><span>代表例子</span></div>${rows}</div>${reminder}</div>`;
 }
 
