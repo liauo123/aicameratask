@@ -132,7 +132,7 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
 </div>
 
 <script>
-const firebaseConfig={apiKey:"AIzaSyBbpIezLbQd2-e-3Z4pSdBLIFc_UlTPUy8",authDomain:"project-6540500202923576846.firebaseapp.com",projectId:"project-6540500202923576846",storageBucket:"project-6540500202923576846.firebasestorage.app",messagingSenderId:"516602165604",appId:"1:516602165604:web:b60f69ee56a4d49c416271"};
+const firebaseConfig={apiKey:"AIzaSyD4gj28DbE8b4oNj6Kz7FERvV-cW8lS7AU",authDomain:"aitask-2221a.firebaseapp.com",projectId:"aitask-2221a",storageBucket:"aitask-2221a.firebasestorage.app",messagingSenderId:"549197716669",appId:"1:549197716669:web:a2f252e6c70ecc60a5abd4"};
 firebase.initializeApp(firebaseConfig);
 const auth=firebase.auth(),db=firebase.firestore();
 const firestorePersistenceReady=db.enablePersistence({synchronizeTabs:true}).catch(error=>{
@@ -190,6 +190,9 @@ function speechRecognitionStandardInfo(task){
     :(englishTask?"中度放寬（相近子音與主要母音須同時符合）":"一般標準");
   const fuzzy=task&&task.fuzzySpeechRecognition?"開啟（日常生活近義詞、語意關鍵詞及可忽略功能詞）":"關閉";
   return `<div class="meta">語音辨識標準：${standard}</div><div class="meta">語音模糊辨識：${fuzzy}</div>`;
+}
+function taskToggleInfo(label,enabled){
+  return `<div class="meta">${esc(label)}：${enabled?"啟用":"停用"}</div>`;
 }
 
 function formatStudentInputRecords(data,writingLabel="書寫輸入"){
@@ -479,6 +482,7 @@ async function render(docs){
     const promptInfo=t.promptMode==="description"
       ? '<div class="meta">出題方式：說明文字出題</div>'
       : "";
+    const slowSpeechInfo=taskToggleInfo("放慢語音速度",!!t.slowSpeechPlayback);
     return `<div class="task gameTask">
       <div class="top">
         <div>
@@ -490,8 +494,8 @@ async function render(docs){
           ${recognitionInfo}
           ${workflowInfo}
           ${promptInfo}
+          ${slowSpeechInfo}
           <div class="meta">尋找順序：${(t.targetClasses||[]).map(esc).join(" → ")}</div>
-          ${audioInfo}
           ${speechStandardInfo}
           <span class="gameState" id="gameState_${doc.id}">${stateText}</span>
         </div>
@@ -586,6 +590,13 @@ async function render(docs){
     const speechStandardInfo=audioItems.length?speechRecognitionStandardInfo(t):"";
 
     const isReading=t.taskMode==="reading";
+    const recognitionDisplayInfo=isReading?"":recognitionInfo;
+    const workflowDisplayInfo=isReading||isPhotoRecognition?"":workflowInfo;
+    const audioDisplayInfo=isReading||isPhotoRecognition?"":audioInfo;
+    const autoSpeechInfo=isReading?taskToggleInfo("自動唸出題目",!t.disableAutoPromptSpeech):"";
+    const slowSpeechInfo=isReading||isPhotoRecognition?taskToggleInfo("放慢語音速度",!!t.slowSpeechPlayback):"";
+    const repeatPromptInfo=isReading?taskToggleInfo("錯誤後語音再唸一次",!!t.repeatPromptAfterSpeechError):"";
+    const itemLabel=isReading||isPhotoRecognition?"練習文字":"物品";
     return `<div class="task ${isAdvanced?"advancedTask":isReading?"readingTask":"evaluationTask"}">
       <div class="top">
         <div>
@@ -594,11 +605,14 @@ async function render(docs){
             <div class="title">${esc(t.title||(isAdvanced?"未命名進階評量":isReading?"未命名問答模式(讀)":"未命名拍照辨識模式"))}</div>
             <button class="s restoreTeacherBtn" type="button" onclick="restoreTeacherPlatform('${doc.id}')">回復教師平台</button>
           </div>
-          ${recognitionInfo}
-          ${workflowInfo}
-          <div class="meta">物品：${(t.targetClasses||[]).map(esc).join(" → ")}</div>
-          ${audioInfo}
+          ${recognitionDisplayInfo}
+          ${workflowDisplayInfo}
+          <div class="meta">${itemLabel}：${(t.targetClasses||[]).map(esc).join(" → ")}</div>
+          ${audioDisplayInfo}
           ${speechStandardInfo}
+          ${autoSpeechInfo}
+          ${slowSpeechInfo}
+          ${repeatPromptInfo}
         </div>
       </div>
       <div class="row" style="margin-top:12px">
@@ -676,10 +690,13 @@ async function render(docs){
     const resultSection=resultError?`<div class="status err">${esc(resultError)}</div>`:`<div style="margin-top:12px"><b>學生完成度（${resultDocs.length} 人）</b><div class="rr inputResultRow"><b>學生</b><b>進度</b><b>狀態</b><b>辨識錯誤</b><b>學生輸入文字</b></div>${rows||'<div class="small" style="padding:10px">尚無學生紀錄</div>'}</div>`;
     const settings=isSpeaking?`逐項完整文字語音辨識｜每題 ${Math.min(5,Math.max(1,Number(t.hanziRepeatCount||1)))} 次`:isPractice?"中英文書寫練習連結":"學生編號｜設備手寫輸入辨識｜結果回傳";
     const speechStandardInfo=isSpeaking?speechRecognitionStandardInfo(t):"";
-    const autoSpeechInfo=isSpeaking?`<div class="meta">自動唸出題目：${t.disableAutoPromptSpeech?"停用":"啟用"}</div>`:"";
+    const autoSpeechInfo=isSpeaking?taskToggleInfo("自動唸出題目",!t.disableAutoPromptSpeech):"";
+    const slowSpeechInfo=isSpeaking?taskToggleInfo("放慢語音速度",!!t.slowSpeechPlayback):"";
+    const repeatPromptInfo=isSpeaking?taskToggleInfo("錯誤後語音再唸一次",!!t.repeatPromptAfterSpeechError):"";
     const practiceText=Array.isArray(t.hanziTexts)&&t.hanziTexts.length?t.hanziTexts.join("、"):String(t.hanziText||"").trim()||(t.targetClasses||[]).join("");
     const modeName=isSpeaking?"口語模式(說)":"書寫模式(寫)";
-    return `<div class="task ${isSpeaking?"speakingTask":"hanziTask"}"><div class="top"><div><span class="modeBadge">${modeName}</span><div class="titleLine"><div class="title">${esc(t.title||modeName)}</div><button class="s restoreTeacherBtn" type="button" onclick="restoreTeacherPlatform('${doc.id}')">回復教師平台</button></div><div class="meta">練習文字：${esc(practiceText)}</div><div class="meta">練習方式：${settings}</div>${speechStandardInfo}${autoSpeechInfo}</div></div><div class="row" style="margin-top:12px"><button class="s" onclick="showQR('${doc.id}','${esc(t.title||modeName)}')">重新產生 QR</button><button class="s" onclick="exportTaskCSV('${doc.id}')">匯出結果 CSV</button><button class="d" onclick="delTask('${doc.id}')">完整刪除</button></div>${resultSection}</div>`;
+    const visibleResultSection=isPractice?"":resultSection;
+    return `<div class="task ${isSpeaking?"speakingTask":"hanziTask"}"><div class="top"><div><span class="modeBadge">${modeName}</span><div class="titleLine"><div class="title">${esc(t.title||modeName)}</div><button class="s restoreTeacherBtn" type="button" onclick="restoreTeacherPlatform('${doc.id}')">回復教師平台</button></div><div class="meta">練習文字：${esc(practiceText)}</div><div class="meta">練習方式：${settings}</div>${speechStandardInfo}${autoSpeechInfo}${slowSpeechInfo}${repeatPromptInfo}</div></div><div class="row" style="margin-top:12px"><button class="s" onclick="showQR('${doc.id}','${esc(t.title||modeName)}')">重新產生 QR</button><button class="s" onclick="exportTaskCSV('${doc.id}')">匯出結果 CSV</button><button class="d" onclick="delTask('${doc.id}')">完整刪除</button></div>${visibleResultSection}</div>`;
   };
 
   const sections=[];

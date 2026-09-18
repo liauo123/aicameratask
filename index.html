@@ -314,7 +314,7 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
 </main>
 <div id="qrModal" class="modal hidden"><div class="box"><h3 id="qrTitle">任務 QR Code</h3><div id="qrCode"></div><div id="qrURL" class="url"></div><div class="row"><button id="copyBtn" class="p">複製網址</button><button id="closeBtn" class="s">關閉</button></div></div></div>
 <script>
-const firebaseConfig={apiKey:"AIzaSyBbpIezLbQd2-e-3Z4pSdBLIFc_UlTPUy8",authDomain:"project-6540500202923576846.firebaseapp.com",projectId:"project-6540500202923576846",storageBucket:"project-6540500202923576846.firebasestorage.app",messagingSenderId:"516602165604",appId:"1:516602165604:web:b60f69ee56a4d49c416271"};
+const firebaseConfig={apiKey:"AIzaSyD4gj28DbE8b4oNj6Kz7FERvV-cW8lS7AU",authDomain:"aitask-2221a.firebaseapp.com",projectId:"aitask-2221a",storageBucket:"aitask-2221a.firebasestorage.app",messagingSenderId:"549197716669",appId:"1:549197716669:web:a2f252e6c70ecc60a5abd4"};
 firebase.initializeApp(firebaseConfig);const auth=firebase.auth(),db=firebase.firestore();
 const firestorePersistenceReady=db.enablePersistence({synchronizeTabs:true}).catch(error=>{
   if(!["failed-precondition","unimplemented"].includes(error.code))console.warn("Firestore 本機快取啟用失敗：",error);
