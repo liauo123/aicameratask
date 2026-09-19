@@ -189,7 +189,7 @@ function speechRecognitionStandardInfo(task){
   const targets=Array.isArray(task&&task.targetClasses)?task.targetClasses:[];
   const englishTask=targets.length>0&&targets.every(target=>/[A-Za-z]/.test(String(target||""))&&!/\p{Script=Han}/u.test(String(target||"")));
   const standard=task&&task.relaxedSpeechRecognition
-    ?"高度放寬（子音或母音符合即可）"
+    ?"高度放寬（聲符相同或相近，或韻母部分（介符＋韻符）相同或相近，即判定通過；聲調不列入判定）"
     :(englishTask?"中度放寬（相近子音與主要母音須同時符合）":"一般標準");
   const fuzzy=task&&task.fuzzySpeechRecognition?"開啟（日常生活近義詞、語意關鍵詞及可忽略功能詞）":"關閉";
   return `<div class="meta">語音辨識標準：${standard}</div><div class="meta">語音模糊辨識：${fuzzy}</div>`;
@@ -213,7 +213,10 @@ const PRONUNCIATION_CONFUSION_RULES=[
 
 const PRONUNCIATION_SYMBOLS={
   initial:{b:"ㄅ",p:"ㄆ",m:"ㄇ",f:"ㄈ",d:"ㄉ",t:"ㄊ",n:"ㄋ",l:"ㄌ",g:"ㄍ",k:"ㄎ",h:"ㄏ",j:"ㄐ",q:"ㄑ",x:"ㄒ",zh:"ㄓ",ch:"ㄔ",sh:"ㄕ",r:"ㄖ",z:"ㄗ",c:"ㄘ",s:"ㄙ","∅":"無聲母"},
-  final:{en:"ㄣ",eng:"ㄥ",an:"ㄢ",ang:"ㄤ",in:"ㄧㄣ",ing:"ㄧㄥ",iang:"ㄧㄤ",iao:"ㄧㄠ"}
+  final:{en:"ㄣ",eng:"ㄥ",an:"ㄢ",ang:"ㄤ",in:"ㄧㄣ",ing:"ㄧㄥ",iang:"ㄧㄤ",iao:"ㄧㄠ"},
+  sound:{b:"ㄅ",p:"ㄆ",m:"ㄇ",f:"ㄈ",d:"ㄉ",t:"ㄊ",n:"ㄋ",l:"ㄌ",g:"ㄍ",k:"ㄎ",h:"ㄏ",j:"ㄐ",q:"ㄑ",x:"ㄒ",zh:"ㄓ",ch:"ㄔ",sh:"ㄕ",r:"ㄖ",z:"ㄗ",c:"ㄘ",s:"ㄙ","∅":"無聲符"},
+  medial:{i:"ㄧ",u:"ㄨ",v:"ㄩ",NONE:"無介符"},
+  rhyme:{a:"ㄚ",o:"ㄛ",e:"ㄜ",eh:"ㄝ",ai:"ㄞ",ei:"ㄟ",ao:"ㄠ",ou:"ㄡ",an:"ㄢ",en:"ㄣ",ang:"ㄤ",eng:"ㄥ",er:"ㄦ",NONE:"無韻符"}
 };
 
 const PRONUNCIATION_TEACHING_RULES={
@@ -227,6 +230,7 @@ const PRONUNCIATION_TEACHING_RULES={
   "ㄢ／ㄤ":{practice:["班—幫","看—抗","南—囊"],tip:"ㄢ收音位置較前；ㄤ的舌根較後。可用誇張慢速示範，先練韻母再放回詞語。"},
   "ㄧㄣ／ㄧㄥ":{practice:["音—英","近—靜","心—星"],tip:"ㄧㄣ收音較前；ㄧㄥ的舌根較後。可先分辨尾音，再加入前面的聲母。"},
   "ㄧㄤ／ㄧㄠ":{practice:["亮—料","香—消","將—交"],tip:"ㄧㄤ最後要保留後鼻音；ㄧㄠ最後滑向ㄨ音。可先分段慢念，再逐漸加快。"},
+  "介符":{practice:["ㄧ—ㄨ—ㄩ","家—瓜","街—追","學—說"],tip:"先單獨分辨ㄧ、ㄨ、ㄩ，再接上相同韻符進行比較。"},
   "多音節語句":{practice:["先分成2至4字短語","逐段仿說","最後串成完整句子"],tip:"先用節奏、拍手或圖卡標示每個音節，再由短語逐步延長，避免一次要求完整長句。"}
 };
 
@@ -267,6 +271,17 @@ function pronunciationFinal(token){
   return finalPart||"NONE";
 }
 
+function pronunciationFinalComponents(finalPart){
+  const exact={
+    i:["i","NONE"],u:["u","NONE"],v:["v","NONE"],
+    ia:["i","a"],io:["i","o"],ie:["i","eh"],iao:["i","ao"],iou:["i","ou"],ian:["i","an"],in:["i","en"],iang:["i","ang"],ing:["i","eng"],iong:["v","eng"],
+    ua:["u","a"],uo:["u","o"],uai:["u","ai"],uei:["u","ei"],uan:["u","an"],uen:["u","en"],uang:["u","ang"],ueng:["u","eng"],ong:["u","eng"],
+    ve:["v","eh"],van:["v","an"],vn:["v","en"]
+  };
+  if(exact[finalPart])return {medial:exact[finalPart][0],rhyme:exact[finalPart][1]};
+  return {medial:"NONE",rhyme:finalPart||"NONE"};
+}
+
 function pronunciationSyllables(text){
   const source=pronunciationHanText(text);
   if(!source||!window.pinyinPro||typeof window.pinyinPro.pinyin!=="function")return [];
@@ -276,7 +291,9 @@ function pronunciationSyllables(text){
       const toneMatch=normalized.match(/([0-5])$/);
       const tone=toneMatch?toneMatch[1]:"";
       const plain=normalized.replace(/[0-5]$/g,"");
-      return {raw:normalized,plain,tone,initial:pronunciationInitial(plain),final:pronunciationFinal(plain)};
+      const final=pronunciationFinal(plain);
+      const components=pronunciationFinalComponents(final);
+      return {raw:normalized,plain,tone,initial:pronunciationInitial(plain),final,medial:components.medial,rhyme:components.rhyme};
     }).filter(item=>item.plain&&/[a-zv]/.test(item.plain));
   }catch(error){
     console.warn("發音分析拼音轉換失敗",error);
@@ -350,7 +367,8 @@ function pronunciationSymbol(part,value){
 }
 
 function pronunciationDirectionLabel(part,from,to){
-  return `${pronunciationSymbol(part,from)}→${pronunciationSymbol(part,to)}`;
+  const category={sound:"聲符",medial:"介符",rhyme:"韻符"}[part]||"發音";
+  return `${category}：${pronunciationSymbol(part,from)}→${pronunciationSymbol(part,to)}`;
 }
 
 function pronunciationFrequentSummary(examples){
@@ -366,7 +384,7 @@ function pronunciationFrequentSummary(examples){
 }
 
 function pronunciationTeachingContent(item){
-  const familyLabels=[...new Set((item.directions||[]).map(direction=>direction.familyLabel).filter(Boolean))];
+  const familyLabels=[...new Set((item.directions||[]).flatMap(direction=>direction.familyLabels?[...direction.familyLabels]:[direction.familyLabel]).filter(Boolean))];
   if(item.label==="多音節語句")familyLabels.push("多音節語句");
   const rules=familyLabels.map(label=>PRONUNCIATION_TEACHING_RULES[label]).filter(Boolean);
   return {
@@ -389,7 +407,8 @@ function mergeRelatedPronunciationStats(directionStats){
   pairCandidates.forEach(candidate=>{
     if(used.has(candidate.left.key)||used.has(candidate.right.key))return;
     used.add(candidate.left.key);used.add(candidate.right.key);
-    const directions=[candidate.left,candidate.right].sort((a,b)=>a.part==="initial"?-1:b.part==="initial"?1:0);
+    const partOrder={sound:0,medial:1,rhyme:2};
+    const directions=[candidate.left,candidate.right].sort((a,b)=>(partOrder[a.part]??9)-(partOrder[b.part]??9));
     merged.push({
       key:directions.map(item=>item.key).join("+"),
       label:directions.map(item=>item.label).join("及"),
@@ -421,8 +440,9 @@ function renderPronunciationAnalysis(data){
   };
   const addDirection=(rule,part,from,to,weight,record,recordIndex)=>{
     const key=`${part}:${from}>${to}`;
-    if(!directionStats.has(key))directionStats.set(key,{key,part,from,to,familyLabel:rule.label,label:pronunciationDirectionLabel(part,from,to),count:0,examples:[],recordIds:new Set()});
+    if(!directionStats.has(key))directionStats.set(key,{key,part,from,to,familyLabels:new Set(),label:pronunciationDirectionLabel(part,from,to),count:0,examples:[],recordIds:new Set()});
     const item=directionStats.get(key);
+    item.familyLabels.add(rule.label);
     item.count+=weight;item.recordIds.add(recordIndex);addExample(item,record);
     if(!recordHits.has(recordIndex))recordHits.set(recordIndex,new Set());
     recordHits.get(recordIndex).add(key);
@@ -435,8 +455,12 @@ function renderPronunciationAnalysis(data){
         const left=pair.target[rule.part],right=pair.spoken[rule.part];
         if(left===right||!rule.members.has(left)||!rule.members.has(right))return;
         if(rule.part==="initial"&&!pronunciationFinalsClose(pair.target.final,pair.spoken.final))return;
-        addDirection(rule,rule.part,left,right,record.weight,record,recordIndex);
+        if(rule.part==="initial")addDirection(rule,"sound",left,right,record.weight,record,recordIndex);
+        else if(pair.target.rhyme!==pair.spoken.rhyme)addDirection(rule,"rhyme",pair.target.rhyme,pair.spoken.rhyme,record.weight,record,recordIndex);
       });
+      if(pair.target.medial!==pair.spoken.medial&&pair.target.rhyme===pair.spoken.rhyme){
+        addDirection({label:"介符"},"medial",pair.target.medial,pair.spoken.medial,record.weight,record,recordIndex);
+      }
     });
     if(record.targetSyllables.length>=3){
       const deletionCount=aligned.filter(item=>item.type==="delete").length;
