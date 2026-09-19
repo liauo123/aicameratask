@@ -191,7 +191,7 @@ function speechRecognitionStandardInfo(task){
   const standard=task&&task.relaxedSpeechRecognition
     ?"高度放寬（聲符相同或相近，或韻母部分（介符＋韻符）相同或相近，即判定通過；聲調不列入判定）"
     :(englishTask?"中度放寬（相近子音與主要母音須同時符合）":"一般標準");
-  const fuzzy=task&&task.fuzzySpeechRecognition?"開啟（日常生活近義詞、語意關鍵詞及可忽略功能詞）":"關閉";
+  const fuzzy=task&&task.fuzzySpeechRecognition?"開啟（只要保留主要語意及關鍵詞，即使有少量漏字、增字、疊字、同義詞差異，也可判定通過。）":"關閉";
   return `<div class="meta">語音辨識標準：${standard}</div><div class="meta">語音模糊辨識：${fuzzy}</div>`;
 }
 function taskToggleInfo(label,enabled){
