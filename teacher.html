@@ -928,13 +928,42 @@ async function handleThumbnailFile(item,file){
   }
 }
 
+let thumbnailPasteTarget=null;
+let thumbnailPasteHandlerBound=false;
+
+function bindThumbnailPasteHandler(){
+  if(thumbnailPasteHandlerBound)return;
+  thumbnailPasteHandlerBound=true;
+  document.addEventListener("paste",event=>{
+    const imageItem=Array.from(event.clipboardData?.items||[]).find(item=>String(item.type||"").startsWith("image/"));
+    if(!imageItem)return;
+    const focusedDrop=document.activeElement?.closest?.("#classes .thumbnailDrop");
+    const hoveredDrop=document.querySelector("#classes .thumbnailDrop:hover");
+    const target=focusedDrop?.closest(".classBox")||hoveredDrop?.closest(".classBox")||thumbnailPasteTarget;
+    if(!target||!document.body.contains(target))return;
+    const file=imageItem.getAsFile();
+    if(!file)return;
+    event.preventDefault();
+    handleThumbnailFile(target,file);
+  });
+}
+
 function initThumbnailUploads(){
+  bindThumbnailPasteHandler();
   document.querySelectorAll("#classes .classBox").forEach(item=>{
     const drop=item.querySelector(".thumbnailDrop");
     const input=item.querySelector(".thumbnailInput");
     const searchBtn=item.querySelector(".thumbnailSearch");
     const removeBtn=item.querySelector(".thumbnailRemove");
     if(!drop||!input||!searchBtn||!removeBtn)return;
+    drop.addEventListener("pointerenter",()=>{thumbnailPasteTarget=item});
+    drop.addEventListener("pointerleave",()=>{
+      if(thumbnailPasteTarget===item&&document.activeElement!==drop)thumbnailPasteTarget=null;
+    });
+    drop.addEventListener("focus",()=>{thumbnailPasteTarget=item});
+    drop.addEventListener("blur",()=>{
+      if(thumbnailPasteTarget===item&&!drop.matches(":hover"))thumbnailPasteTarget=null;
+    });
     const openPicker=()=>input.click();
     drop.addEventListener("click",openPicker);
     drop.addEventListener("keydown",e=>{
