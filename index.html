@@ -60,6 +60,8 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
 .thumbnailDrop:hover,.thumbnailDrop:focus-visible,.thumbnailDrop.is-dragover{border-color:var(--blue);background:#eff6ff;color:var(--blue-dark)}
 .thumbnailPreview{width:50px;height:50px;object-fit:contain;border-radius:8px;border:1px solid #dbe4ee;background:#fff;flex:0 0 auto}
 .thumbnailPreview:not(.hidden)+.thumbnailPrompt{width:2em;line-height:1.25;white-space:normal;word-break:break-all}
+.thumbnailSearch{width:48px;min-width:48px;padding:7px 5px;font-size:12px;line-height:1.25;white-space:normal;color:var(--blue-dark);background:#eff6ff;border:1px solid #93c5fd;box-shadow:0 3px 8px rgba(37,99,235,.12)}
+.thumbnailSearch:hover,.thumbnailSearch:focus-visible{background:#dbeafe;border-color:#60a5fa;box-shadow:0 4px 11px rgba(37,99,235,.2)}
 .thumbnailRemove{width:44px;min-width:44px;padding:7px 6px;font-size:12px;line-height:1.25;white-space:normal;word-break:break-all}
 .thumbnailInput{display:none}
 .audioOptions{display:none}
@@ -824,6 +826,7 @@ function renderClassBoxes(){
             <span class="thumbnailPrompt">拖拉照片或點擊上傳縮圖</span>
           </div>
           <input class="thumbnailInput" type="file" accept="image/*">
+          <button class="thumbnailSearch" type="button" draggable="false" aria-label="在網路搜尋${esc(x)}的圖片" title="在網路搜尋${esc(x)}的圖片">網路<br>搜尋</button>
           <button class="thumbnailRemove d hidden" type="button">刪除縮圖</button>
         </div>`:""}
         <div class="audioOptions"></div>
@@ -929,8 +932,9 @@ function initThumbnailUploads(){
   document.querySelectorAll("#classes .classBox").forEach(item=>{
     const drop=item.querySelector(".thumbnailDrop");
     const input=item.querySelector(".thumbnailInput");
+    const searchBtn=item.querySelector(".thumbnailSearch");
     const removeBtn=item.querySelector(".thumbnailRemove");
-    if(!drop||!input||!removeBtn)return;
+    if(!drop||!input||!searchBtn||!removeBtn)return;
     const openPicker=()=>input.click();
     drop.addEventListener("click",openPicker);
     drop.addEventListener("keydown",e=>{
@@ -960,6 +964,17 @@ function initThumbnailUploads(){
       const file=input.files?.[0];
       if(file)handleThumbnailFile(item,file);
       input.value="";
+    });
+    searchBtn.addEventListener("click",e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      const keyword=String(item.dataset.label||"").trim();
+      if(!keyword){
+        status("modelStatus","請先輸入文字，再使用網路搜尋圖片。","err");
+        return;
+      }
+      const url="https://www.google.com/search?tbm=isch&hl=zh-TW&q="+encodeURIComponent(keyword+" 圖片");
+      window.open(url,"_blank","noopener,noreferrer");
     });
     removeBtn.addEventListener("click",e=>{
       e.preventDefault();
