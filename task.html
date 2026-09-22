@@ -68,6 +68,7 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
 .studentInputRecords{font-size:13px;line-height:1.65;overflow-wrap:anywhere}.studentInputRecords b{color:#334155}
 .pronunciationAnalysis{margin:0 0 12px;padding:12px 14px;border:1px solid #bfdbfe;border-left:4px solid #2563eb;border-radius:0 0 12px 12px;background:#f8fbff;color:#334155}.readingTask .pronunciationAnalysis{border-color:#a5f3fc;border-left-color:#0891b2;background:#f4feff}.pronunciationAnalysisTitle{font-size:14px;font-weight:900;color:#1e3a8a;margin-bottom:7px}.readingTask .pronunciationAnalysisTitle{color:#0e7490}.pronunciationAnalysisMessage,.pronunciationAnalysisNote{font-size:12px;line-height:1.65}.pronunciationAnalysisTable{display:grid;gap:5px;margin-top:7px}.pronunciationAnalysisRow{display:grid;grid-template-columns:52px minmax(105px,.8fr) 78px minmax(180px,1.8fr);gap:8px;align-items:center;padding:7px 8px;border-radius:8px;background:#fff;border:1px solid #dbeafe;font-size:12px;line-height:1.5}.pronunciationAnalysisRow.header{background:#dbeafe;color:#1e3a8a;font-weight:900}.readingTask .pronunciationAnalysisRow{border-color:#cffafe}.readingTask .pronunciationAnalysisRow.header{background:#cffafe;color:#0e7490}.pronunciationAnalysisDetail{margin:-1px 4px 6px;padding:9px 11px;border:1px solid #dbeafe;border-radius:0 0 9px 9px;background:#fff;font-size:12px;line-height:1.7}.readingTask .pronunciationAnalysisDetail{border-color:#cffafe}.pronunciationAnalysisDetail b{color:#1e40af}.readingTask .pronunciationAnalysisDetail b{color:#0e7490}.pronunciationAnalysisDetailLine+.pronunciationAnalysisDetailLine{margin-top:3px}.pronunciationAnalysisNote{margin-top:8px;color:#64748b}
 .clickRecord{margin-top:8px;padding:9px 11px;border-radius:10px;background:#fff;border:1px solid #fde68a;font-size:13px;line-height:1.75}.clickRecord b{color:#92400e}
+.taskResultToggle{margin-top:12px;width:100%;text-align:left}.taskResultPanel{margin-top:10px;padding-top:2px}.taskResultLoading{padding:12px;border-radius:11px;background:#f8fafc;color:#64748b}
 .modal{position:fixed;inset:0;background:#0008;display:flex;align-items:center;justify-content:center;padding:20px;z-index:99}
 .box{background:var(--surface);border:1px solid var(--surface-border);padding:22px;border-radius:18px;text-align:center;max-width:390px;width:100%;box-shadow:0 20px 55px rgba(15,23,42,.24)}
 .url{word-break:break-all;background:#eef2f7;padding:10px;border-radius:8px;margin:10px 0}
@@ -144,10 +145,10 @@ const firestorePersistenceReady=db.enablePersistence({synchronizeTabs:true}).cat
   }
 });
 let user=null,unsub=null,activeMode="click",renderGeneration=0;
-let latestTaskDocs=[],resultRefreshTimer=null,resultListenerReady=false,tasksListenerReady=false;
+let latestTaskDocs=[],resultRefreshTimer=null,tasksListenerReady=false;
 let resultDocsByTask=new Map(),resultCacheError="";
-let resultListenerGeneration=0,resultListenerTaskKey="";
-const resultUnsubs=[],playerUnsubs=new Map(),gamePlayersCache=new Map();
+let resultListenerGeneration=0,expandedTaskId="",expandedTaskLoading=false;
+const resultUnsubs=new Map(),playerUnsubs=new Map(),gamePlayersCache=new Map();
 const gamePlayersLoaded=new Set(),gamePlayersLoading=new Map();
 const $=id=>document.getElementById(id);
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -532,6 +533,14 @@ function replaceResultCacheForTasks(taskIds,docs){
   });
 }
 
+function resultUpdatedMillis(doc){
+  const data=doc&&typeof doc.data==="function"?doc.data():{};
+  const value=data.updatedAt||data.completedAt||data.startedAt;
+  if(value&&typeof value.toMillis==="function")return value.toMillis();
+  if(value&&typeof value.seconds==="number")return value.seconds*1000;
+  return 0;
+}
+
 function getCachedTaskResultDocs(taskId){
   if(resultCacheError)throw new Error(resultCacheError);
   return resultDocsByTask.get(taskId)||[];
@@ -541,15 +550,18 @@ function scheduleRender(){
   if(resultRefreshTimer)clearTimeout(resultRefreshTimer);
   resultRefreshTimer=setTimeout(async()=>{
     resultRefreshTimer=null;
-    if(!user||!tasksListenerReady||!resultListenerReady)return;
+    if(!user||!tasksListenerReady)return;
     try{await render(latestTaskDocs)}
     catch(e){$("taskList").innerHTML='<div class="status err">'+esc(e.message||e)+'</div>'}
   },180);
 }
 
-function stopResultListeners(){
+function stopResultListeners(clearExpanded=false){
   resultListenerGeneration++;
-  resultUnsubs.splice(0).forEach(fn=>fn());
+  resultUnsubs.forEach(fn=>fn());
+  resultUnsubs.clear();
+  expandedTaskLoading=false;
+  if(clearExpanded)expandedTaskId="";
 }
 
 function resultTaskDocsForActiveMode(){
@@ -561,50 +573,58 @@ function resultTaskDocsForActiveMode(){
   return [];
 }
 
-function syncActiveResultListeners(force=false){
-  if(!user||!tasksListenerReady)return;
-  const taskIds=resultTaskDocsForActiveMode().map(doc=>doc.id).sort();
-  const nextKey=activeMode+":"+taskIds.join(",");
-  if(!force&&nextKey===resultListenerTaskKey&&resultListenerReady){scheduleRender();return}
+function taskResultsPanel(taskId,content){
+  const open=expandedTaskId===taskId;
+  const buttonText=open?"收合學生結果":"展開學生結果";
+  const body=open
+    ? (expandedTaskLoading?'<div class="taskResultLoading">正在載入最近 100 筆學生結果…</div>':content)
+    : "";
+  return `<button class="s taskResultToggle" type="button" aria-expanded="${open}" onclick="toggleTaskResults('${taskId}')">${buttonText}</button><div class="taskResultPanel${open?'':' hidden'}">${body}</div>`;
+}
 
-  stopResultListeners();
-  resultListenerTaskKey=nextKey;
-  resultListenerReady=false;
+function startTaskResultListener(taskId){
+  if(!user||!taskId||resultUnsubs.has(taskId))return;
+  expandedTaskLoading=true;
   resultCacheError="";
   const generation=resultListenerGeneration;
+  const stop=db.collection("taskResults")
+    .where("teacherId","==",user.uid)
+    .where("taskId","==",taskId)
+    .onSnapshot(snap=>{
+      if(generation!==resultListenerGeneration||expandedTaskId!==taskId)return;
+      const recentDocs=[...snap.docs]
+        .sort((a,b)=>resultUpdatedMillis(b)-resultUpdatedMillis(a))
+        .slice(0,100);
+      replaceResultCacheForTasks([taskId],recentDocs);
+      resultCacheError="";
+      expandedTaskLoading=false;
+      scheduleRender();
+    },e=>{
+      if(generation!==resultListenerGeneration||expandedTaskId!==taskId)return;
+      console.error("學生狀態即時更新失敗",e);
+      resultCacheError=e.message||String(e);
+      expandedTaskLoading=false;
+      scheduleRender();
+    });
+  resultUnsubs.set(taskId,stop);
+}
 
-  if(!taskIds.length){
-    resultListenerReady=true;
+window.toggleTaskResults=taskId=>{
+  if(expandedTaskId===taskId){
+    stopResultListeners(true);
+    clearGamePlayerListeners(false);
     scheduleRender();
     return;
   }
-
-  const chunks=[];
-  for(let i=0;i<taskIds.length;i+=10)chunks.push(taskIds.slice(i,i+10));
-  const readyChunks=new Set();
-  const markChunkReady=index=>{
-    readyChunks.add(index);
-    if(readyChunks.size===chunks.length)resultListenerReady=true;
-    scheduleRender();
-  };
-
-  chunks.forEach((taskIdChunk,index)=>{
-    const stop=db.collection("taskResults")
-      .where("teacherId","==",user.uid)
-      .where("taskId","in",taskIdChunk)
-      .onSnapshot(snap=>{
-        if(generation!==resultListenerGeneration)return;
-        replaceResultCacheForTasks(taskIdChunk,snap.docs);
-        resultCacheError="";
-        markChunkReady(index);
-      },e=>{
-        if(generation!==resultListenerGeneration)return;
-        console.error("學生狀態即時更新失敗",e);
-        resultCacheError=e.message||String(e);
-        markChunkReady(index);
-      });
-    resultUnsubs.push(stop);
-  });
+  stopResultListeners();
+  clearGamePlayerListeners(false);
+  expandedTaskId=taskId;
+  resultDocsByTask.delete(taskId);
+  expandedTaskLoading=true;
+  scheduleRender();
+  const taskDoc=latestTaskDocs.find(doc=>doc.id===taskId);
+  if(taskDoc&&taskDoc.data().taskMode==="game")listenGamePlayers(taskId);
+  startTaskResultListener(taskId);
 }
 
 function clearGamePlayerListeners(clearCache=true){
@@ -632,7 +652,7 @@ auth.onAuthStateChanged(async u=>{
     $("userArea").classList.add("hidden");
     if(unsub)unsub();
     stopResultListeners();
-    unsub=null;latestTaskDocs=[];resultListenerReady=false;tasksListenerReady=false;resultListenerTaskKey="";
+    unsub=null;latestTaskDocs=[];tasksListenerReady=false;expandedTaskId="";expandedTaskLoading=false;
     resultDocsByTask=new Map();resultCacheError="";
     if(resultRefreshTimer)clearTimeout(resultRefreshTimer);
     resultRefreshTimer=null;
@@ -672,17 +692,15 @@ $("copyBtn").onclick=()=>navigator.clipboard.writeText($("qrURL").textContent);
 
 function listen(){
   if(unsub)unsub();
-  stopResultListeners();
+  stopResultListeners(true);
   if(resultRefreshTimer)clearTimeout(resultRefreshTimer);
   resultRefreshTimer=null;
-  resultListenerReady=false;
   tasksListenerReady=false;
   resultDocsByTask=new Map();
   resultCacheError="";
-  resultListenerTaskKey="";
   $("taskList").innerHTML='<div class="status">正在載入任務列表…</div>';
   unsub=db.collection("tasks").where("teacherId","==",user.uid).onSnapshot(
-    s=>{latestTaskDocs=s.docs;tasksListenerReady=true;syncActiveResultListeners()},
+    s=>{latestTaskDocs=s.docs;tasksListenerReady=true;scheduleRender()},
     e=>$("taskList").innerHTML='<div class="status err">'+esc(e.message||e)+'</div>'
   );
 }
@@ -691,8 +709,7 @@ async function refreshTasks(){
   const btn=$("refreshBtn");
   btn.disabled=true;btn.textContent="整理中…";
   try{
-    const snap=await db.collection("tasks").where("teacherId","==",user.uid).get();
-    latestTaskDocs=snap.docs;tasksListenerReady=true;syncActiveResultListeners(true);
+    await render(latestTaskDocs);
   }catch(e){$("taskList").innerHTML='<div class="status err">'+esc(e.message||e)+'</div>'}
   finally{btn.disabled=false;btn.textContent="重新整理"}
 }
@@ -714,8 +731,10 @@ modeTabs.forEach(btn=>btn.addEventListener("click",()=>{
   const nextMode=btn.dataset.mode;
   if(nextMode===activeMode){applyModeFilter();return}
   activeMode=nextMode;
+  stopResultListeners(true);
+  clearGamePlayerListeners(false);
   applyModeFilter();
-  syncActiveResultListeners();
+  scheduleRender();
 }));
 
 function getClickAverageSeconds(data){
@@ -819,8 +838,7 @@ async function render(docs){
         <button class="s" onclick="resetGame('${doc.id}')">重新開放</button>
         <button class="d" onclick="delTask('${doc.id}')">完整刪除</button>
       </div>
-      <div style="margin-top:14px"><b>學生等待室與即時排名</b></div>
-      <div id="gamePlayers_${doc.id}" class="small" style="padding-top:8px">正在載入學生…</div>
+      ${taskResultsPanel(doc.id,`<div style="margin-top:14px"><b>學生等待室與即時排名</b></div><div id="gamePlayers_${doc.id}" class="small" style="padding-top:8px">正在載入學生…</div>`)}
     </div>`;
   };
 
@@ -930,7 +948,7 @@ async function render(docs){
         <button class="w" onclick="clearTaskPhotos('${doc.id}')">只清除照片</button>
         <button class="d" onclick="delTask('${doc.id}')">完整刪除</button>
       </div>
-      ${resultSection}
+      ${taskResultsPanel(doc.id,resultSection)}
     </div>`;
   };
 
@@ -966,7 +984,7 @@ async function render(docs){
         <button class="s" onclick="exportTaskCSV('${doc.id}')">匯出結果 CSV</button>
         <button class="d" onclick="delTask('${doc.id}')">完整刪除</button>
       </div>
-      ${resultSection}
+      ${taskResultsPanel(doc.id,resultSection)}
     </div>`;
   };
 
@@ -1005,7 +1023,7 @@ async function render(docs){
     const repeatPromptInfo=isSpeaking?taskToggleInfo("錯誤後語音再唸一次",!!t.repeatPromptAfterSpeechError):"";
     const practiceText=Array.isArray(t.hanziTexts)&&t.hanziTexts.length?t.hanziTexts.join("、"):String(t.hanziText||"").trim()||(t.targetClasses||[]).join("");
     const modeName=isSpeaking?"口語模式(說)":"書寫模式(寫)";
-    const visibleResultSection=isPractice?"":resultSection;
+    const visibleResultSection=isPractice?"":taskResultsPanel(doc.id,resultSection);
     return `<div class="task ${isSpeaking?"speakingTask":"hanziTask"}"><div class="top"><div><span class="modeBadge">${modeName}</span><div class="titleLine"><div class="title">${esc(t.title||modeName)}</div><button class="s restoreTeacherBtn" type="button" onclick="restoreTeacherPlatform('${doc.id}')">回復教師平台</button></div><div class="meta">練習文字：${esc(practiceText)}</div><div class="meta">練習方式：${settings}</div>${speechStandardInfo}${autoSpeechInfo}${slowSpeechInfo}${repeatPromptInfo}</div></div><div class="row" style="margin-top:12px"><button class="s" onclick="showQR('${doc.id}','${esc(t.title||modeName)}')">重新產生 QR</button><button class="s" onclick="exportTaskCSV('${doc.id}')">匯出結果 CSV</button><button class="d" onclick="delTask('${doc.id}')">完整刪除</button></div>${visibleResultSection}</div>`;
   };
 
@@ -1127,12 +1145,14 @@ function loadGamePlayersOnce(taskId){
 }
 
 function syncGamePlayerListeners(gameDocs){
-  if(activeMode!=="game"){
+  if(activeMode!=="game"||!expandedTaskId){
     clearGamePlayerListeners(false);
     return;
   }
-  const currentIds=new Set(gameDocs.map(doc=>doc.id));
-  const liveIds=new Set(gameDocs.filter(doc=>doc.data().gameStatus!=="finished").map(doc=>doc.id));
+  const expandedDoc=gameDocs.find(doc=>doc.id===expandedTaskId);
+  if(!expandedDoc){clearGamePlayerListeners(false);return}
+  const currentIds=new Set([expandedTaskId]);
+  const liveIds=new Set(expandedDoc.data().gameStatus!=="finished"?[expandedTaskId]:[]);
   [...playerUnsubs.entries()].forEach(([taskId,stop])=>{
     if(liveIds.has(taskId))return;
     stop();playerUnsubs.delete(taskId);
@@ -1141,7 +1161,7 @@ function syncGamePlayerListeners(gameDocs){
     if(currentIds.has(taskId))return;
     gamePlayersCache.delete(taskId);gamePlayersLoaded.delete(taskId);
   });
-  gameDocs.forEach(doc=>{
+  [expandedDoc].forEach(doc=>{
     if(doc.data().gameStatus==="finished"){
       if(gamePlayersCache.has(doc.id)){
         gamePlayersLoaded.add(doc.id);
@@ -1394,8 +1414,7 @@ function csvRowForMode(title,data,mode){
 window.exportTaskCSV=async taskId=>{
   try{
     const taskSnap=latestTaskDocs.find(doc=>doc.id===taskId);
-    const canUseResultCache=resultListenerReady&&resultTaskDocsForActiveMode().some(doc=>doc.id===taskId);
-    const resultDocs=canUseResultCache?[...getCachedTaskResultDocs(taskId)]:await getTaskResultDocs(taskId);
+    const resultDocs=await getTaskResultDocs(taskId);
     if(!resultDocs.length){alert("此任務目前沒有學生結果可以匯出。");return}
     const taskData=taskSnap?taskSnap.data():{};
     const title=taskData.title||"任務結果";

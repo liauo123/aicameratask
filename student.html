@@ -311,6 +311,18 @@ body[data-mode-theme] .target-thumbnail{box-shadow:0 5px 14px var(--mode-shadow)
 body[data-mode-theme] .progress>div{background:var(--primary)}
 .hanzi-card{background:#fff1f2;border:2px solid #fb7185}.hanzi-card h2{color:#991b1b;text-align:center}.hanzi-picker{display:grid;grid-template-columns:repeat(auto-fit,minmax(76px,1fr));gap:12px;margin-top:14px}.hanzi-picker.single{grid-template-columns:minmax(96px,180px);justify-content:center}.hanzi-char{min-height:76px;background:#fff;border:2px solid #fb7185;color:#991b1b;font-size:34px;border-radius:16px}.hanzi-question-row{display:flex;align-items:center;justify-content:center;gap:12px;margin:10px}.hanzi-question{text-align:center;font-size:clamp(32px,10vw,64px);font-weight:900;color:#991b1b;line-height:1.35;word-break:break-all}.hanzi-prompt-icon{flex:0 0 46px}.hanzi-note{text-align:center;color:#7f1d1d;line-height:1.6}.hanzi-copyright{margin-top:14px;padding:12px;border:1px solid #fb7185;border-radius:12px;background:#fff;color:#7f1d1d;font-size:.88rem;line-height:1.7}.hanzi-copyright a{color:#991b1b;font-weight:800}.hanzi-stage-title{text-align:center;font-weight:900;color:#991b1b}.hanzi-speech{padding:18px;text-align:center;background:#ffe4e6;border-radius:16px;margin-top:12px}
 .hanzi-writing{padding:18px;background:#ffe4e6;border:1px solid #fb7185;border-radius:16px;margin-top:12px;text-align:center}.hanzi-writing label{display:block;color:#7f1d1d;font-weight:900;margin-bottom:10px}.hanzi-writing-row{display:flex;gap:10px;align-items:stretch}.hanzi-writing input{min-width:0;flex:1;font-size:clamp(24px,6vw,36px);font-weight:900;text-align:center;border:2px solid #fb7185;background:#fff;color:#991b1b}.hanzi-writing button{flex:0 0 auto;background:#dc2626;color:#fff;border-color:#dc2626}
+.hanzi-practice-modal{position:fixed;inset:0;z-index:1800;padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));display:grid;place-items:center;background:rgba(15,23,42,.72);backdrop-filter:blur(5px)}
+.hanzi-practice-dialog{width:min(100%,620px);max-height:100%;display:flex;flex-direction:column;overflow:hidden;border:2px solid #fb7185;border-radius:22px;background:#fff;box-shadow:0 24px 70px rgba(15,23,42,.38)}
+.hanzi-practice-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;background:#fff1f2;color:#991b1b}.hanzi-practice-head h2{margin:0;font-size:clamp(1.08rem,4vw,1.35rem)}
+.hanzi-practice-close{min-width:48px;min-height:48px;padding:0;border:2px solid #fecaca;background:#fff;color:#991b1b;font-size:24px;line-height:1}
+.hanzi-practice-help{margin:0;padding:9px 14px;background:#fff7ed;color:#9a3412;font-weight:800;text-align:center;line-height:1.45}
+.hanzi-practice-frame-wrap{min-height:0;flex:1;display:grid;place-items:center;overflow:auto;background:#f8fafc}
+.hanzi-practice-frame{display:block;width:min(100%,520px);height:min(620px,calc(100dvh - 190px));min-height:430px;border:0;background:#fff}
+.hanzi-practice-actions{display:grid;grid-template-columns:1fr 1.25fr;gap:10px;padding:12px 14px;border-top:1px solid #fecaca;background:#fff}
+.hanzi-practice-actions a,.hanzi-practice-actions button{min-height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;padding:8px 12px;font-weight:900;text-decoration:none;text-align:center}
+.hanzi-practice-actions a{border:1px solid #cbd5e1;background:#f1f5f9;color:#334155}.hanzi-practice-actions button{background:#dc2626;color:#fff}
+body.hanzi-practice-open{overflow:hidden}
+@media(max-width:480px){.hanzi-practice-modal{padding:0}.hanzi-practice-dialog{width:100%;height:100%;max-height:none;border:0;border-radius:0}.hanzi-practice-frame{width:100%;height:100%;min-height:0}.hanzi-practice-actions{padding-bottom:max(12px,env(safe-area-inset-bottom));grid-template-columns:1fr}}
 body[data-mode-theme="speaking"] .hanzi-card{background:#f0f7ff;border-color:#93c5fd}
 body[data-mode-theme="speaking"] .hanzi-card h2,
 body[data-mode-theme="speaking"] .hanzi-question,
@@ -732,7 +744,7 @@ body.safari-browser[data-mode-theme="reading"] .recognition-actions #voiceRecogn
     <h2 id="hanziTaskTitle">書寫模式(寫)</h2>
     <div id="hanziPracticeIntro" class="hanzi-note"></div>
     <div id="hanziPicker" class="hanzi-picker"></div>
-    <div id="hanziCopyrightNotice" class="hanzi-copyright hidden">點選中文字後，將開啟教育部《國字標準字體筆順學習網》；點選英文字母後，將開啟 Tiny Steps 英文字母描寫練習。本系統僅提供網站連結；外部網站頁面、文字、圖像與書寫內容的著作權及使用規範，均依各網站公告為準。<br><a href="https://stroke-order.learningweb.moe.edu.tw/" target="_blank" rel="noopener noreferrer">教育部國字標準字體筆順學習網</a>｜<a href="https://tinystepslearning.com/free-letter-tracing-game-for-kids" target="_blank" rel="noopener noreferrer">Tiny Steps 英文字母描寫練習</a></div>
+    <div id="hanziCopyrightNotice" class="hanzi-copyright hidden">本頁筆順練習內容以視框方式連結教育部《國字標準字體筆順學習網》，著作權屬原權利人所有。本平台未下載、修改或重新散布其內容，僅供非商業教學使用。<br><a href="https://stroke-order.learningweb.moe.edu.tw/" target="_blank" rel="noopener noreferrer">教育部筆順學習網官方連結</a>｜<a href="https://creativecommons.org/licenses/by-nc-nd/3.0/tw/" target="_blank" rel="noopener noreferrer">CC BY-NC-ND 3.0 TW 授權連結</a></div>
     <div id="hanziTestPanel" class="hidden">
       <div class="progress-label"><b>測驗進度</b><span id="hanziProgressText">0 / 0</span></div>
       <div class="progress"><div id="hanziProgressFill"></div></div>
@@ -755,6 +767,23 @@ body.safari-browser[data-mode-theme="reading"] .recognition-actions #voiceRecogn
       <div id="hanziStatus" class="status">等待作答。</div>
     </div>
   </section>
+
+  <div id="hanziPracticeModal" class="hanzi-practice-modal hidden" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="hanziPracticeModalTitle">
+    <div class="hanzi-practice-dialog">
+      <div class="hanzi-practice-head">
+        <h2 id="hanziPracticeModalTitle">教育部筆順練習：<span id="hanziPracticeCharacter">—</span></h2>
+        <button id="closeHanziPracticeBtn" class="hanzi-practice-close" type="button" aria-label="關閉筆順練習" title="關閉筆順練習">✕</button>
+      </div>
+      <p class="hanzi-practice-help">請先選擇「筆順練習」，完成後按下方按鈕返回平台。</p>
+      <div class="hanzi-practice-frame-wrap">
+        <iframe id="hanziPracticeFrame" class="hanzi-practice-frame" title="教育部國字筆順練習" src="about:blank" allow="fullscreen; autoplay" referrerpolicy="strict-origin-when-cross-origin"></iframe>
+      </div>
+      <div class="hanzi-practice-actions">
+        <a id="openHanziPracticeExternal" href="https://stroke-order.learningweb.moe.edu.tw/" target="_blank" rel="noopener noreferrer">無法顯示時另開</a>
+        <button id="finishHanziPracticeBtn" type="button">完成練習，返回平台</button>
+      </div>
+    </div>
+  </div>
 
   <section id="completeCard" class="card hidden complete">
     <div id="completeIcon" class="icon">🎉</div>
@@ -785,9 +814,9 @@ const firebaseConfig={
   messagingSenderId:"516602165604",
   appId:"1:516602165604:web:b60f69ee56a4d49c416271"
 };
-firebase.initializeApp(firebaseConfig);
-const auth=firebase.auth();
-const db=firebase.firestore();
+const studentFirebaseApp=firebase.initializeApp(firebaseConfig,"studentApp");
+const auth=studentFirebaseApp.auth();
+const db=studentFirebaseApp.firestore();
 const firestorePersistenceReady=db.enablePersistence({synchronizeTabs:true}).catch(error=>{
   if(!["failed-precondition","unimplemented"].includes(error.code)){
     console.warn("Firestore 本機快取啟用失敗：",error);
@@ -925,12 +954,36 @@ let consecutiveWrongAttempts=0;
 let totalErrorCount=0;
 let itemErrorCounts={};
 let imageItemErrorCounts={},audioItemErrorCounts={};
-let exitInProgress=false,exitMicrophoneShutdownPromise=null;
+let exitInProgress=false,exitMicrophoneShutdownPromise=null,backgroundMicrophoneShutdownPromise=Promise.resolve();
 let studentLeaveConfirmed=false;
 let studentPageMarkedLeft=false,studentPresenceWritePromise=Promise.resolve();
+let queuedResultRef=null,queuedResultPatch=null,queuedResultTimer=null,queuedResultWaiters=[],studentResultWritePromise=Promise.resolve();
+function flushQueuedStudentResultWrite(){
+  if(queuedResultTimer){clearTimeout(queuedResultTimer);queuedResultTimer=null}
+  if(!queuedResultRef||!queuedResultPatch)return studentResultWritePromise;
+  const ref=queuedResultRef;
+  const patch=queuedResultPatch;
+  const waiters=queuedResultWaiters.splice(0);
+  queuedResultRef=null;queuedResultPatch=null;
+  studentResultWritePromise=studentResultWritePromise.catch(()=>{}).then(()=>ref.update(patch));
+  studentResultWritePromise.then(
+    value=>waiters.forEach(waiter=>waiter.resolve(value)),
+    error=>waiters.forEach(waiter=>waiter.reject(error))
+  );
+  return studentResultWritePromise;
+}
+function queueStudentResultWrite(patch,delay=350){
+  if(!resultRef)return Promise.resolve();
+  if(queuedResultRef&&queuedResultRef!==resultRef)flushQueuedStudentResultWrite();
+  queuedResultRef=resultRef;
+  queuedResultPatch={...(queuedResultPatch||{}),...patch};
+  if(queuedResultTimer)clearTimeout(queuedResultTimer);
+  queuedResultTimer=setTimeout(flushQueuedStudentResultWrite,delay);
+  return new Promise((resolve,reject)=>queuedResultWaiters.push({resolve,reject}));
+}
 let clickSequence=[],clickTrialIndex=0,clickRecords=[],clickWrongCount=0,clickTrialTimer=null,clickNextTimer=null,clickShownAt=0,clickTrialActive=false,clickCurrentTarget="",clickCurrentChoices=[];
 let hanziSpeechRecognition=null,hanziSpeechStarting=false,hanziSpeechStartWatchdog=null,hanziSpeechInputTimer=null,hanziSpeechSessionDeadline=0,hanziSpeechResumeTimer=null;
-let hanziPracticeItems=[];
+let hanziPracticeItems=[],hanziPracticeTrigger=null;
 
 const $=id=>document.getElementById(id);
 const numberButtons=[...document.querySelectorAll(".number-btn")];
@@ -2678,6 +2731,45 @@ function renderHanziPracticeCharacter(){
   }).join("");
 }
 
+function getMoeStrokePracticeUrls(character){
+  const text=String(character||"");
+  if(!/^\p{Script=Han}$/u.test(text))return null;
+  const id=text.codePointAt(0);
+  if(!Number.isInteger(id))return null;
+  const frameUrl=new URL("https://stroke-order.learningweb.moe.edu.tw/dictFrame.jsp");
+  const pageUrl=new URL("https://stroke-order.learningweb.moe.edu.tw/dictView.jsp");
+  frameUrl.searchParams.set("ID",String(id));
+  pageUrl.searchParams.set("ID",String(id));
+  return {frameUrl:frameUrl.toString(),pageUrl:pageUrl.toString()};
+}
+
+function openHanziPractice(character,trigger=null){
+  const urls=getMoeStrokePracticeUrls(character);
+  if(!urls)return;
+  hanziPracticeTrigger=trigger instanceof HTMLElement?trigger:null;
+  $("hanziPracticeCharacter").textContent=character;
+  $("hanziPracticeFrame").title=`教育部「${character}」字筆順練習`;
+  $("hanziPracticeFrame").src=urls.frameUrl;
+  $("openHanziPracticeExternal").href=urls.pageUrl;
+  $("hanziPracticeModal").classList.remove("hidden");
+  $("hanziPracticeModal").setAttribute("aria-hidden","false");
+  document.body.classList.add("hanzi-practice-open");
+  $("closeHanziPracticeBtn").focus();
+}
+
+function closeHanziPractice(restoreFocus=true){
+  const modal=$("hanziPracticeModal");
+  if(!modal||modal.classList.contains("hidden"))return;
+  modal.classList.add("hidden");
+  modal.setAttribute("aria-hidden","true");
+  $("hanziPracticeFrame").src="about:blank";
+  document.body.classList.remove("hanzi-practice-open");
+  if(restoreFocus&&hanziPracticeTrigger&&document.contains(hanziPracticeTrigger)){
+    hanziPracticeTrigger.focus();
+  }
+  hanziPracticeTrigger=null;
+}
+
 function disableHanziCamera(){
   stopAll();
   ["imageStage","poseStage","audioStage","taskCard","clickTaskCard"].forEach(id=>$(id)?.classList.add("hidden"));
@@ -2789,7 +2881,7 @@ async function submitHanziWritingAnswer(){
 
 async function saveHanziProgress(done=false){
   if(!resultRef||studentLeaveConfirmed||exitInProgress||pageAutoPaused)return;
-  await resultRef.update({
+  await queueStudentResultWrite({
     completedClasses:[...completed],incorrectClasses:[...new Set(localIncorrectClasses)],incorrectAudioClasses:[...new Set(localIncorrectAudioClasses)],
     progress:Math.round(completed.length/task.targetClasses.length*100),attempts,errorCount:totalErrorCount,itemErrorCounts:{...itemErrorCounts},imageItemErrorCounts:{...imageItemErrorCounts},audioItemErrorCounts:{...audioItemErrorCounts},status:done?"completed":"inProgress",
     updatedAt:firebase.firestore.FieldValue.serverTimestamp(),...(done?{completedAt:firebase.firestore.FieldValue.serverTimestamp()}:{})
@@ -3069,6 +3161,16 @@ function recognizeHanziSpeech({automatic=false,resumeSession=false,continuedSpee
       "network":"語音辨識服務連線失敗，請確認網路後再試一次。"
     }[error]||`語音辨識失敗：${error}`;
     const recoverable=!['not-allowed','service-not-allowed','audio-capture','network'].includes(event.error);
+    if(event.error==="network"){
+      stopHanziSpeechRecognition(recognition,true);
+      if(automatic){
+        automaticSpeechFallbackToButton=true;
+        clearAutomaticSpeechRestartTimer();
+        clearAutomaticSpeechIdleTimer(false);
+      }
+      setStatus("hanziStatus","語音辨識服務連線失敗，請確認網路後按麥克風重新辨識。","error");
+      return;
+    }
     if(recoverable){
       resumeRecognition("正在聆聽，請念出畫面上的字…");
       return;
@@ -3359,7 +3461,7 @@ async function saveClickProgress(completedStatus=false){
     ? Number((correct.reduce((sum,record)=>sum+Number(record.reactionMs||0),0)/correct.length/1000).toFixed(2))
     : 0;
   const progress=Math.round(clickRecords.length/Math.max(1,getClickTotalCount())*100);
-  await resultRef.update({
+  await queueStudentResultWrite({
     clickCorrectCount:correct.length,
     clickWrongCount,
     clickMissCount:misses.length,
@@ -3563,7 +3665,7 @@ $("clickTargets").addEventListener("click",event=>{
   if(label!==clickCurrentTarget){
     clickWrongCount++;
     if(resultRef){
-      resultRef.update({
+      queueStudentResultWrite({
         clickWrongCount,
         updatedAt:firebase.firestore.FieldValue.serverTimestamp()
       }).catch(e=>console.error("點選答錯次數寫入失敗",e));
@@ -5558,6 +5660,18 @@ async function startOptionalAudioRecognition({automatic=false,resumeSession=fals
       "no-speech":"沒有聽到語音，請靠近麥克風再試一次。"
     }[event.error]||"語音辨識失敗，請重新嘗試。";
     const recoverable=!['not-allowed','service-not-allowed','audio-capture','network'].includes(event.error);
+    if(event.error==="network"){
+      settled=true;
+      stopOptionalAudioRecognition(false);
+      if(automatic){
+        automaticSpeechFallbackToButton=true;
+        clearAutomaticSpeechRestartTimer();
+        clearAutomaticSpeechIdleTimer(false);
+      }
+      setVoiceResult("語音辨識服務連線失敗，請確認網路後按麥克風重新辨識。","error");
+      updateVerificationUI();
+      return;
+    }
     if(recoverable&&(!lastHeard||(!lastResultWasFinal&&optionalAudioSessionDeadline<0))){
       resumeRecognition(lastHeard?"正在接續語音辨識，請繼續回答…":"正在聆聽");
       return;
@@ -5699,11 +5813,18 @@ function detachAudioRecognizerStream(recognizer){
   try{extractor.stream=null}catch(e){}
 }
 
-function releaseStudentMicrophoneForBackground(){
+async function releaseStudentMicrophoneForBackground(){
+  const recognitions=[...new Set([
+    ...trackedSpeechRecognitions,
+    browserSpeechRecognition,
+    hanziSpeechRecognition
+  ].filter(Boolean))];
   const recognizer=activeAudioRecognizer||(projectType==="audio"?model:null);
+  const speechShutdowns=recognitions.map(waitForSpeechRecognitionShutdown);
   pauseStudentMicrophone();
   detachAudioRecognizerStream(recognizer);
   stopTrackedMicrophoneTracks();
+  await Promise.all(speechShutdowns);
 }
 
 async function shutdownStudentMicrophoneForExit(){
@@ -5803,6 +5924,7 @@ function restoreStudentPagePresence(){
 }
 
 async function recordConfirmedStudentLeave(){
+  await flushQueuedStudentResultWrite().catch(()=>{});
   await studentPresenceWritePromise.catch(()=>{});
   const timestamp=firebase.firestore.FieldValue.serverTimestamp();
   const writes=[];
@@ -6290,7 +6412,12 @@ function stopAll(preserveClickRound=false){
 function pauseStudentPageForBackground(){
   const shouldPausePage=!pageAutoPaused&&!finished&&!!task&&!paused;
   if(shouldPausePage)pageAutoPaused=true;
-  releaseStudentMicrophoneForBackground();
+  const previousShutdown=backgroundMicrophoneShutdownPromise;
+  const currentShutdown=releaseStudentMicrophoneForBackground();
+  backgroundMicrophoneShutdownPromise=Promise.all([previousShutdown,currentShutdown]).catch(()=>{
+    stopTrackedSpeechRecognitions(true);
+    stopTrackedMicrophoneTracks();
+  });
   markStudentPageAsLeft();
   if(!shouldPausePage)return;
   stopAll(isClickMode());
@@ -6301,6 +6428,9 @@ function pauseStudentPageForBackground(){
 }
 
 async function resumeStudentPageFromBackground(){
+  if(document.hidden||!pageAutoPaused||finished||!task||paused)return;
+  try{await backgroundMicrophoneShutdownPromise}catch(e){}
+  backgroundMicrophoneShutdownPromise=Promise.resolve();
   if(document.hidden||!pageAutoPaused||finished||!task||paused)return;
   pageAutoPaused=false;
   try{
@@ -6420,9 +6550,18 @@ $("hanziPicker").addEventListener("click",event=>{
     return;
   }
   if(/^\p{Script=Han}$/u.test(character)){
-    const url=new URL("https://stroke-order.learningweb.moe.edu.tw/searchW.jsp");
-    url.searchParams.set("WORD",character);
-    window.open(url.toString(),"_blank","noopener");
+    openHanziPractice(character,button);
+  }
+});
+$("closeHanziPracticeBtn").onclick=()=>closeHanziPractice();
+$("finishHanziPracticeBtn").onclick=()=>closeHanziPractice();
+$("hanziPracticeModal").addEventListener("click",event=>{
+  if(event.target===$("hanziPracticeModal"))closeHanziPractice();
+});
+document.addEventListener("keydown",event=>{
+  if(event.key==="Escape"&&!$("hanziPracticeModal").classList.contains("hidden")){
+    event.preventDefault();
+    closeHanziPractice();
   }
 });
 $("againBtn").onclick=()=>{if(!primeSafariFirstQuestionSpeech())unlockPlatformSpeech();return repeatTask()};
@@ -6458,6 +6597,7 @@ function handleStudentPageVisibility(){
 }
 
 function handleStudentPageExit(event){
+  flushQueuedStudentResultWrite().catch(()=>{});
   pauseStudentPageForBackground();
   markStudentPageAsLeft();
   beginStudentExitDeviceShutdown();

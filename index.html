@@ -7,8 +7,6 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
@@ -200,11 +198,11 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
 
       <section id="hanziModeCard" class="card modeCard hanziMode hidden">
         <h2>書寫模式(寫)</h2>
-        <div class="modeHint">學生端設備需開啟手寫輸入。</div>
+        <div class="modeHint"><strong>中文字可逐字連結教育部筆順練習。</strong></div>
         <input id="hanziTaskTitle" placeholder="書寫模式(寫)名稱">
         <div class="modeSettings">
-          <label class="modeSetting hanziPracticeSetting"><input id="hanziPracticeMode" type="checkbox">書寫練習</label>
-          <div class="hanziPracticeDescription">中文字可逐字連結教育部筆順練習。</div>
+          <label class="modeSetting hanziPracticeSetting"><input id="hanziPracticeMode" type="checkbox">書寫評量</label>
+          <div class="hanziPracticeDescription">學生端設備需開啟手寫輸入。</div>
         </div>
         <input id="hanziSpeechRecognition" type="checkbox" class="hidden" aria-hidden="true">
         <input id="hanziRepeatCount" type="hidden" value="1">
@@ -322,6 +320,24 @@ const firestorePersistenceReady=db.enablePersistence({synchronizeTabs:true}).cat
   if(!["failed-precondition","unimplemented"].includes(error.code))console.warn("Firestore 本機快取啟用失敗：",error);
 });
 let user=null,model=null,modelURL="",labels=[],unsub=null,classThumbnails={};
+const teacherRuntimeScripts=new Map();
+function loadTeacherRuntimeScript(url,globalName,label){
+  if(window[globalName])return Promise.resolve();
+  if(teacherRuntimeScripts.has(url))return teacherRuntimeScripts.get(url);
+  const loading=new Promise((resolve,reject)=>{
+    const script=document.createElement("script");
+    script.src=url;script.async=true;
+    script.onload=()=>window[globalName]?resolve():reject(new Error(label+"載入失敗"));
+    script.onerror=()=>reject(new Error(label+"載入失敗，請檢查網路後重試。"));
+    document.head.appendChild(script);
+  }).catch(error=>{teacherRuntimeScripts.delete(url);throw error});
+  teacherRuntimeScripts.set(url,loading);
+  return loading;
+}
+async function ensureTeacherImageModelRuntime(){
+  await loadTeacherRuntimeScript("https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@1.3.1/dist/tf.min.js","tf","TensorFlow 元件");
+  await loadTeacherRuntimeScript("https://cdn.jsdelivr.net/npm/@teachablemachine/image@0.8/dist/teachablemachine-image.min.js","tmImage","Teachable Machine 元件");
+}
 const THUMBNAIL_OUTPUT_SIZE=240;
 const THUMBNAIL_MAX_BYTES=40*1024;
 const THUMBNAILS_TOTAL_MAX_BYTES=700*1024;
@@ -594,6 +610,7 @@ $("loadModelBtn").onclick=async()=>{
       if(!labels.length)throw new Error("請至少輸入一項要辨識的文字。");
       model={getClassLabels:()=>[...labels]};
     }else{
+      await ensureTeacherImageModelRuntime();
       model=await tmImage.load(modelURL+"model.json",modelURL+"metadata.json");
       labels=model.getClassLabels();
     }
@@ -695,9 +712,11 @@ async function restoreTaskFromTaskList(taskId){
     if(taskMode==="game")$("gameTitle").value=String(task.title||"");
     if(taskMode==="hanzi"){
       $("hanziTaskTitle").value=String(task.title||"").replace(/^(?:國字|文字)練習：/,"");
-      $("hanziPracticeMode").checked=task.hanziPracticeEnabled===undefined
-        ? !task.hanziWritingEnabled
-        : !!task.hanziPracticeEnabled;
+      $("hanziPracticeMode").checked=task.hanziWritingEnabled!==undefined
+        ? !!task.hanziWritingEnabled
+        : task.hanziPracticeEnabled!==undefined
+          ? !task.hanziPracticeEnabled
+          : false;
       $("hanziSpeechRecognition").checked=false;
       $("hanziRepeatCount").value="1";
       updateHanziRepeatLabel();
@@ -1346,7 +1365,7 @@ async function createHanziModeQR(){
   const selectedTexts=getSelectedClassesInCurrentOrder();
   const hanziTexts=labels.length?selectedTexts:typedTexts;
   const chars=getHanziCharacters(hanziTexts);
-  const practiceEnabled=$("hanziPracticeMode").checked;
+  const writingAssessmentEnabled=$("hanziPracticeMode").checked;
   const speechEnabled=false;
   const hanziRepeatCount=1;
   if(!title)return status("hanziStatus","請輸入書寫模式(寫)名稱。","err");
@@ -1374,8 +1393,8 @@ async function createHanziModeQR(){
       hanziText:hanziTexts.join("\n"),
       hanziTexts,
       hanziQuestionSequence,
-      hanziWritingEnabled:!practiceEnabled,
-      hanziPracticeEnabled:practiceEnabled,
+      hanziWritingEnabled:writingAssessmentEnabled,
+      hanziPracticeEnabled:!writingAssessmentEnabled,
       hanziSpeechEnabled:speechEnabled,
       hanziRepeatCount,
       speechRecognitionMode:"browser",
@@ -1387,10 +1406,7 @@ async function createHanziModeQR(){
       version:"3.8-hanzi-device-writing",
       createdAt:firebase.firestore.FieldValue.serverTimestamp()
     });
-    const detail=practiceEnabled
-      ? "學生可逐字選擇並開啟中文筆順或英文字母描寫練習。"
-      : "學生選擇編號後，使用設備手寫輸入作答；系統判斷正誤並回傳任務列表。";
-    status("hanziStatus",`書寫模式(寫)建立成功！\n${detail}\nTask ID：${ref.id}`,"ok");
+    status("hanziStatus",`書寫模式(寫)建立成功！\nTask ID：${ref.id}`,"ok");
     showQR(ref.id,title);
   }catch(e){
     status("hanziStatus","建立書寫模式(寫)失敗：\n"+(e.message||e),"err");
