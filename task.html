@@ -32,7 +32,7 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
 .status{padding:12px;border-radius:11px;background:#eff6ff;color:#1d4ed8;white-space:pre-wrap;margin-top:10px}
 .err{background:#fef2f2;color:#b91c1c}.hidden{display:none!important}
 .listHeader{align-items:center;margin-bottom:4px}.listHeader h2{margin:0;color:#17376b}.listHint{margin:8px 0 4px;padding:10px 12px;border-radius:10px;background:#f8fafc;border:1px solid #e5eaf0}
-.modeTabs{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:6px;overflow:visible;padding:8px 2px 5px;margin-top:10px}.modeTab{min-width:0;padding:9px 5px;border:2px solid transparent;white-space:normal;line-height:1.25;font-size:12px;box-shadow:none}.modeTab.clickTab{background:#fef3c7;color:#92400e;border-color:#fbbf24}.modeTab.hanziTab{background:#fee2e2;color:#991b1b;border-color:#fb7185}.modeTab.speakingTab{background:#dbeafe;color:#1d4ed8;border-color:#93c5fd}.modeTab.readingTab{background:#cffafe;color:#0e7490;border-color:#67e8f9}.modeTab.evaluationTab{background:#dcfce7;color:#166534;border-color:#86efac}.modeTab.gameTab{background:#ede9fe;color:#6d28d9;border-color:#c4b5fd}.modeTab[aria-selected="true"]{color:#fff;box-shadow:0 6px 15px rgba(15,23,42,.16)}.modeTab.clickTab[aria-selected="true"]{background:#ca8a04;border-color:#ca8a04}.modeTab.hanziTab[aria-selected="true"]{background:#dc2626;border-color:#dc2626}.modeTab.speakingTab[aria-selected="true"]{background:#2563eb;border-color:#2563eb}.modeTab.readingTab[aria-selected="true"]{background:#0891b2;border-color:#0891b2}.modeTab.evaluationTab[aria-selected="true"]{background:#16a34a;border-color:#16a34a}.modeTab.gameTab[aria-selected="true"]{background:#7c3aed;border-color:#7c3aed}
+.modeTabs{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;overflow:visible;padding:8px 2px 5px;margin-top:10px}.modeTab{min-width:0;padding:9px 5px;border:2px solid transparent;white-space:normal;line-height:1.25;font-size:12px;box-shadow:none}.modeTab.clickTab{background:#fef3c7;color:#92400e;border-color:#fbbf24}.modeTab.hanziTab{background:#fee2e2;color:#991b1b;border-color:#fb7185}.modeTab.speakingTab{background:#dbeafe;color:#1d4ed8;border-color:#93c5fd}.modeTab.readingTab{background:#cffafe;color:#0e7490;border-color:#67e8f9}.modeTab.gameTab{background:#ede9fe;color:#6d28d9;border-color:#c4b5fd}.modeTab[aria-selected="true"]{color:#fff;box-shadow:0 6px 15px rgba(15,23,42,.16)}.modeTab.clickTab[aria-selected="true"]{background:#ca8a04;border-color:#ca8a04}.modeTab.hanziTab[aria-selected="true"]{background:#dc2626;border-color:#dc2626}.modeTab.speakingTab[aria-selected="true"]{background:#2563eb;border-color:#2563eb}.modeTab.readingTab[aria-selected="true"]{background:#0891b2;border-color:#0891b2}.modeTab.gameTab[aria-selected="true"]{background:#7c3aed;border-color:#7c3aed}
 .task{border:1px solid #dbe4ee;border-radius:14px;padding:17px;margin:13px 0;background:rgba(255,255,255,.76);box-shadow:0 5px 14px rgba(15,23,42,.055)}
 .modeSection{position:relative;overflow:hidden;padding:18px;border-radius:17px;margin-top:18px}
 .modeSection::after{content:"";position:absolute;width:120px;height:120px;border-radius:50%;right:-56px;top:-58px;background:currentColor;opacity:.045;pointer-events:none}
@@ -115,8 +115,7 @@ button:hover,.navBtn:hover{transform:translateY(-1px);filter:brightness(.99)}
       <button class="modeTab speakingTab" type="button" data-mode="speaking" role="tab" aria-selected="false">口語模式(說)</button>
       <button class="modeTab readingTab" type="button" data-mode="reading" role="tab" aria-selected="false">問答模式(讀)</button>
       <button class="modeTab hanziTab" type="button" data-mode="hanzi" role="tab" aria-selected="false">書寫模式(寫)</button>
-      <button class="modeTab evaluationTab" type="button" data-mode="evaluation" role="tab" aria-selected="false">拍照辨識模式</button>
-      <button class="modeTab gameTab" type="button" data-mode="game" role="tab" aria-selected="false">多人遊戲模式</button>
+      <button class="modeTab gameTab" type="button" data-mode="game" role="tab" aria-selected="false">多人回答模式</button>
     </div>
     <div class="small listHint">點選上方模式按鈕可查看相關資訊列表。可先匯出學生結果，再只清除辨識照片；「完整刪除」會一併清除學生紀錄、照片與遊戲資料。</div>
     <div id="taskList"></div>
@@ -569,7 +568,6 @@ function resultTaskDocsForActiveMode(){
   if(activeMode==="hanzi")return latestTaskDocs.filter(doc=>doc.data().taskMode==="hanzi"&&!doc.data().hanziSpeechEnabled);
   if(activeMode==="speaking")return latestTaskDocs.filter(doc=>doc.data().taskMode==="speaking"||(doc.data().taskMode==="hanzi"&&doc.data().hanziSpeechEnabled));
   if(activeMode==="reading")return latestTaskDocs.filter(doc=>doc.data().taskMode==="reading");
-  if(activeMode==="evaluation")return latestTaskDocs.filter(doc=>!["teaching","game","click","hanzi","speaking","reading"].includes(doc.data().taskMode));
   return [];
 }
 
@@ -722,7 +720,7 @@ function applyModeFilter(){
   sections.forEach(section=>section.classList.toggle("hidden",section.dataset.mode!==activeMode));
   const oldEmpty=$("modeEmpty");if(oldEmpty)oldEmpty.remove();
   if(!sections.some(section=>section.dataset.mode===activeMode)){
-    const names={click:"點選模式(聽)",speaking:"口語模式(說)",reading:"問答模式(讀)",hanzi:"書寫模式(寫)",evaluation:"拍照辨識模式",game:"多人遊戲模式"};
+    const names={click:"點選模式(聽)",speaking:"口語模式(說)",reading:"問答模式(讀)",hanzi:"書寫模式(寫)",game:"多人回答模式"};
     const empty=document.createElement("div");empty.id="modeEmpty";empty.className="status";empty.textContent="目前沒有「"+names[activeMode]+"」資料。";
     $("taskList").appendChild(empty);
   }
@@ -761,7 +759,6 @@ async function render(docs){
   const speakingDocs=newestFirst.filter(doc=>doc.data().taskMode==="speaking"||(doc.data().taskMode==="hanzi"&&doc.data().hanziSpeechEnabled));
   const hanziDocs=newestFirst.filter(doc=>doc.data().taskMode==="hanzi"&&!doc.data().hanziSpeechEnabled);
   const readingDocs=newestFirst.filter(doc=>doc.data().taskMode==="reading");
-  const evaluationDocs=newestFirst.filter(doc=>!["teaching","advanced","game","click","hanzi","speaking","reading"].includes(doc.data().taskMode));
 
   const renderTeachingTask=doc=>{
     const t=doc.data();
@@ -798,8 +795,6 @@ async function render(docs){
 
   const renderGameTask=doc=>{
     const t=doc.data();
-    const recognitionInfo=`<div class="meta">辨識方式：${recognitionEngineName(t.recognitionEngine)}</div>`;
-    const workflowInfo=t.recognitionEngine==="ocr"&&t.skipPhotoRecognition?'<div class="meta">辨識流程：僅語音辨識（取消拍照辨識）</div>':"";
     const stateText={lobby:"等待學生加入",active:"遊戲進行中",finished:"遊戲已結束"}[t.gameStatus]||"等待學生加入";
     const audioItems=Array.isArray(t.audioRequiredClasses)
       ? t.audioRequiredClasses.filter(name=>(t.targetClasses||[]).includes(name))
@@ -815,16 +810,14 @@ async function render(docs){
     return `<div class="task gameTask">
       <div class="top">
         <div>
-          <span class="modeBadge">多人遊戲模式</span>
+          <span class="modeBadge">多人回答模式</span>
           <div class="titleLine">
             <div class="title">${esc(t.title||"未命名遊戲")}</div>
             <button class="s restoreTeacherBtn" type="button" onclick="restoreTeacherPlatform('${doc.id}')">回復教師平台</button>
           </div>
-          ${recognitionInfo}
-          ${workflowInfo}
           ${promptInfo}
           ${slowSpeechInfo}
-          <div class="meta">尋找順序：${(t.targetClasses||[]).map(esc).join(" → ")}</div>
+          <div class="meta">回答文字：${(t.targetClasses||[]).map(esc).join(" → ")}</div>
           ${speechStandardInfo}
           <span class="gameState" id="gameState_${doc.id}">${stateText}</span>
         </div>
@@ -846,9 +839,6 @@ async function render(docs){
     const t=doc.data();
     const isAdvanced=t.taskMode==="advanced";
     const isReading=t.taskMode==="reading";
-    const isPhotoRecognition=!isAdvanced&&t.taskMode!=="reading";
-    const isOcrPhotoRecognition=isPhotoRecognition&&t.recognitionEngine==="ocr";
-    const isCustomPhotoRecognition=isPhotoRecognition&&t.recognitionEngine!=="ocr";
     const recognitionInfo=`<div class="meta">辨識方式：${recognitionEngineName(t.recognitionEngine)}</div>`;
     const workflowInfo=t.taskMode==="reading"||t.recognitionEngine==="ocr"&&t.skipPhotoRecognition?'<div class="meta">辨識流程：僅語音辨識（取消拍照辨識）</div>':"";
     let resultDocs=[],resultError="";
@@ -887,9 +877,7 @@ async function render(docs){
       ].filter(Boolean).join("<br>");
       const hasFiveWrong=imageErrors.fiveOrMore.length||audioErrors.fiveOrMore.length||legacyErrors.fiveOrMore.length;
       const hasGeneralError=imageErrors.twoOnly.length||imageErrors.threeToFour.length||audioErrors.twoOnly.length||audioErrors.threeToFour.length||legacyErrors.twoOnly.length||legacyErrors.threeToFour.length;
-      const studentInputs=isCustomPhotoRecognition
-        ?"—"
-        :formatStudentInputRecords(d,isOcrPhotoRecognition?"辨識輸入":"書寫輸入");
+      const studentInputs=formatStudentInputRecords(d,"書寫輸入");
       return `<div class="rr inputResultRow${hasFiveWrong?" hasFiveWrong":hasGeneralError?" hasAnyError":""}">
         <span>${esc(d.studentName||"未命名")}</span>
         <span>${d.progress||0}%</span>
@@ -904,7 +892,7 @@ async function render(docs){
       : `<div style="margin-top:12px">
           <b>學生完成度（${resultDocs.length} 人）</b>
           <div class="rr inputResultRow">
-            <b>學生</b><b>進度</b><b>狀態</b><b>辨識錯誤</b><b>${isOcrPhotoRecognition?"辨識輸入文字":isCustomPhotoRecognition?"—":"學生輸入文字"}</b>
+            <b>學生</b><b>進度</b><b>狀態</b><b>辨識錯誤</b><b>學生輸入文字</b>
           </div>
           ${rows||'<div class="small" style="padding:10px">尚無學生紀錄</div>'}
         </div>`;
@@ -918,18 +906,18 @@ async function render(docs){
     const speechStandardInfo=audioItems.length?speechRecognitionStandardInfo(t):"";
 
     const recognitionDisplayInfo=isReading?"":recognitionInfo;
-    const workflowDisplayInfo=isReading||isPhotoRecognition?"":workflowInfo;
-    const audioDisplayInfo=isReading||isPhotoRecognition?"":audioInfo;
+    const workflowDisplayInfo=isReading?"":workflowInfo;
+    const audioDisplayInfo=isReading?"":audioInfo;
     const autoSpeechInfo=isReading?taskToggleInfo("自動唸出題目",!t.disableAutoPromptSpeech):"";
-    const slowSpeechInfo=isReading||isPhotoRecognition?taskToggleInfo("放慢語音速度",!!t.slowSpeechPlayback):"";
+    const slowSpeechInfo=isReading?taskToggleInfo("放慢語音速度",!!t.slowSpeechPlayback):"";
     const repeatPromptInfo=isReading?taskToggleInfo("錯誤後語音再唸一次",!!t.repeatPromptAfterSpeechError):"";
-    const itemLabel=isReading||isPhotoRecognition?"練習文字":"物品";
+    const itemLabel=isReading?"練習文字":"物品";
     return `<div class="task ${isAdvanced?"advancedTask":isReading?"readingTask":"evaluationTask"}">
       <div class="top">
         <div>
-          <span class="modeBadge">${isAdvanced?"進階評量模式":isReading?"問答模式(讀)":"拍照辨識模式"}</span>
+          <span class="modeBadge">${isAdvanced?"進階評量模式":"問答模式(讀)"}</span>
           <div class="titleLine">
-            <div class="title">${esc(t.title||(isAdvanced?"未命名進階評量":isReading?"未命名問答模式(讀)":"未命名拍照辨識模式"))}</div>
+            <div class="title">${esc(t.title||(isAdvanced?"未命名進階評量":"未命名問答模式(讀)"))}</div>
             <button class="s restoreTeacherBtn" type="button" onclick="restoreTeacherPlatform('${doc.id}')">回復教師平台</button>
           </div>
           ${recognitionDisplayInfo}
@@ -943,7 +931,7 @@ async function render(docs){
         </div>
       </div>
       <div class="row" style="margin-top:12px">
-        <button class="s" onclick="showQR('${doc.id}','${esc(t.title||(isAdvanced?"進階評量":isReading?"問答模式(讀)":"拍照辨識模式"))}')">重新產生 QR</button>
+        <button class="s" onclick="showQR('${doc.id}','${esc(t.title||(isAdvanced?"進階評量":"問答模式(讀)"))}')">重新產生 QR</button>
         <button class="s" onclick="exportTaskCSV('${doc.id}')">匯出結果 CSV</button>
         <button class="w" onclick="clearTaskPhotos('${doc.id}')">只清除照片</button>
         <button class="d" onclick="delTask('${doc.id}')">完整刪除</button>
@@ -1053,13 +1041,6 @@ async function render(docs){
     sections.push(readingHtml.join(""));sections.push('</section>');
   }
 
-  if(evaluationDocs.length){
-    sections.push('<section class="modeSection evaluation" data-mode="evaluation"><h2 class="modeTitle">拍照辨識模式資訊</h2>');
-    const evaluationHtml=await Promise.all(evaluationDocs.map(renderEvaluationTask));
-    sections.push(evaluationHtml.join(""));
-    sections.push('</section>');
-  }
-
   if(advancedDocs.length){
     sections.push('<section class="modeSection advanced" data-mode="evaluation"><h2 class="modeTitle">進階評量模式資訊</h2>');
     const advancedHtml=await Promise.all(advancedDocs.map(renderEvaluationTask));
@@ -1068,7 +1049,7 @@ async function render(docs){
   }
 
   if(gameDocs.length){
-    sections.push('<section class="modeSection game" data-mode="game"><h2 class="modeTitle">多人遊戲模式</h2>');
+    sections.push('<section class="modeSection game" data-mode="game"><h2 class="modeTitle">多人回答模式</h2>');
     sections.push(gameDocs.map(renderGameTask).join(""));
     sections.push('</section>');
   }

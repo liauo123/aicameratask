@@ -2284,6 +2284,9 @@ async function loadTask(){
     const savedMode=task.taskMode||task.orderMode||"task";
     const readingModeHint=requestedMode==="reading"||task.interactionMode==="reading"||/reading-mode/i.test(String(task.version||""));
     task.taskMode=readingModeHint?"reading":savedMode;
+    if(!["teaching","advanced","game","click","hanzi","speaking","reading"].includes(task.taskMode)){
+      throw new Error("此任務模式已移除，請向教師索取其他模式的新任務。");
+    }
     applyTaskModeTheme(task.taskMode);
     task.recognitionEngine=["coco-ssd","ocr"].includes(task.recognitionEngine)
       ? task.recognitionEngine
@@ -2304,11 +2307,9 @@ async function loadTask(){
     task.audioRequiredClasses=Array.isArray(task.audioRequiredClasses)
       ? task.audioRequiredClasses.filter(name=>task.targetClasses.includes(name))
       : [];
-    task.skipPhotoRecognition=isReadingMode()
+    task.skipPhotoRecognition=isReadingMode()||isGameMode()
       ? true
-      : isGameMode()
-        ? !!task.skipPhotoRecognition
-        : task.recognitionEngine==="ocr"&&isEvaluationMode()&&!!task.skipPhotoRecognition;
+      : task.recognitionEngine==="ocr"&&isEvaluationMode()&&!!task.skipPhotoRecognition;
     if(task.skipPhotoRecognition)task.audioRequiredClasses=[...task.targetClasses];
     task.promptMode=task.promptMode==="description"?"description":"name";
     task.showNameText=task.recognitionEngine==="ocr"&&!!task.showNameText;
@@ -2326,6 +2327,9 @@ async function loadTask(){
       task.relaxedSpeechRecognition=false;
       task.fuzzySpeechRecognition=false;
     }else if(isGameMode()){
+      task.speechRecognitionEnabled=true;
+      task.skipPhotoRecognition=true;
+      task.audioRequiredClasses=[...task.targetClasses];
       task.showNameText=false;
       task.showThumbnailHint=true;
     }
@@ -2398,7 +2402,7 @@ async function loadTask(){
       : task.taskMode==="advanced"
         ? `專案類型：${typeName}｜進階評量：依語音說明找出正確物品${audioNote}`
         : task.taskMode==="game"
-          ? `多人尋物遊戲｜教師開始後，每位學生會收到不同的隨機物品順序${task.skipPhotoRecognition?"｜僅語音辨識":audioNote}`
+          ? `多人回答模式｜教師開始後，每位學生會收到不同的隨機回答文字順序${task.skipPhotoRecognition?"｜僅語音辨識":audioNote}`
           : `專案類型：${typeName}｜${isReadingMode()?"問答模式(讀)｜":""}${task.promptMode==="description"?"說明文字語音出題":"物品名稱語音出題"}${task.skipPhotoRecognition?"｜僅語音辨識":audioNote}｜順序：${task.targetClasses.join(" → ")}`;
     if(isHanziPracticeMode()){
       $("joinCard").classList.add("hidden");
@@ -3789,7 +3793,7 @@ async function loadSelectedModel(){
     return;
   }
   if((["teaching","advanced","game"].includes(task.taskMode))&&projectType!=="image"){
-    throw new Error("目前教學模式、進階評量與多人遊戲僅支援 Teachable Machine 圖片專案。");
+    throw new Error("目前教學模式、進階評量與多人回答模式僅支援 Teachable Machine 圖片專案。");
   }
 
   if(projectType==="image"){
