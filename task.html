@@ -823,7 +823,7 @@ async function render(docs){
       </div>
       <div class="row" style="margin-top:12px">
         <button class="s" onclick="showQR('${doc.id}','${esc(t.title||"遊戲")}')">顯示遊戲 QR</button>
-        <button class="s" onclick="exportTaskCSV('${doc.id}')">匯出結果 CSV</button>
+        <button class="s" onclick="exportStudentAssessment('${doc.id}')">匯出學生評量</button>
         <button class="w" onclick="clearTaskPhotos('${doc.id}')">只清除照片</button>
         <button class="p" onclick="startGame('${doc.id}')">全員開始</button>
         <button class="s" onclick="finishGame('${doc.id}')">結束遊戲</button>
@@ -931,7 +931,7 @@ async function render(docs){
       </div>
       <div class="row" style="margin-top:12px">
         <button class="s" onclick="showQR('${doc.id}','${esc(t.title||(isAdvanced?"進階評量":"問答模式(讀)"))}')">重新產生 QR</button>
-        <button class="s" onclick="exportTaskCSV('${doc.id}')">匯出結果 CSV</button>
+        <button class="s" onclick="exportStudentAssessment('${doc.id}')">匯出學生評量</button>
         <button class="w" onclick="clearTaskPhotos('${doc.id}')">只清除照片</button>
         <button class="d" onclick="delTask('${doc.id}')">完整刪除</button>
       </div>
@@ -968,7 +968,7 @@ async function render(docs){
       </div></div>
       <div class="row" style="margin-top:12px">
         <button class="s" onclick="showQR('${doc.id}','${esc(t.title||"點選模式(聽)")}')">重新產生 QR</button>
-        <button class="s" onclick="exportTaskCSV('${doc.id}')">匯出結果 CSV</button>
+        <button class="s" onclick="exportStudentAssessment('${doc.id}')">匯出學生評量</button>
         <button class="d" onclick="delTask('${doc.id}')">完整刪除</button>
       </div>
       ${taskResultsPanel(doc.id,resultSection)}
@@ -1011,7 +1011,7 @@ async function render(docs){
     const practiceText=Array.isArray(t.hanziTexts)&&t.hanziTexts.length?t.hanziTexts.join("、"):String(t.hanziText||"").trim()||(t.targetClasses||[]).join("");
     const modeName=isSpeaking?"口語模式(說)":"書寫模式(寫)";
     const visibleResultSection=isPractice?"":taskResultsPanel(doc.id,resultSection);
-    return `<div class="task ${isSpeaking?"speakingTask":"hanziTask"}"><div class="top"><div><span class="modeBadge">${modeName}</span><div class="titleLine"><div class="title">${esc(t.title||modeName)}</div><button class="s restoreTeacherBtn" type="button" onclick="restoreTeacherPlatform('${doc.id}')">回復教師平台</button></div><div class="meta">練習文字：${esc(practiceText)}</div><div class="meta">練習方式：${settings}</div>${speechStandardInfo}${autoSpeechInfo}${slowSpeechInfo}${repeatPromptInfo}</div></div><div class="row" style="margin-top:12px"><button class="s" onclick="showQR('${doc.id}','${esc(t.title||modeName)}')">重新產生 QR</button><button class="s" onclick="exportTaskCSV('${doc.id}')">匯出結果 CSV</button><button class="d" onclick="delTask('${doc.id}')">完整刪除</button></div>${visibleResultSection}</div>`;
+    return `<div class="task ${isSpeaking?"speakingTask":"hanziTask"}"><div class="top"><div><span class="modeBadge">${modeName}</span><div class="titleLine"><div class="title">${esc(t.title||modeName)}</div><button class="s restoreTeacherBtn" type="button" onclick="restoreTeacherPlatform('${doc.id}')">回復教師平台</button></div><div class="meta">練習文字：${esc(practiceText)}</div><div class="meta">練習方式：${settings}</div>${speechStandardInfo}${autoSpeechInfo}${slowSpeechInfo}${repeatPromptInfo}</div></div><div class="row" style="margin-top:12px"><button class="s" onclick="showQR('${doc.id}','${esc(t.title||modeName)}')">重新產生 QR</button><button class="s" onclick="exportStudentAssessment('${doc.id}')">匯出學生評量</button><button class="d" onclick="delTask('${doc.id}')">完整刪除</button></div>${visibleResultSection}</div>`;
   };
 
   const sections=[];
@@ -1391,32 +1391,240 @@ function csvRowForMode(title,data,mode){
   return [...base,...errors];
 }
 
-window.exportTaskCSV=async taskId=>{
+function assessmentLoadJSZip(){
+  if(window.JSZip)return Promise.resolve(window.JSZip);
+  const sources=[
+    "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js",
+    "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"
+  ];
+  return new Promise((resolve,reject)=>{
+    const load=index=>{
+      if(index>=sources.length){reject(new Error("Word 匯出元件載入失敗，請確認網路後再試一次。"));return}
+      const script=document.createElement("script");
+      script.src=sources[index];script.async=true;
+      script.onload=()=>window.JSZip?resolve(window.JSZip):load(index+1);
+      script.onerror=()=>{script.remove();load(index+1)};
+      document.head.appendChild(script);
+    };
+    load(0);
+  });
+}
+
+function assessmentXml(value){
+  return String(value??"")
+    .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,"")
+    .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+    .replace(/"/g,"&quot;").replace(/'/g,"&apos;");
+}
+
+function assessmentWordRun(text,{bold=false,color="1F2937",size=20}={}){
+  const content=String(text??"").split(/\r?\n/).map(assessmentXml).join('</w:t><w:br/><w:t xml:space="preserve">');
+  return `<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:eastAsia="Microsoft JhengHei"/><w:sz w:val="${size}"/><w:szCs w:val="${size}"/><w:color w:val="${color}"/>${bold?"<w:b/><w:bCs/>":""}</w:rPr><w:t xml:space="preserve">${content}</w:t></w:r>`;
+}
+
+function assessmentWordParagraph(text,options={}){
+  const {bold=false,color="1F2937",size=20,align="left",spaceBefore=0,spaceAfter=70,pageBreak=false}=options;
+  const jc={left:"left",center:"center",right:"right"}[align]||"left";
+  const content=pageBreak?'<w:r><w:br w:type="page"/></w:r>':assessmentWordRun(text,{bold,color,size});
+  return `<w:p><w:pPr><w:jc w:val="${jc}"/><w:spacing w:before="${spaceBefore}" w:after="${spaceAfter}"/></w:pPr>${content}</w:p>`;
+}
+
+function assessmentWordCell(value,width,defaultOptions={}){
+  const cell=value&&typeof value==="object"&&!Array.isArray(value)?value:{text:value};
+  const fill=cell.fill||defaultOptions.fill||"FFFFFF";
+  const color=cell.color||defaultOptions.color||"1F2937";
+  const bold=cell.bold!==undefined?cell.bold:!!defaultOptions.bold;
+  const align=cell.align||defaultOptions.align||"left";
+  const size=cell.size||defaultOptions.size||18;
+  const paragraphs=Array.isArray(cell.paragraphs)?cell.paragraphs:[cell.text??""];
+  const content=paragraphs.map(text=>assessmentWordParagraph(text,{bold,color,size,align,spaceAfter:30})).join("");
+  return `<w:tc><w:tcPr><w:tcW w:w="${width}" w:type="dxa"/><w:shd w:fill="${fill}"/><w:tcMar><w:top w:w="90" w:type="dxa"/><w:left w:w="110" w:type="dxa"/><w:bottom w:w="90" w:type="dxa"/><w:right w:w="110" w:type="dxa"/></w:tcMar><w:vAlign w:val="center"/></w:tcPr>${content}</w:tc>`;
+}
+
+function assessmentWordTable(rows,widths,{header=false,headerFill="1E3A5F",fontSize=18}={}){
+  const grid=widths.map(width=>`<w:gridCol w:w="${width}"/>`).join("");
+  const body=rows.map((row,rowIndex)=>{
+    const options=rowIndex===0&&header?{bold:true,color:"FFFFFF",fill:headerFill,align:"center",size:fontSize}:{size:fontSize,fill:rowIndex%2?"F5F8FC":"FFFFFF"};
+    return `<w:tr><w:trPr><w:cantSplit/></w:trPr>${row.map((cell,index)=>assessmentWordCell(cell,widths[index]||2000,options)).join("")}</w:tr>`;
+  }).join("");
+  return `<w:tbl><w:tblPr><w:tblW w:w="15300" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblBorders><w:top w:val="single" w:sz="6" w:color="D6E2F0"/><w:left w:val="single" w:sz="6" w:color="D6E2F0"/><w:bottom w:val="single" w:sz="6" w:color="D6E2F0"/><w:right w:val="single" w:sz="6" w:color="D6E2F0"/><w:insideH w:val="single" w:sz="5" w:color="D6E2F0"/><w:insideV w:val="single" w:sz="5" w:color="D6E2F0"/></w:tblBorders></w:tblPr><w:tblGrid>${grid}</w:tblGrid>${body}</w:tbl>`;
+}
+
+function assessmentPlainText(html){
+  const container=document.createElement("div");
+  container.innerHTML=html||"";
+  return String(container.textContent||"").replace(/[\t ]+/g," ").replace(/\n\s+/g,"\n").trim();
+}
+
+function assessmentModeName(task,mode){
+  if(mode==="click")return "點選模式(聽)";
+  if(mode==="speaking")return "口語模式(說)";
+  if(mode==="reading")return "問答模式(讀)";
+  if(mode==="hanzi")return "書寫模式(寫)";
+  if(mode==="game")return "多人回答模式";
+  return task&&task.taskMode==="advanced"?"進階評量模式":"評量任務";
+}
+
+function assessmentTaskSettings(task,mode){
+  const yes=value=>value?"開啟":"關閉";
+  const rows=[
+    ["任務模式",assessmentModeName(task,mode)],
+    ["練習文字",(task.targetClasses||[]).join("、")||"—"]
+  ];
+  if(mode==="click"){
+    rows.push(
+      ["出題方式",task.promptMode==="description"?"說明文字出題":"名稱文字出題"],
+      ["顯示設定",`每項 ${Number(task.clickRepeatCount||3)} 次｜每次最多 ${Number(task.clickDisplaySeconds||5)} 秒｜同時 ${Number(task.clickSimultaneousCount||1)} 項`],
+      ["放慢語音速度",yes(!!task.slowSpeechPlayback)]
+    );
+  }else if(mode==="hanzi"){
+    const isPractice=task.hanziPracticeEnabled===undefined?!task.hanziWritingEnabled:!!task.hanziPracticeEnabled;
+    rows.push(["練習方式",isPractice?"筆順練習":"書寫評量"]);
+  }else{
+    rows.push(
+      ["出題方式",task.promptMode==="description"?"說明文字出題":"名稱文字出題"],
+      ["語音辨識標準",task.relaxedSpeechRecognition?"高度放寬":"中度放寬"],
+      ["語音模糊辨識",yes(!!task.fuzzySpeechRecognition)],
+      ["自動唸出題目",yes(!task.disableAutoPromptSpeech)],
+      ["辨識啟動",task.buttonSpeechRecognition?"按麥克風按鈕啟動":"自動啟動"],
+      ["放慢語音速度",yes(!!task.slowSpeechPlayback)],
+      ["錯誤後語音再唸一次",yes(!!task.repeatPromptAfterSpeechError)]
+    );
+  }
+  return rows;
+}
+
+function assessmentStudentInputs(data,mode){
+  if(mode==="click"){
+    const average=getClickAverageSeconds(data);
+    return `答對 ${Number(data.clickCorrectCount||0)} 次；答錯 ${Number(data.clickWrongCount||0)} 次；逾時 ${Number(data.clickMissCount||0)} 次${average?`；平均點選時間 ${average.toFixed(2)} 秒`:""}`;
+  }
+  const label=mode==="hanzi"?"書寫輸入":"語音輸入";
+  return assessmentPlainText(formatStudentInputRecords(data,label))||"—";
+}
+
+function assessmentPronunciationRows(data){
+  const html=renderPronunciationAnalysis(data);
+  if(!html)return [];
+  const container=document.createElement("div");
+  container.innerHTML=html;
+  return [...container.querySelectorAll(".pronunciationAnalysisRow:not(.header)")].map(row=>{
+    const cells=[...row.children].map(cell=>String(cell.textContent||"").trim());
+    const detail=row.nextElementSibling&&row.nextElementSibling.classList.contains("pronunciationAnalysisDetail")
+      ? String(row.nextElementSibling.textContent||"").replace(/\s+/g," ").trim()
+      : "";
+    return [cells[0]||"",cells[1]||"",cells[2]||"",[cells[3]||"",detail].filter(Boolean).join("｜")];
+  });
+}
+
+function assessmentStudentSection(data,mode,index){
+  const name=data.studentName||data.studentCode&&`學生 ${data.studentCode}`||`學生 ${index+1}`;
+  const progress=`${Number(data.progress||0)}%`;
+  const status=resultStatusText(data.status);
+  const errorCount=csvTotalErrorCount(data,mode);
+  const range1=csvErrorRange(data,1,2)||"—";
+  const range2=csvErrorRange(data,3,4)||"—";
+  const range3=csvErrorRange(data,5,Infinity)||"—";
+  const incorrect=csvIncorrectItems(data,mode)||"—";
+  const rank=mode==="game"&&data.gameRank?`第 ${data.gameRank} 名`:"—";
+  const parts=[
+    assessmentWordParagraph("",{pageBreak:true}),
+    assessmentWordParagraph(`學生評量｜${name}`,{bold:true,color:"1E3A5F",size:32,spaceAfter:120}),
+    assessmentWordTable([
+      [{text:"學生編號",bold:true,fill:"DCEAFE"},data.studentCode||"—",{text:"完成進度",bold:true,fill:"DCEAFE"},progress,{text:"狀態",bold:true,fill:"DCEAFE"},status],
+      [{text:"錯誤次數",bold:true,fill:"DCEAFE"},String(errorCount),{text:"遊戲名次",bold:true,fill:"DCEAFE"},rank,{text:"最後更新",bold:true,fill:"DCEAFE"},timestampText(data.updatedAt)||"—"]
+    ],[1700,3100,1700,3100,1700,4000],{fontSize:18}),
+    assessmentWordParagraph("辨識錯誤",{bold:true,color:"1E3A5F",size:25,spaceBefore:140,spaceAfter:70}),
+    assessmentWordTable([
+      [{text:"錯誤級距",bold:true},{text:"項目",bold:true}],
+      [{text:"答錯 1～2 次",fill:"FFF7ED",color:"9A3412",bold:true},range1],
+      [{text:"答錯 3～4 次",fill:"FFF1F2",color:"BE123C",bold:true},range2],
+      [{text:"答錯 5 次以上",fill:"FEE2E2",color:"B91C1C",bold:true},range3],
+      [{text:"辨識錯誤項目",fill:"F5F8FC",bold:true},incorrect]
+    ],[3300,12000],{header:true,headerFill:"315D8A",fontSize:18}),
+    assessmentWordParagraph("學生輸入文字",{bold:true,color:"1E3A5F",size:25,spaceBefore:140,spaceAfter:70}),
+    assessmentWordTable([[{text:assessmentStudentInputs(data,mode),fill:"F8FBFF",paragraphs:assessmentStudentInputs(data,mode).split(/\s*｜\s*/)}]],[15300],{fontSize:18})
+  ];
+  const pronunciation=mode==="speaking"?assessmentPronunciationRows(data):[];
+  if(pronunciation.length){
+    parts.push(
+      assessmentWordParagraph("可能的發音困難分析",{bold:true,color:"1E3A8A",size:25,spaceBefore:140,spaceAfter:70}),
+      assessmentWordTable([["順位","練習重點","出現次數","代表例子與建議"],...pronunciation],[1200,3600,1900,8600],{header:true,headerFill:"3B82C4",fontSize:17}),
+      assessmentWordParagraph("本結果依瀏覽器語音辨識文字自動推測，僅供教師安排發音練習參考，不作為構音或醫療診斷。",{color:"64748B",size:16,spaceBefore:70})
+    );
+  }
+  return parts.join("");
+}
+
+function assessmentDocumentXml(task,title,mode,sorted){
+  const generated=new Date().toLocaleString("zh-TW",{hour12:false});
+  const settings=assessmentTaskSettings(task,mode);
+  const summary=[
+    ["學生","進度","狀態","錯誤次數","辨識錯誤","學生輸入摘要"],
+    ...sorted.map(doc=>{
+      const data=doc.data();
+      return [
+        data.studentName||data.studentCode&&`學生 ${data.studentCode}`||"未命名",
+        `${Number(data.progress||0)}%`,resultStatusText(data.status),String(csvTotalErrorCount(data,mode)),
+        csvIncorrectItems(data,mode)||"—",assessmentStudentInputs(data,mode)||"—"
+      ];
+    })
+  ];
+  const body=[
+    assessmentWordParagraph("學生評量報告",{bold:true,color:"1E3A5F",size:38,align:"center",spaceAfter:80}),
+    assessmentWordParagraph(title,{bold:true,color:"111827",size:30,align:"center",spaceAfter:130}),
+    assessmentWordTable([
+      [{text:"評量項目",bold:true},{text:"內容",bold:true}],
+      ...settings,
+      ["學生人數",`${sorted.length} 人`],
+      ["報告匯出時間",generated]
+    ],[3600,11700],{header:true,headerFill:"1E3A5F",fontSize:18}),
+    assessmentWordParagraph("學生完成摘要",{bold:true,color:"1E3A5F",size:27,spaceBefore:160,spaceAfter:80}),
+    assessmentWordTable(summary,[2200,1300,1600,1500,3800,4900],{header:true,headerFill:"315D8A",fontSize:16}),
+    assessmentWordParagraph("本報告由平台學習紀錄自動整理；語音辨識、錯誤次數與反應資料應搭配教師現場觀察綜合判讀。",{color:"64748B",size:16,spaceBefore:100})
+  ];
+  sorted.forEach((doc,index)=>body.push(assessmentStudentSection(doc.data(),mode,index)));
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${body.join("")}<w:sectPr><w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/><w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720" w:header="360" w:footer="360" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+}
+
+async function assessmentCreateDocx(task,title,mode,sorted){
+  const JSZip=await assessmentLoadJSZip();
+  const zip=new JSZip();
+  const now=new Date().toISOString();
+  zip.file("[Content_Types].xml",`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/><Override PartName="/docProps/app.xml" ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/></Types>`);
+  zip.folder("_rels").file(".rels",`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/><Relationship Id="rId3" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" Target="docProps/app.xml"/></Relationships>`);
+  zip.folder("docProps").file("core.xml",`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>${assessmentXml(title)}學生評量</dc:title><dc:creator>多感官互動學習任務製作平台</dc:creator><cp:lastModifiedBy>多感官互動學習任務製作平台</cp:lastModifiedBy><dcterms:created xsi:type="dcterms:W3CDTF">${now}</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">${now}</dcterms:modified></cp:coreProperties>`);
+  zip.folder("docProps").file("app.xml",`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><Application>Microsoft Office Word</Application><DocSecurity>0</DocSecurity><ScaleCrop>false</ScaleCrop><Company></Company><LinksUpToDate>false</LinksUpToDate><SharedDoc>false</SharedDoc><HyperlinksChanged>false</HyperlinksChanged><AppVersion>16.0000</AppVersion></Properties>`);
+  const word=zip.folder("word");
+  word.file("document.xml",assessmentDocumentXml(task,title,mode,sorted));
+  word.file("styles.xml",`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:eastAsia="Microsoft JhengHei"/><w:sz w:val="20"/><w:szCs w:val="20"/><w:color w:val="1F2937"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="70" w:line="300" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults><w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/><w:qFormat/></w:style></w:styles>`);
+  word.folder("_rels").file("document.xml.rels",`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`);
+  return zip.generateAsync({type:"blob",mimeType:"application/vnd.openxmlformats-officedocument.wordprocessingml.document",compression:"DEFLATE",compressionOptions:{level:6}});
+}
+
+window.exportStudentAssessment=async taskId=>{
   try{
     const taskSnap=latestTaskDocs.find(doc=>doc.id===taskId);
     const resultDocs=await getTaskResultDocs(taskId);
     if(!resultDocs.length){alert("此任務目前沒有學生結果可以匯出。");return}
     const taskData=taskSnap?taskSnap.data():{};
-    const title=taskData.title||"任務結果";
+    const title=taskData.title||"學生評量";
     const mode=csvTaskMode(taskData);
     const sorted=[...resultDocs].sort((a,b)=>Number(a.data().studentCode||999)-Number(b.data().studentCode||999));
-    const header=csvDefinitionForMode(mode);
-    const rows=sorted.map(doc=>csvRowForMode(title,doc.data(),mode).map(csvValue).join(","));
-    const csv="\uFEFF"+[header.map(csvValue).join(","),...rows].join("\r\n");
-    const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+    const blob=await assessmentCreateDocx(taskData,title,mode,sorted);
     const url=URL.createObjectURL(blob);
     const link=document.createElement("a");
     link.href=url;
-    link.download=(title.replace(/[\\/:*?"<>|]/g,"_")||"任務結果")+".csv";
+    link.download=(title.replace(/[\\/:*?"<>|]/g,"_")||"學生評量")+"_學生評量.docx";
     document.body.appendChild(link);link.click();link.remove();
-    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    setTimeout(()=>URL.revokeObjectURL(url),1500);
   }catch(e){
-    alert("匯出結果失敗：\n"+(e.message||e));
+    alert("匯出學生評量失敗：\n"+(e.message||e));
   }
 };
 
 window.delTask=async id=>{
-  if(!confirm("確定完整刪除此任務？\n\n將一併刪除：\n・學生作答紀錄\n・所有辨識照片\n・遊戲學生名單與排名\n・任務本身\n\n刪除後無法復原，建議先匯出 CSV。"))return;
+  if(!confirm("確定完整刪除此任務？\n\n將一併刪除：\n・學生作答紀錄\n・所有辨識照片\n・遊戲學生名單與排名\n・任務本身\n\n刪除後無法復原，建議先匯出學生評量。"))return;
   try{
     const {resultDocs,photoCount}=await clearEvidenceForTask(id);
     await deleteDocsInBatches(resultDocs);

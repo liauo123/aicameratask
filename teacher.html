@@ -170,8 +170,8 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
         </div>
         <div class="rangeSetting">
           <label for="clickDisplaySeconds">每次文字顯示時間</label>
-          <output id="clickDisplaySecondsValue">5 秒</output>
-          <input id="clickDisplaySeconds" type="range" min="3" max="10" step="1" value="5">
+          <output id="clickDisplaySecondsValue">10 秒</output>
+          <input id="clickDisplaySeconds" type="range" min="10" max="60" step="10" value="10">
         </div>
         <div class="rangeSetting">
           <label for="clickRepeatCount">每個文字出現次數</label>
@@ -385,7 +385,7 @@ function saveTeacherDraft(){
     clickTitle:$("clickTitle").value,
     clickSlowSpeech:$("clickSlowSpeech").checked,
     clickDescriptionPrompt:$("clickDescriptionPrompt").checked,
-    clickDisplaySeconds:Number($("clickDisplaySeconds").value||5),
+    clickDisplaySeconds:Number($("clickDisplaySeconds").value||10),
     clickRepeatCount:Number($("clickRepeatCount").value||3),
     clickSimultaneousCount:Number($("clickSimultaneousCount").value||1),
     order,
@@ -455,7 +455,7 @@ function restoreTeacherDraftBase(){
   $("clickTitle").value=String(draft.clickTitle||"");
   $("clickSlowSpeech").checked=!!draft.clickSlowSpeech;
   $("clickDescriptionPrompt").checked=!!draft.clickDescriptionPrompt;
-  $("clickDisplaySeconds").value=String(Math.min(10,Math.max(3,Number(draft.clickDisplaySeconds||5))));
+  $("clickDisplaySeconds").value=String(Math.min(60,Math.max(10,Number(draft.clickDisplaySeconds||10))));
   $("clickRepeatCount").value=String(Math.min(5,Math.max(3,Number(draft.clickRepeatCount||3))));
   $("clickSimultaneousCount").value=String(Math.min(3,Math.max(1,Number(draft.clickSimultaneousCount||1))));
   updateClickRangeLabels();
@@ -663,7 +663,7 @@ async function restoreTaskFromTaskList(taskId){
     if(taskMode==="click"){
       $("clickTitle").value=String(task.title||"");
       $("clickDescriptionPrompt").checked=task.promptMode==="description";
-      $("clickDisplaySeconds").value=String(Math.min(10,Math.max(3,Number(task.clickDisplaySeconds||5))));
+      $("clickDisplaySeconds").value=String(Math.min(60,Math.max(10,Number(task.clickDisplaySeconds||10))));
       $("clickRepeatCount").value=String(Math.min(5,Math.max(3,Number(task.clickRepeatCount||3))));
       $("clickSimultaneousCount").value=String(Math.min(3,Math.max(1,Number(task.clickSimultaneousCount||1))));
       updateClickRangeLabels();
@@ -1202,7 +1202,7 @@ async function createClickModeQR(){
   const title=$("clickTitle").value.trim();
   const targets=getSelectedClassesInCurrentOrder();
   const promptMode=$("clickDescriptionPrompt").checked?"description":"name";
-  const clickDisplaySeconds=Math.min(10,Math.max(3,Number($("clickDisplaySeconds").value||5)));
+  const clickDisplaySeconds=Math.min(60,Math.max(10,Number($("clickDisplaySeconds").value||10)));
   const clickRepeatCount=Math.min(5,Math.max(3,Number($("clickRepeatCount").value||3)));
   const clickSimultaneousCount=Math.min(3,Math.max(1,Number($("clickSimultaneousCount").value||1)));
   if(!title)return status("clickStatus","請輸入點選模式(聽)名稱。","err");
