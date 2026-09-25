@@ -948,8 +948,15 @@ async function render(docs){
     const studentRecords=resultDocs.map(resultDoc=>{
       const data=resultDoc.data();
       const averageSeconds=getClickAverageSeconds(data);
+      const {twoOnly,threeToFour,fiveOrMore}=getItemErrorGroups(data,"clickItemErrorCounts");
+      const errorDetails=[
+        twoOnly.length?`<div><span class="lowErrorMark">⚠ 答錯 1～2 次：${twoOnly.map(esc).join("、")}</span></div>`:"",
+        threeToFour.length?`<div><span class="errorCountMark">⚠ 答錯 3～4 次：${threeToFour.map(esc).join("、")}</span></div>`:"",
+        fiveOrMore.length?`<div><span class="fiveWrongMark">⚠ 答錯 5 次以上：${fiveOrMore.map(esc).join("、")}</span></div>`:""
+      ].filter(Boolean).join("");
       return `<div class="clickRecord">
         <b>${esc(data.studentName||("學生 "+(data.studentCode||"")))}</b>｜${resultStatusText(data.status)}｜答對 ${Number(data.clickCorrectCount||0)} 次｜答錯 ${Number(data.clickWrongCount||0)} 次｜逾時 ${Number(data.clickMissCount||0)} 次｜平均 ${averageSeconds?averageSeconds.toFixed(2):"—"} 秒
+        ${errorDetails?`<div class="clickRecordErrors">${errorDetails}</div>`:""}
       </div>`;
     }).join("");
     const resultSection=resultError
@@ -1276,7 +1283,7 @@ function timestampText(value){
   }catch(e){return ""}
 }
 
-function csvErrorRange(data,min,max){
+function csvErrorRange(data,min,max,mode=""){
   const inRange=count=>count>=min&&(max===Infinity||count<=max);
   const formatEntries=(field,label)=>{
     const source=data&&data[field];
@@ -1289,6 +1296,7 @@ function csvErrorRange(data,min,max){
       names:entries.map(([name])=>name)
     };
   };
+  if(mode==="click")return formatEntries("clickItemErrorCounts","").text;
   const hasTypedCounts=data&&(
     data.imageItemErrorCounts&&typeof data.imageItemErrorCounts==="object"||
     data.audioItemErrorCounts&&typeof data.audioItemErrorCounts==="object"
@@ -1349,6 +1357,15 @@ function csvTotalErrorCount(data,mode){
 }
 
 function csvIncorrectItems(data,mode){
+  if(mode==="click"){
+    const source=data&&data.clickItemErrorCounts;
+    if(!source||typeof source!=="object"||Array.isArray(source))return "";
+    return Object.entries(source)
+      .map(([name,count])=>[String(name).trim(),Math.max(0,Number(count)||0)])
+      .filter(([name,count])=>name&&count>0)
+      .map(([name])=>name)
+      .join("、");
+  }
   const written=Array.isArray(data&&data.incorrectClasses)?[...new Set(data.incorrectClasses.filter(Boolean).map(String))]:[];
   const spoken=Array.isArray(data&&data.incorrectAudioClasses)?[...new Set(data.incorrectAudioClasses.filter(Boolean).map(String))]:[];
   if(mode==="speaking"||mode==="reading")return spoken.join("、");
@@ -1522,11 +1539,15 @@ function assessmentStudentSection(data,mode,index){
   const progress=`${Number(data.progress||0)}%`;
   const status=resultStatusText(data.status);
   const errorCount=csvTotalErrorCount(data,mode);
-  const range1=csvErrorRange(data,1,2)||"—";
-  const range2=csvErrorRange(data,3,4)||"—";
-  const range3=csvErrorRange(data,5,Infinity)||"—";
+  const range1=csvErrorRange(data,1,2,mode)||"—";
+  const range2=csvErrorRange(data,3,4,mode)||"—";
+  const range3=csvErrorRange(data,5,Infinity,mode)||"—";
   const incorrect=csvIncorrectItems(data,mode)||"—";
   const rank=mode==="game"&&data.gameRank?`第 ${data.gameRank} 名`:"—";
+  const errorSectionTitle=mode==="click"?"點選答錯紀錄":"辨識錯誤";
+  const errorRangeHeading=mode==="click"?"答錯次數":"錯誤級距";
+  const errorItemHeading=mode==="click"?"題目文字":"項目";
+  const allErrorItemsLabel=mode==="click"?"全部答錯題目":"辨識錯誤項目";
   const parts=[
     assessmentWordParagraph("",{pageBreak:true}),
     assessmentWordParagraph(`學生評量｜${name}`,{bold:true,color:"1E3A5F",size:32,spaceAfter:120}),
@@ -1534,13 +1555,13 @@ function assessmentStudentSection(data,mode,index){
       [{text:"學生編號",bold:true,fill:"DCEAFE"},data.studentCode||"—",{text:"完成進度",bold:true,fill:"DCEAFE"},progress,{text:"狀態",bold:true,fill:"DCEAFE"},status],
       [{text:"錯誤次數",bold:true,fill:"DCEAFE"},String(errorCount),{text:"遊戲名次",bold:true,fill:"DCEAFE"},rank,{text:"最後更新",bold:true,fill:"DCEAFE"},timestampText(data.updatedAt)||"—"]
     ],[1700,3100,1700,3100,1700,4000],{fontSize:18}),
-    assessmentWordParagraph("辨識錯誤",{bold:true,color:"1E3A5F",size:25,spaceBefore:140,spaceAfter:70}),
+    assessmentWordParagraph(errorSectionTitle,{bold:true,color:"1E3A5F",size:25,spaceBefore:140,spaceAfter:70}),
     assessmentWordTable([
-      [{text:"錯誤級距",bold:true},{text:"項目",bold:true}],
+      [{text:errorRangeHeading,bold:true},{text:errorItemHeading,bold:true}],
       [{text:"答錯 1～2 次",fill:"FFF7ED",color:"9A3412",bold:true},range1],
       [{text:"答錯 3～4 次",fill:"FFF1F2",color:"BE123C",bold:true},range2],
       [{text:"答錯 5 次以上",fill:"FEE2E2",color:"B91C1C",bold:true},range3],
-      [{text:"辨識錯誤項目",fill:"F5F8FC",bold:true},incorrect]
+      [{text:allErrorItemsLabel,fill:"F5F8FC",bold:true},incorrect]
     ],[3300,12000],{header:true,headerFill:"315D8A",fontSize:18}),
     assessmentWordParagraph("學生輸入文字",{bold:true,color:"1E3A5F",size:25,spaceBefore:140,spaceAfter:70}),
     assessmentWordTable([[{text:assessmentStudentInputs(data,mode),fill:"F8FBFF",paragraphs:assessmentStudentInputs(data,mode).split(/\s*｜\s*/)}]],[15300],{fontSize:18})
@@ -1560,7 +1581,7 @@ function assessmentDocumentXml(task,title,mode,sorted){
   const generated=new Date().toLocaleString("zh-TW",{hour12:false});
   const settings=assessmentTaskSettings(task,mode);
   const summary=[
-    ["學生","進度","狀態","錯誤次數","辨識錯誤","學生輸入摘要"],
+    ["學生","進度","狀態","錯誤次數",mode==="click"?"答錯題目":"辨識錯誤","學生輸入摘要"],
     ...sorted.map(doc=>{
       const data=doc.data();
       return [
