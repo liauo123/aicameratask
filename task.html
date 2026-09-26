@@ -572,7 +572,7 @@ function resultTaskDocsForActiveMode(){
 
 function taskResultsPanel(taskId,content){
   const open=expandedTaskId===taskId;
-  const buttonText=open?"收合學生結果":"展開學生結果";
+  const buttonText=open?"收合學生評量結果":"展開學生評量結果";
   const body=open
     ? (expandedTaskLoading?'<div class="taskResultLoading">正在載入最近 100 筆學生結果…</div>':content)
     : "";
@@ -823,7 +823,7 @@ async function render(docs){
       </div>
       <div class="row" style="margin-top:12px">
         <button class="s" onclick="showQR('${doc.id}','${esc(t.title||"遊戲")}')">顯示遊戲 QR</button>
-        <button class="s" onclick="exportStudentAssessment('${doc.id}')">匯出學生評量</button>
+        <button class="s" onclick="exportStudentAssessment('${doc.id}')">匯出學生評量結果</button>
         <button class="w" onclick="clearTaskPhotos('${doc.id}')">只清除照片</button>
         <button class="p" onclick="startGame('${doc.id}')">全員開始</button>
         <button class="s" onclick="finishGame('${doc.id}')">結束遊戲</button>
@@ -931,7 +931,7 @@ async function render(docs){
       </div>
       <div class="row" style="margin-top:12px">
         <button class="s" onclick="showQR('${doc.id}','${esc(t.title||(isAdvanced?"進階評量":"問答模式(讀)"))}')">重新產生 QR</button>
-        <button class="s" onclick="exportStudentAssessment('${doc.id}')">匯出學生評量</button>
+        <button class="s" onclick="exportStudentAssessment('${doc.id}')">匯出學生評量結果</button>
         <button class="w" onclick="clearTaskPhotos('${doc.id}')">只清除照片</button>
         <button class="d" onclick="delTask('${doc.id}')">完整刪除</button>
       </div>
@@ -975,7 +975,7 @@ async function render(docs){
       </div></div>
       <div class="row" style="margin-top:12px">
         <button class="s" onclick="showQR('${doc.id}','${esc(t.title||"點選模式(聽)")}')">重新產生 QR</button>
-        <button class="s" onclick="exportStudentAssessment('${doc.id}')">匯出學生評量</button>
+        <button class="s" onclick="exportStudentAssessment('${doc.id}')">匯出學生評量結果</button>
         <button class="d" onclick="delTask('${doc.id}')">完整刪除</button>
       </div>
       ${taskResultsPanel(doc.id,resultSection)}
@@ -1018,7 +1018,7 @@ async function render(docs){
     const practiceText=Array.isArray(t.hanziTexts)&&t.hanziTexts.length?t.hanziTexts.join("、"):String(t.hanziText||"").trim()||(t.targetClasses||[]).join("");
     const modeName=isSpeaking?"口語模式(說)":"書寫模式(寫)";
     const visibleResultSection=isPractice?"":taskResultsPanel(doc.id,resultSection);
-    return `<div class="task ${isSpeaking?"speakingTask":"hanziTask"}"><div class="top"><div><span class="modeBadge">${modeName}</span><div class="titleLine"><div class="title">${esc(t.title||modeName)}</div><button class="s restoreTeacherBtn" type="button" onclick="restoreTeacherPlatform('${doc.id}')">回復教師平台</button></div><div class="meta">練習文字：${esc(practiceText)}</div><div class="meta">練習方式：${settings}</div>${speechStandardInfo}${autoSpeechInfo}${slowSpeechInfo}${repeatPromptInfo}</div></div><div class="row" style="margin-top:12px"><button class="s" onclick="showQR('${doc.id}','${esc(t.title||modeName)}')">重新產生 QR</button><button class="s" onclick="exportStudentAssessment('${doc.id}')">匯出學生評量</button><button class="d" onclick="delTask('${doc.id}')">完整刪除</button></div>${visibleResultSection}</div>`;
+    return `<div class="task ${isSpeaking?"speakingTask":"hanziTask"}"><div class="top"><div><span class="modeBadge">${modeName}</span><div class="titleLine"><div class="title">${esc(t.title||modeName)}</div><button class="s restoreTeacherBtn" type="button" onclick="restoreTeacherPlatform('${doc.id}')">回復教師平台</button></div><div class="meta">練習文字：${esc(practiceText)}</div><div class="meta">練習方式：${settings}</div>${speechStandardInfo}${autoSpeechInfo}${slowSpeechInfo}${repeatPromptInfo}</div></div><div class="row" style="margin-top:12px"><button class="s" onclick="showQR('${doc.id}','${esc(t.title||modeName)}')">重新產生 QR</button><button class="s" onclick="exportStudentAssessment('${doc.id}')">匯出學生評量結果</button><button class="d" onclick="delTask('${doc.id}')">完整刪除</button></div>${visibleResultSection}</div>`;
   };
 
   const sections=[];
