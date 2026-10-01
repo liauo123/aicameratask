@@ -150,10 +150,10 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
       <input id="recognitionEngine" type="hidden" value="ocr">
       <input id="modelURL" type="hidden" value="">
       <div id="ocrFields">
-        <textarea id="ocrKeywords" rows="6" placeholder="輸入要辨識的文字，一行一項"></textarea>
+        <textarea id="ocrKeywords" rows="6" placeholder="輸入教學的文字，按下Enter，一行一項。"></textarea>
       </div>
-      <button id="loadModelBtn" class="p" style="width:100%">載入模型</button>
-      <div id="modelStatus" class="status">尚未載入模型。</div>
+      <button id="loadModelBtn" class="p" style="width:100%">確定</button>
+      <div id="modelStatus" class="status hidden"></div>
       <div id="classes"></div>
     </section>
 
@@ -515,8 +515,9 @@ function getOcrKeywords(){
 function syncRecognitionEngineUI(){
   $("ocrFields").classList.remove("hidden");
   $("clickModeHint").textContent="有縮圖的文字會顯示縮圖，沒有縮圖時只顯示名稱文字；1–3 種文字選項會隨機出現。";
-  $("loadModelBtn").textContent="載入文字辨識";
-  status("modelStatus","請輸入要辨識的文字，一行一項。");
+  $("loadModelBtn").textContent="確定";
+  $("modelStatus").textContent="";
+  $("modelStatus").className="status hidden";
 }
 function refreshTeacherControlsAfterRecognitionLoad(){
   updateLabelsFromDOM();
