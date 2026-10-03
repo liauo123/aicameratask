@@ -325,6 +325,16 @@ body[data-mode-theme] .target-thumbnail{box-shadow:0 5px 14px var(--mode-shadow)
 body[data-mode-theme] .progress>div{background:var(--primary)}
 .hanzi-card{background:#fff1f2;border:2px solid #fb7185}.hanzi-card h2{color:#991b1b;text-align:center}.hanzi-picker{display:grid;grid-template-columns:repeat(auto-fit,minmax(76px,1fr));gap:12px;margin-top:14px}.hanzi-picker.single{grid-template-columns:minmax(96px,180px);justify-content:center}.hanzi-char{min-height:76px;background:#fff;border:2px solid #fb7185;color:#991b1b;font-size:34px;border-radius:16px}.hanzi-question-row{display:flex;align-items:center;justify-content:center;gap:12px;margin:10px}.hanzi-question{text-align:center;font-size:clamp(32px,10vw,64px);font-weight:900;color:#991b1b;line-height:1.35;word-break:break-all}.hanzi-prompt-icon{flex:0 0 46px}.hanzi-note{text-align:center;color:#7f1d1d;line-height:1.6}.hanzi-copyright{margin-top:14px;padding:12px;border:1px solid #fb7185;border-radius:12px;background:#fff;color:#7f1d1d;font-size:.88rem;line-height:1.7}.hanzi-copyright a{color:#991b1b;font-weight:800}.hanzi-stage-title{text-align:center;font-weight:900;color:#991b1b}.hanzi-speech{padding:18px;text-align:center;background:#ffe4e6;border-radius:16px;margin-top:12px}
 .hanzi-writing{padding:18px;background:#ffe4e6;border:1px solid #fb7185;border-radius:16px;margin-top:12px;text-align:center}.hanzi-writing label{display:block;color:#7f1d1d;font-weight:900;margin-bottom:10px}.hanzi-writing-row{display:flex;gap:10px;align-items:stretch}.hanzi-writing input{min-width:0;flex:1;font-size:clamp(24px,6vw,36px);font-weight:900;text-align:center;border:2px solid #fb7185;background:#fff;color:#991b1b}.hanzi-writing button{flex:0 0 auto;background:#dc2626;color:#fff;border-color:#dc2626}
+.hanzi-stroke-assessment{padding:12px;background:#ffe4e6;border:1px solid #fb7185;border-radius:16px;margin-top:12px;text-align:center}.hanzi-stroke-instruction{color:#7f1d1d;font-weight:900;line-height:1.5}.hanzi-stroke-grid{position:relative;width:min(100%,390px);aspect-ratio:1;margin:10px auto;border:3px solid #fb7185;border-radius:16px;overflow:hidden;background-color:#fff;background-image:linear-gradient(to right,transparent calc(50% - 1px),#fecdd3 calc(50% - 1px),#fecdd3 calc(50% + 1px),transparent calc(50% + 1px)),linear-gradient(to bottom,transparent calc(50% - 1px),#fecdd3 calc(50% - 1px),#fecdd3 calc(50% + 1px),transparent calc(50% + 1px)),linear-gradient(45deg,transparent calc(50% - .5px),#ffe4e6 calc(50% - .5px),#ffe4e6 calc(50% + .5px),transparent calc(50% + .5px)),linear-gradient(-45deg,transparent calc(50% - .5px),#ffe4e6 calc(50% - .5px),#ffe4e6 calc(50% + .5px),transparent calc(50% + .5px))}.hanzi-stroke-target{position:absolute;inset:0;touch-action:none}.hanzi-stroke-target svg{display:block;width:100%!important;height:100%!important}.hanzi-stroke-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}.hanzi-stroke-actions button{min-height:44px;background:#fff;color:#991b1b;border:2px solid #fb7185}.hanzi-stroke-note{margin-top:8px;color:#7f1d1d;font-size:.86rem;font-weight:800;line-height:1.5}
+#hanziTaskCard.hanzi-assessment-active{padding:12px}
+#hanziTaskCard.hanzi-assessment-active h2{margin:0 0 3px;font-size:clamp(1.12rem,4vw,1.4rem);line-height:1.25}
+#hanziTaskCard.hanzi-assessment-active .hanzi-note{margin:0 0 3px;font-size:.84rem;line-height:1.3}
+#hanziTaskCard.hanzi-assessment-active .progress-label{margin:0 0 2px;font-size:.84rem;line-height:1.25}
+#hanziTaskCard.hanzi-assessment-active .progress{height:8px;margin:0 0 5px}
+#hanziTaskCard.hanzi-assessment-active .hanzi-stage-title{margin:2px 0;font-size:.9rem;line-height:1.25}
+#hanziTaskCard.hanzi-assessment-active .hanzi-question-row{margin:3px}
+#hanziTaskCard.hanzi-assessment-active .hanzi-stroke-assessment{margin-top:6px;padding:8px}
+#hanziTaskCard.hanzi-assessment-active .hanzi-stroke-grid{margin:6px auto}
 .hanzi-practice-modal{position:fixed;inset:0;z-index:1800;width:100%;height:100vh;height:100dvh;box-sizing:border-box;padding:max(12px,env(safe-area-inset-top)) max(12px,env(safe-area-inset-right)) max(12px,env(safe-area-inset-bottom)) max(12px,env(safe-area-inset-left));display:grid;place-items:center;overflow:hidden;background:rgba(15,23,42,.72);backdrop-filter:blur(5px)}
 .hanzi-practice-dialog{width:min(100%,900px);height:min(100%,900px);max-width:100%;max-height:100%;display:flex;flex-direction:column;overflow:hidden;border:2px solid #fb7185;border-radius:22px;background:#fff;box-shadow:0 24px 70px rgba(15,23,42,.38)}
 .hanzi-practice-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 10px;background:#fff1f2;color:#991b1b}.hanzi-practice-head h2{margin:0;font-size:clamp(.95rem,3.5vw,1.15rem)}
@@ -773,6 +783,15 @@ body.safari-browser[data-mode-theme="reading"] .recognition-actions #voiceRecogn
       <div id="hanziSpeechPanel" class="hanzi-speech hidden">
         <button id="speakHanziBtn" class="round-action-btn mic-action-btn" type="button" aria-label="開始語音辨識" title="開始語音辨識">🎤</button>
       </div>
+      <div id="hanziStrokePanel" class="hanzi-stroke-assessment hidden">
+        <div class="hanzi-stroke-instruction">請依照正確筆順在方格中逐筆書寫</div>
+        <div id="hanziStrokeGrid" class="hanzi-stroke-grid"><div id="hanziStrokeTarget" class="hanzi-stroke-target" aria-label="國字逐筆書寫區"></div></div>
+        <div class="hanzi-stroke-actions">
+          <button id="showHanziStrokeHintBtn" type="button">筆順提示</button>
+          <button id="restartHanziStrokeBtn" type="button">重新書寫</button>
+        </div>
+        <div id="hanziStrokeNote" class="hanzi-stroke-note">正在準備書寫區…</div>
+      </div>
       <div id="hanziWritingPanel" class="hanzi-writing hidden">
         <label for="hanziWritingInput">請使用設備手寫鍵盤輸入答案</label>
         <div class="hanzi-writing-row">
@@ -1012,6 +1031,7 @@ function queueStudentResultWrite(patch,delay=350){
 let clickSequence=[],clickTrialIndex=0,clickRecords=[],clickWrongCount=0,clickItemErrorCounts={},clickTrialTimer=null,clickNextTimer=null,clickShownAt=0,clickTrialActive=false,clickCurrentTarget="",clickCurrentChoices=[];
 let hanziSpeechRecognition=null,hanziSpeechStarting=false,hanziSpeechStartWatchdog=null,hanziSpeechInputTimer=null,hanziSpeechSessionDeadline=0,hanziSpeechResumeTimer=null;
 let hanziPracticeItems=[],hanziPracticeTrigger=null;
+let hanziWriterLoadPromise=null,hanziWriterInstance=null,hanziWriterSession=0,hanziStrokeTarget="",hanziStrokeStartedAt=0,hanziStrokeMistakeCount=0,hanziStrokeHintUsed=false,hanziStrokeRecords=[];
 let studentVoiceControlRecognition=null,studentVoiceControlTimer=null,studentVoiceControlRestartTimer=null,studentVoiceControlDeadline=0,studentVoiceControlStage="",studentVoiceControlSession=0;
 let safariStudentVoiceControlActivated=false;
 const STUDENT_VOICE_CONTROL_JOIN_WINDOW_MS=30000;
@@ -2441,7 +2461,7 @@ async function loadTask(){
       ? `｜${effectiveAudioRequiredClasses.length}項需要語音辨識`
       : "";
     $("taskMeta").textContent=isHanziMode()
-      ? `${isSpeakingMode()?"口語模式(說)":"書寫模式(寫)"}｜${task.hanziSpeechEnabled?`逐項完整文字語音辨識｜每題 ${task.hanziRepeatCount} 次`:isHanziPracticeMode()?"開啟中英文書寫練習":"學生編號｜設備手寫輸入辨識｜結果回傳"}`
+      ? `${isSpeakingMode()?"口語模式(說)":"書寫模式(寫)"}｜${task.hanziSpeechEnabled?`逐項完整文字語音辨識｜每題 ${task.hanziRepeatCount} 次`:isHanziPracticeMode()?"開啟中英文書寫練習":"學生編號｜平台內逐筆書寫評量｜結果回傳"}`
       : isClickMode()
       ? `點選模式(聽)｜${task.promptMode==="description"?"說明文字出題｜":""}同時 ${task.clickSimultaneousCount} 個文字項目｜每個文字 ${task.clickRepeatCount} 次｜每次最多 ${task.clickDisplaySeconds} 秒`
       : task.taskMode==="teaching"
@@ -2847,6 +2867,203 @@ function disableHanziCamera(){
   ["imageStage","poseStage","audioStage","taskCard","clickTaskCard"].forEach(id=>$(id)?.classList.add("hidden"));
 }
 
+function isSingleHanziWritingTarget(value){
+  return /^\p{Script=Han}$/u.test(String(value||"").trim());
+}
+
+function loadHanziWriterForAssessment(){
+  if(window.HanziWriter)return Promise.resolve(window.HanziWriter);
+  if(hanziWriterLoadPromise)return hanziWriterLoadPromise;
+  hanziWriterLoadPromise=new Promise((resolve,reject)=>{
+    const existing=document.querySelector('script[data-hanzi-writer-assessment="true"]');
+    const script=existing||document.createElement("script");
+    const finish=()=>window.HanziWriter?resolve(window.HanziWriter):reject(new Error("Hanzi Writer 載入失敗"));
+    script.addEventListener("load",finish,{once:true});
+    script.addEventListener("error",()=>{script.remove();reject(new Error("逐筆書寫元件載入失敗"))},{once:true});
+    if(!existing){
+      script.src="https://cdn.jsdelivr.net/npm/hanzi-writer@3.5/dist/hanzi-writer.min.js";
+      script.async=true;
+      script.dataset.hanziWriterAssessment="true";
+      document.head.appendChild(script);
+    }else if(window.HanziWriter){
+      finish();
+    }
+  }).catch(error=>{
+    hanziWriterLoadPromise=null;
+    throw error;
+  });
+  return hanziWriterLoadPromise;
+}
+
+function disposeHanziStrokeAssessment(){
+  hanziWriterSession++;
+  if(hanziWriterInstance){
+    try{hanziWriterInstance.cancelQuiz()}catch(e){}
+  }
+  hanziWriterInstance=null;
+  hanziStrokeTarget="";
+  const target=$("hanziStrokeTarget");
+  if(target)target.innerHTML="";
+}
+
+function showHanziKeyboardFallback(message){
+  disposeHanziStrokeAssessment();
+  $("hanziStrokePanel").classList.add("hidden");
+  $("hanziWritingPanel").classList.remove("hidden");
+  const input=$("hanziWritingInput");
+  input.value="";
+  input.disabled=false;
+  $("submitHanziWritingBtn").disabled=false;
+  setStatus("hanziStatus",message||"此文字暫無逐筆書寫資料，請使用設備手寫鍵盤輸入。","error");
+  setTimeout(()=>input.focus(),120);
+}
+
+function getHanziStrokeWriterSize(){
+  const grid=$("hanziStrokeGrid");
+  const measured=Math.floor(grid&&grid.getBoundingClientRect().width||0);
+  return Math.max(180,Math.min(420,measured||Math.max(180,Math.min(360,window.innerWidth-64))));
+}
+
+function queueHanziStrokeMistake(target){
+  if(!resultRef)return;
+  queueStudentResultWrite({
+    attempts,
+    errorCount:totalErrorCount,
+    itemErrorCounts:{...itemErrorCounts},
+    imageItemErrorCounts:{...imageItemErrorCounts},
+    incorrectClasses:[...new Set(localIncorrectClasses)],
+    writingAssessmentType:"strokeOrder",
+    updatedAt:firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(error=>console.warn("筆順錯誤紀錄失敗",error));
+}
+
+function startHanziStrokeQuiz(target,session){
+  if(!hanziWriterInstance||session!==hanziWriterSession||target!==String(task?.targetClasses?.[currentIndex]||""))return;
+  hanziWriterInstance.quiz({
+    leniency:1.2,
+    showHintAfterMisses:2,
+    acceptBackwardsStrokes:false,
+    onCorrectStroke:strokeData=>{
+      if(session!==hanziWriterSession)return;
+      markQuestionPromptInteraction();
+      const strokeNumber=Number(strokeData&&strokeData.strokeNum)+1;
+      $("hanziStrokeNote").textContent=Number.isFinite(strokeNumber)?`第 ${strokeNumber} 筆正確，請繼續。`:"筆畫正確，請繼續。";
+      playTaskSuccessSound();
+    },
+    onMistake:strokeData=>{
+      if(session!==hanziWriterSession)return;
+      markQuestionPromptInteraction();
+      attempts++;
+      totalErrorCount++;
+      consecutiveWrongAttempts++;
+      hanziStrokeMistakeCount++;
+      localIncorrectClasses.push(target);
+      addItemError(target,"image");
+      if(Number(strokeData&&strokeData.mistakesOnStroke)>=2)hanziStrokeHintUsed=true;
+      const strokeNumber=Number(strokeData&&strokeData.strokeNum)+1;
+      $("hanziStrokeNote").textContent=Number.isFinite(strokeNumber)?`第 ${strokeNumber} 筆的筆順或位置不正確，請再試一次。`:"筆順或位置不正確，請再試一次。";
+      setStatus("hanziStatus",`「${target}」目前筆順錯誤 ${hanziStrokeMistakeCount} 次。`,"error");
+      playTaskErrorSound();
+      showCaptureFeedback("failure","筆順不正確",900);
+      queueHanziStrokeMistake(target);
+    },
+    onComplete:async summaryData=>{
+      if(session!==hanziWriterSession)return;
+      attempts++;
+      consecutiveWrongAttempts=0;
+      const record={
+        target,
+        correct:true,
+        totalMistakes:Math.max(hanziStrokeMistakeCount,Number(summaryData&&summaryData.totalMistakes)||0),
+        durationMs:Math.max(0,Date.now()-hanziStrokeStartedAt),
+        hintUsed:!!hanziStrokeHintUsed
+      };
+      hanziStrokeRecords.push(record);
+      $("hanziStrokeNote").textContent=`「${target}」書寫完成！`;
+      setStatus("hanziStatus",`「${target}」書寫完成，筆順錯誤 ${record.totalMistakes} 次。`,"success");
+      playTaskSuccessSound();
+      showCaptureFeedback("success","書寫完成");
+      await completeHanziCharacter();
+    }
+  });
+}
+
+async function initHanziStrokeAssessment(target,preserveCurrent=false){
+  const text=String(target||"").trim();
+  if(!isSingleHanziWritingTarget(text))return showHanziKeyboardFallback();
+  disposeHanziStrokeAssessment();
+  const session=hanziWriterSession;
+  hanziStrokeTarget=text;
+  if(!preserveCurrent){
+    hanziStrokeStartedAt=Date.now();
+    hanziStrokeMistakeCount=0;
+    hanziStrokeHintUsed=false;
+  }
+  $("hanziStrokeNote").textContent="正在準備書寫區…";
+  $("showHanziStrokeHintBtn").disabled=true;
+  $("restartHanziStrokeBtn").disabled=true;
+  try{
+    const HanziWriter=await loadHanziWriterForAssessment();
+    if(session!==hanziWriterSession||text!==String(task?.targetClasses?.[currentIndex]||""))return;
+    const size=getHanziStrokeWriterSize();
+    hanziWriterInstance=HanziWriter.create("hanziStrokeTarget",text,{
+      width:size,
+      height:size,
+      padding:14,
+      showCharacter:false,
+      showOutline:true,
+      strokeColor:"#334155",
+      outlineColor:"#d1d5db",
+      drawingColor:"#dc2626",
+      drawingWidth:16,
+      highlightColor:"#2563eb",
+      strokeAnimationSpeed:1,
+      delayBetweenStrokes:180,
+      onLoadCharDataSuccess:()=>{
+        if(session!==hanziWriterSession)return;
+        $("showHanziStrokeHintBtn").disabled=false;
+        $("restartHanziStrokeBtn").disabled=false;
+        $("hanziStrokeNote").textContent="請從第一筆開始書寫；錯誤兩次會顯示筆畫提示。";
+        setStatus("hanziStatus","請直接在方格中逐筆書寫。","success");
+        startHanziStrokeQuiz(text,session);
+      },
+      onLoadCharDataError:()=>{
+        if(session===hanziWriterSession)showHanziKeyboardFallback("此字暫無逐筆書寫資料，請使用設備手寫鍵盤輸入。");
+      }
+    });
+  }catch(error){
+    if(session===hanziWriterSession)showHanziKeyboardFallback("逐筆書寫元件載入失敗，已改用設備手寫鍵盤輸入。");
+  }
+}
+
+async function showHanziStrokeHint(){
+  if(!hanziWriterInstance||!hanziStrokeTarget)return;
+  markQuestionPromptInteraction();
+  hanziStrokeHintUsed=true;
+  const session=hanziWriterSession;
+  const target=hanziStrokeTarget;
+  $("showHanziStrokeHintBtn").disabled=true;
+  $("restartHanziStrokeBtn").disabled=true;
+  $("hanziStrokeNote").textContent="正在顯示正確筆順…";
+  try{hanziWriterInstance.cancelQuiz()}catch(e){}
+  try{
+    await hanziWriterInstance.animateCharacter();
+    if(session!==hanziWriterSession)return;
+    $("showHanziStrokeHintBtn").disabled=false;
+    $("restartHanziStrokeBtn").disabled=false;
+    $("hanziStrokeNote").textContent="提示結束，請重新從第一筆開始書寫。";
+    startHanziStrokeQuiz(target,session);
+  }catch(error){
+    if(session===hanziWriterSession)initHanziStrokeAssessment(target,true);
+  }
+}
+
+function restartHanziStrokeAssessment(){
+  if(!hanziStrokeTarget)return;
+  markQuestionPromptInteraction();
+  initHanziStrokeAssessment(hanziStrokeTarget,true);
+}
+
 function renderHanziQuestion(){
   const total=task.targetClasses.length;
   const target=task.targetClasses[currentIndex]||"";
@@ -2857,7 +3074,9 @@ function renderHanziQuestion(){
   if(stageTitle)stageTitle.textContent=isSpeakingMode()?"請說出這個文字":"請完成這個文字";
   updateThumbnailElement("hanziTargetThumbnail",target,"文字練習題目縮圖");
   $("hanziSpeechPanel").classList.toggle("hidden",!isSpeakingMode());
-  $("hanziWritingPanel").classList.toggle("hidden",isSpeakingMode());
+  const useStrokeAssessment=!isSpeakingMode()&&isSingleHanziWritingTarget(target);
+  $("hanziStrokePanel").classList.toggle("hidden",!useStrokeAssessment);
+  $("hanziWritingPanel").classList.toggle("hidden",isSpeakingMode()||useStrokeAssessment);
   resetAutomaticSpeechRecognitionForCurrentQuestion();
   if(isSpeakingMode()){
     setStatus(
@@ -2866,7 +3085,11 @@ function renderHanziQuestion(){
         ? "請按下麥克風按鈕並完整念出畫面上的文字。"
         : "題目唸完後會自動開始語音辨識。"
     );
+  }else if(useStrokeAssessment){
+    setStatus("hanziStatus","正在準備逐筆書寫評量…");
+    requestAnimationFrame(()=>initHanziStrokeAssessment(target));
   }else{
+    disposeHanziStrokeAssessment();
     const input=$("hanziWritingInput");
     input.value="";
     input.disabled=false;
@@ -2955,6 +3178,7 @@ async function saveHanziProgress(done=false){
   if(!resultRef||studentLeaveConfirmed||exitInProgress||pageAutoPaused)return;
   await queueStudentResultWrite({
     completedClasses:[...completed],incorrectClasses:[...new Set(localIncorrectClasses)],incorrectAudioClasses:[...new Set(localIncorrectAudioClasses)],
+    strokeWritingRecords:[...hanziStrokeRecords],writingAssessmentType:isSpeakingMode()?"speech":"strokeOrder",
     progress:Math.round(completed.length/task.targetClasses.length*100),attempts,errorCount:totalErrorCount,itemErrorCounts:{...itemErrorCounts},imageItemErrorCounts:{...imageItemErrorCounts},audioItemErrorCounts:{...audioItemErrorCounts},status:done?"completed":"inProgress",
     updatedAt:firebase.firestore.FieldValue.serverTimestamp(),...(done?{completedAt:firebase.firestore.FieldValue.serverTimestamp()}:{})
   });
@@ -2962,6 +3186,7 @@ async function saveHanziProgress(done=false){
 
 async function completeHanziCharacter(skipped=false){
   const target=task.targetClasses[currentIndex];
+  disposeHanziStrokeAssessment();
   if(skipped&&resultRef){
     try{
       await resultRef.update({
@@ -3269,17 +3494,17 @@ function recognizeHanziSpeech({automatic=false,resumeSession=false,continuedSpee
 
 async function startHanziTest(){
   if(!selectedStudentNumber)return setStatus("joinStatus","請先選擇學生編號。","error");
-  $("startBtn").disabled=true;setStatus("joinStatus",isSpeakingMode()?"正在建立口語練習紀錄…":"正在建立文字練習紀錄…");
+  $("startBtn").disabled=true;setStatus("joinStatus",isSpeakingMode()?"正在建立口語練習紀錄…":"正在建立書寫評量紀錄…");
   try{
     disableHanziCamera();
     if(isSpeakingMode())await primeChromiumSpeechMicrophone();
     const currentUser=await ensureAuth();
-    resultRef=await db.collection("taskResults").add({taskId,teacherId:task.teacherId||"",studentUid:currentUser.uid,studentName:"學生 "+selectedStudentNumber,studentCode:selectedStudentNumber,projectType:"hanzi",targetClasses:[...task.targetClasses],hanziRepeatCount:task.hanziRepeatCount,completedClasses:[],incorrectClasses:[],incorrectAudioClasses:[],writingInputRecords:[],speechInputRecords:[],progress:0,attempts:0,errorCount:0,itemErrorCounts:{},imageItemErrorCounts:{},audioItemErrorCounts:{},status:"inProgress",taskMode:task.taskMode||"hanzi",startedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    resultRef=await db.collection("taskResults").add({taskId,teacherId:task.teacherId||"",studentUid:currentUser.uid,studentName:"學生 "+selectedStudentNumber,studentCode:selectedStudentNumber,projectType:"hanzi",targetClasses:[...task.targetClasses],hanziRepeatCount:task.hanziRepeatCount,completedClasses:[],incorrectClasses:[],incorrectAudioClasses:[],writingInputRecords:[],strokeWritingRecords:[],writingAssessmentType:isSpeakingMode()?"speech":"strokeOrder",speechInputRecords:[],progress:0,attempts:0,errorCount:0,itemErrorCounts:{},imageItemErrorCounts:{},audioItemErrorCounts:{},status:"inProgress",taskMode:task.taskMode||"hanzi",startedAt:firebase.firestore.FieldValue.serverTimestamp(),updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
     stopHanziSpeechRecognition(hanziSpeechRecognition,true);
     studentPageMarkedLeft=false;
-    currentIndex=0;completed=[];attempts=0;totalErrorCount=0;itemErrorCounts={};imageItemErrorCounts={};audioItemErrorCounts={};finished=false;paused=false;pageAutoPaused=false;localIncorrectClasses=[];localIncorrectAudioClasses=[];consecutiveWrongAttempts=0;
+    currentIndex=0;completed=[];attempts=0;totalErrorCount=0;itemErrorCounts={};imageItemErrorCounts={};audioItemErrorCounts={};hanziStrokeRecords=[];finished=false;paused=false;pageAutoPaused=false;localIncorrectClasses=[];localIncorrectAudioClasses=[];consecutiveWrongAttempts=0;
     $("speakHanziBtn").disabled=false;
-    $("loadCard").classList.add("hidden");$("joinCard").classList.add("hidden");$("hanziTaskCard").classList.remove("hidden");$("hanziPicker").classList.add("hidden");$("hanziTestPanel").classList.remove("hidden");
+    $("loadCard").classList.add("hidden");$("joinCard").classList.add("hidden");$("hanziTaskCard").classList.remove("hidden");$("hanziTaskCard").classList.toggle("hanzi-assessment-active",!isSpeakingMode());$("hanziPicker").classList.add("hidden");$("hanziTestPanel").classList.remove("hidden");
     $("hanziCopyrightNotice").classList.add("hidden");
     $("hanziTaskTitle").textContent=task.title||(isSpeakingMode()?"口語模式(說)":"書寫模式(寫)");$("hanziPracticeIntro").textContent="學生編號 "+selectedStudentNumber;renderHanziQuestion();
   }catch(e){setStatus("joinStatus",(isSpeakingMode()?"開始口語練習失敗：\n":"開始文字練習失敗：\n")+(e.message||e),"error");$("startBtn").disabled=false}
@@ -6786,6 +7011,8 @@ $("voiceRecognizeBtn").onclick=handleOptionalSpeechButton;
 $("repeatHanziPromptBtn").onclick=()=>{markQuestionPromptInteraction();return speakHanziPrompt(true)};
 $("speakHanziBtn").onclick=handleHanziSpeechButton;
 $("submitHanziWritingBtn").onclick=submitHanziWritingAnswer;
+$("showHanziStrokeHintBtn").onclick=showHanziStrokeHint;
+$("restartHanziStrokeBtn").onclick=restartHanziStrokeAssessment;
 $("hanziWritingInput").addEventListener("input",markQuestionPromptInteraction);
 $("hanziWritingInput").addEventListener("keydown",event=>{
   if(event.key==="Enter"&&!event.isComposing&&event.keyCode!==229){
