@@ -69,6 +69,19 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
   font-weight:900;
   text-align:center;
 }
+.safari-voice-control-activate{
+  width:100%;
+  margin:0 0 14px;
+  border:3px solid #2563eb;
+  background:linear-gradient(135deg,#eff6ff,#dbeafe);
+  color:#1d4ed8;
+  font-weight:1000;
+  animation:safariVoiceControlAttention .82s ease-in-out infinite;
+}
+@keyframes safariVoiceControlAttention{
+  0%,100%{box-shadow:0 0 0 0 rgba(37,99,235,0),0 5px 14px rgba(37,99,235,.16)}
+  50%{box-shadow:0 0 0 7px rgba(37,99,235,.38),0 9px 24px rgba(37,99,235,.32)}
+}
 .number-grid{
   display:grid;
   grid-template-columns:repeat(5,1fr);
@@ -93,6 +106,7 @@ button{min-height:50px;border:0;border-radius:15px;padding:0 16px;cursor:pointer
 @media(prefers-reduced-motion:reduce){
   .number-grid.selection-attention{animation:none;box-shadow:0 0 0 5px rgba(37,99,235,.3);background:rgba(219,234,254,.45)}
   #startBtn.start-attention{animation:none;box-shadow:0 0 0 5px rgba(37,99,235,.3)}
+  .safari-voice-control-activate{animation:none;box-shadow:0 0 0 6px rgba(37,99,235,.32)}
 }
 .number-btn{
   min-height:54px;
@@ -598,6 +612,7 @@ body.safari-browser[data-mode-theme="reading"] .recognition-actions #voiceRecogn
     <div id="taskMeta" class="meta hidden" aria-hidden="true"></div>
 
     <div class="number-select-title">請選擇學生編號</div>
+    <button id="safariVoiceControlBtn" class="safari-voice-control-activate hidden" type="button">開啟麥克風後，全程語音控制</button>
     <div id="studentNumberGrid" class="number-grid">
       <button type="button" class="number-btn" data-student-number="1">1</button>
       <button type="button" class="number-btn" data-student-number="2">2</button>
@@ -892,6 +907,18 @@ function playWithSharedInterfaceSound(play,label){
   }
 }
 
+function primeStudentAudioPlayback(){
+  unlockPlatformSpeech();
+  playWithSharedInterfaceSound(ctx=>{
+    const now=ctx.currentTime;
+    const oscillator=ctx.createOscillator();
+    const gain=ctx.createGain();
+    gain.gain.setValueAtTime(.0001,now);
+    oscillator.connect(gain);gain.connect(ctx.destination);
+    oscillator.start(now);oscillator.stop(now+.03);
+  },"語音控制音訊準備");
+}
+
 function playButtonPressSound(){
   playWithSharedInterfaceSound(ctx=>{
       const now=ctx.currentTime;
@@ -985,6 +1012,10 @@ function queueStudentResultWrite(patch,delay=350){
 let clickSequence=[],clickTrialIndex=0,clickRecords=[],clickWrongCount=0,clickItemErrorCounts={},clickTrialTimer=null,clickNextTimer=null,clickShownAt=0,clickTrialActive=false,clickCurrentTarget="",clickCurrentChoices=[];
 let hanziSpeechRecognition=null,hanziSpeechStarting=false,hanziSpeechStartWatchdog=null,hanziSpeechInputTimer=null,hanziSpeechSessionDeadline=0,hanziSpeechResumeTimer=null;
 let hanziPracticeItems=[],hanziPracticeTrigger=null;
+let studentVoiceControlRecognition=null,studentVoiceControlTimer=null,studentVoiceControlRestartTimer=null,studentVoiceControlDeadline=0,studentVoiceControlStage="",studentVoiceControlSession=0;
+let safariStudentVoiceControlActivated=false;
+const STUDENT_VOICE_CONTROL_JOIN_WINDOW_MS=30000;
+const STUDENT_VOICE_CONTROL_FINISH_WINDOW_MS=20000;
 
 const $=id=>document.getElementById(id);
 const numberButtons=[...document.querySelectorAll(".number-btn")];
@@ -1004,6 +1035,7 @@ let preferredPlatformVoice=null;
 let platformSpeechLastText="",platformSpeechLastAt=0,platformSpeechLastPromise=null;
 let safariPrimedSpeechText="",safariPrimedSpeechPromise=null;
 let safariFirstQuestionFullVolumePending=false;
+let studentVoiceControlQuestionNotBefore=0;
 let questionAutoSpeechTimer=null,questionAutoSpeechKey="",questionAutoSpeechInFlightKey="";
 let questionReminderTimer=null,questionReminderCount=0,questionReminderKey="",questionReminderManuallyStopped=false,questionReminderBusy=false;
 let automaticSpeechRestartTimer=null,automaticSpeechIdleTimer=null,automaticSpeechQuestionKey="",automaticSpeechFallbackToButton=false;
@@ -1112,6 +1144,8 @@ function speakPlatformText(text,{lang="zh-TW",rate=.9,pitch=1,volume=1,immediate
   const requestId=++platformSpeechRequestId;
   const synthesis=window.speechSynthesis;
   const useSafariFirstQuestionFullVolume=safariFirstQuestionFullVolumePending&&isSafariBrowser()&&currentIndex===0;
+  const voiceControlHandoffDelay=Math.max(0,studentVoiceControlQuestionNotBefore-Date.now());
+  if(studentVoiceControlQuestionNotBefore)studentVoiceControlQuestionNotBefore=0;
   try{synthesis.cancel()}catch(e){}
   try{synthesis.resume()}catch(e){}
   refreshPlatformSpeechVoice();
@@ -1155,8 +1189,10 @@ function speakPlatformText(text,{lang="zh-TW",rate=.9,pitch=1,volume=1,immediate
         finish(false);
       }
     };
-    if(immediate&&!useSafariFirstQuestionFullVolume)speakNow();
-    else setTimeout(speakNow,useSafariFirstQuestionFullVolume?280:45);
+    const normalDelay=immediate&&!useSafariFirstQuestionFullVolume?0:(useSafariFirstQuestionFullVolume?280:45);
+    const playbackDelay=Math.max(normalDelay,voiceControlHandoffDelay);
+    if(playbackDelay<=0)speakNow();
+    else setTimeout(speakNow,playbackDelay);
   });
   platformSpeechLastText=value;
   platformSpeechLastAt=now;
@@ -2262,6 +2298,7 @@ async function detectProjectType(modelURL){
 }
 
 async function loadTask(){
+  stopStudentVoiceControl();
   taskId=$("taskIdInput").value.trim();
   if(!taskId)return setStatus("loadStatus","請輸入任務代碼。","error");
 
@@ -2288,6 +2325,7 @@ async function loadTask(){
     if(!["teaching","advanced","game","click","hanzi","speaking","reading"].includes(task.taskMode)){
       throw new Error("此任務模式已移除，請向教師索取其他模式的新任務。");
     }
+    task.studentFullVoiceControl=!!task.studentFullVoiceControl&&["speaking","reading","game"].includes(task.taskMode);
     applyTaskModeTheme(task.taskMode);
     task.recognitionEngine=["coco-ssd","ocr"].includes(task.recognitionEngine)
       ? task.recognitionEngine
@@ -2422,11 +2460,18 @@ async function loadTask(){
         button.classList.remove("selected");
       });
       $("selectedNumberText").textContent="尚未選擇編號";
+      const startButtonText=isGameMode()?"送出加入申請":isClickMode()?"開始點選模式":isSpeakingMode()?"開始口語模式":isHanziMode()?"開始書寫模式":isReadingMode()?"開始問答":"開始任務";
+      $("startBtn").dataset.taskStartText=startButtonText;
+      safariStudentVoiceControlActivated=false;
+      const requiresSafariVoiceActivation=!!(task.studentFullVoiceControl&&isSafariBrowser());
+      $("safariVoiceControlBtn").classList.toggle("hidden",!requiresSafariVoiceActivation);
+      $("safariVoiceControlBtn").disabled=false;
       $("startBtn").disabled=true;
-      $("startBtn").textContent=isGameMode()?"送出加入申請":isClickMode()?"開始點選模式":isSpeakingMode()?"開始口語模式":isHanziMode()?"開始書寫模式":isReadingMode()?"開始問答":"開始任務";
+      $("startBtn").textContent=startButtonText;
 
       $("joinCard").classList.remove("hidden");
       setSelectionAttention("number");
+      if(task.studentFullVoiceControl&&!requiresSafariVoiceActivation)setTimeout(()=>startStudentVoiceControlStage("join"),250);
       if(isGameMode()){
         listenGameSeats();
         setStatus("loadStatus","遊戲載入成功，請選擇學生編號後送出加入申請。","success");
@@ -2461,6 +2506,20 @@ function selectStudentNumber(number){
   $("startBtn").disabled=false;
   setSelectionAttention("start");
   $("joinStatus").classList.add("hidden");
+}
+
+function activateSafariStudentVoiceControlFromGesture(){
+  if(!task?.studentFullVoiceControl||!isSafariBrowser()||safariStudentVoiceControlActivated)return false;
+  safariStudentVoiceControlActivated=true;
+  if(!primeSafariFirstQuestionSpeech())unlockPlatformSpeech();
+  primeStudentAudioPlayback();
+  const activationButton=$("safariVoiceControlBtn");
+  activationButton.disabled=true;
+  activationButton.classList.add("hidden");
+  $("startBtn").disabled=!selectedStudentNumber;
+  setSelectionAttention(selectedStudentNumber?"start":"number");
+  startStudentVoiceControlStage("join");
+  return true;
 }
 
 numberButtons.forEach(button=>{
@@ -2908,7 +2967,7 @@ async function completeHanziCharacter(skipped=false){
   await saveHanziProgress(currentIndex>=task.targetClasses.length);
   if(currentIndex>=task.targetClasses.length){
     finished=true;$("hanziTaskCard").classList.add("hidden");$("completeCard").classList.remove("hidden");$("completeActions").classList.remove("hidden");
-    $("completeIcon").textContent="🎉";$("completeTitle").textContent=isSpeakingMode()?"口語模式完成！":"書寫模式完成！";$("rankDisplay").classList.add("hidden");$("completeMessage").textContent=isSpeakingMode()?"已完成全部口語練習，結果已回傳教師端。":"已完成全部書寫練習，結果已回傳教師端。";renderIncorrectSummary();showCompletionCelebration();return;
+    $("completeIcon").textContent="🎉";$("completeTitle").textContent=isSpeakingMode()?"口語模式完成！":"書寫模式完成！";$("rankDisplay").classList.add("hidden");$("completeMessage").textContent=isSpeakingMode()?"已完成全部口語練習，結果已回傳教師端。":"已完成全部書寫練習，結果已回傳教師端。";renderIncorrectSummary();showCompletionCelebration();if(isSpeakingMode()){stopHanziSpeechRecognition(hanziSpeechRecognition,true);startStudentVoiceControlStage("finish")}return;
   }
   renderHanziQuestion();
 }
@@ -3934,6 +3993,179 @@ async function createAudioRecognizer(url){
 
 function getBrowserSpeechRecognitionConstructor(){
   return window.SpeechRecognition||window.webkitSpeechRecognition||null;
+}
+
+function stopStudentVoiceControl(){
+  studentVoiceControlSession++;
+  studentVoiceControlStage="";
+  studentVoiceControlDeadline=0;
+  if(studentVoiceControlTimer)clearTimeout(studentVoiceControlTimer);
+  if(studentVoiceControlRestartTimer)clearTimeout(studentVoiceControlRestartTimer);
+  studentVoiceControlTimer=null;
+  studentVoiceControlRestartTimer=null;
+  const recognition=studentVoiceControlRecognition;
+  studentVoiceControlRecognition=null;
+  if(!recognition)return Promise.resolve();
+  return new Promise(resolve=>{
+    let settled=false;
+    const waitForSafariRecognitionEnd=isSafariBrowser();
+    const finish=()=>{
+      if(settled)return;
+      settled=true;
+      clearTimeout(fallbackTimer);
+      trackedSpeechRecognitions.delete(recognition);
+      resolve();
+    };
+    const fallbackTimer=setTimeout(finish,waitForSafariRecognitionEnd?5000:1400);
+    if(recognition.addEventListener){
+      recognition.addEventListener("audioend",()=>{
+        if(!waitForSafariRecognitionEnd)finish();
+      },{once:true});
+      recognition.addEventListener("end",finish,{once:true});
+      recognition.addEventListener("error",()=>{
+        if(!waitForSafariRecognitionEnd)finish();
+      },{once:true});
+    }
+    try{recognition.onstart=null}catch(e){}
+    try{recognition.onresult=null}catch(e){}
+    try{recognition.onerror=null}catch(e){}
+    try{recognition.onend=null}catch(e){}
+    stopSpeechRecognitionInstance(recognition);
+    [80,240,520].forEach(delay=>setTimeout(()=>stopSpeechRecognitionInstance(recognition),delay));
+    if(!recognition.addEventListener)finish();
+  });
+}
+
+async function releaseStudentVoiceControlMicrophone(){
+  await stopStudentVoiceControl();
+  stopTrackedMicrophoneTracks();
+  if(isSafariBrowser()){
+    platformSpeechRequestId++;
+    platformSpeechLastText="";
+    platformSpeechLastAt=0;
+    platformSpeechLastPromise=null;
+    safariPrimedSpeechText="";
+    safariPrimedSpeechPromise=null;
+    safariFirstQuestionFullVolumePending=false;
+    if("speechSynthesis" in window){
+      try{window.speechSynthesis.cancel()}catch(e){}
+      try{window.speechSynthesis.resume()}catch(e){}
+      refreshPlatformSpeechVoice();
+    }
+    if(buttonSoundContext&&buttonSoundContext.state!=="closed"&&buttonSoundContext.state!=="running"){
+      try{await buttonSoundContext.resume()}catch(e){}
+    }
+    studentVoiceControlQuestionNotBefore=Date.now()+500;
+  }else{
+    await new Promise(resolve=>setTimeout(resolve,420));
+    stopTrackedMicrophoneTracks();
+  }
+}
+
+function parseStudentVoiceNumber(transcript){
+  const value=String(transcript||"").normalize("NFKC").replace(/\s+/g,"");
+  const arabic=value.match(/(?:學生|学生|我是|第)?(1[0-5]|[1-9])(?:號|号)?/);
+  if(arabic)return arabic[1];
+  const chinese=value.match(/[零〇○一壹二貳贰兩两三參叁四肆五伍六陸陆七柒八捌九玖十拾]+/);
+  if(!chinese)return "";
+  const number=Number(chineseSpeechNumeralToArabic(chinese[0]));
+  return Number.isInteger(number)&&number>=1&&number<=15?String(number):"";
+}
+
+function handleStudentVoiceControlTranscript(stage,transcript){
+  const normalized=normalizeSpeechText(transcript);
+  if(!normalized)return false;
+  if(stage==="join"){
+    const number=parseStudentVoiceNumber(transcript);
+    if(number){
+      const button=numberButtons.find(item=>item.dataset.studentNumber===number);
+      if(button&&!button.disabled)selectStudentNumber(number);
+    }
+    if((normalized.includes("開始")||normalized.includes("开始"))&&selectedStudentNumber&&!$("startBtn").disabled){
+      primeStudentAudioPlayback();
+      studentVoiceControlStage="";
+      setTimeout(()=>handleStartButtonClick({fromVoiceControl:true}),0);
+      return true;
+    }
+    return !!number;
+  }
+  if(stage==="finish"){
+    const repeatCommands=["再一次","再來一次","再来一次","再做一次","重來","重来","重新開始","重新开始"];
+    const endCommands=["結束","结束","完成","離開","离开","不要了"];
+    if(repeatCommands.some(command=>normalized.includes(normalizeSpeechText(command)))){
+      if(!isGameMode()&&!$("againBtn").disabled){
+        primeStudentAudioPlayback();
+        studentVoiceControlStage="";
+        setTimeout(()=>repeatTask(),0);
+        return true;
+      }
+      return false;
+    }
+    if(endCommands.some(command=>normalized.includes(normalizeSpeechText(command)))){
+      studentVoiceControlStage="";
+      setTimeout(()=>endTask(),0);
+      return true;
+    }
+  }
+  return false;
+}
+
+function startStudentVoiceControlStage(stage){
+  stopStudentVoiceControl();
+  if(!task?.studentFullVoiceControl||!["join","finish"].includes(stage)||document.hidden||exitInProgress)return;
+  if(stage==="join"&&$("joinCard").classList.contains("hidden"))return;
+  if(stage==="finish"&&$("completeCard").classList.contains("hidden"))return;
+  const SpeechRecognition=getBrowserSpeechRecognitionConstructor();
+  if(!SpeechRecognition)return;
+  const session=++studentVoiceControlSession;
+  studentVoiceControlStage=stage;
+  const voiceControlWindowMs=stage==="join"?STUDENT_VOICE_CONTROL_JOIN_WINDOW_MS:STUDENT_VOICE_CONTROL_FINISH_WINDOW_MS;
+  const permissionWaitDeadline=Date.now()+30000;
+  const launch=()=>{
+    if(session!==studentVoiceControlSession||studentVoiceControlStage!==stage||document.hidden||exitInProgress)return;
+    if(studentVoiceControlDeadline&&Date.now()>=studentVoiceControlDeadline){stopStudentVoiceControl();return}
+    if(!studentVoiceControlDeadline&&Date.now()>=permissionWaitDeadline){stopStudentVoiceControl();return}
+    const recognition=rememberSpeechRecognition(new SpeechRecognition());
+    studentVoiceControlRecognition=recognition;
+    recognition.lang="zh-TW";
+    recognition.continuous=false;
+    recognition.interimResults=false;
+    recognition.maxAlternatives=5;
+    recognition.onstart=()=>{
+      if(session!==studentVoiceControlSession)return stopSpeechRecognitionInstance(recognition);
+      browserSpeechPermissionPrimed=true;
+      chromiumSpeechPermissionPrimed=true;
+      primeStudentAudioPlayback();
+      if(!studentVoiceControlDeadline){
+        studentVoiceControlDeadline=Date.now()+voiceControlWindowMs;
+        studentVoiceControlTimer=setTimeout(stopStudentVoiceControl,voiceControlWindowMs);
+      }
+    };
+    recognition.onresult=event=>{
+      const alternatives=[];
+      for(let i=event.resultIndex;i<event.results.length;i++){
+        for(let j=0;j<event.results[i].length;j++)alternatives.push(event.results[i][j].transcript||"");
+      }
+      alternatives.some(transcript=>handleStudentVoiceControlTranscript(stage,transcript));
+    };
+    recognition.onerror=event=>{
+      if(["not-allowed","service-not-allowed","audio-capture"].includes(event.error))stopStudentVoiceControl();
+    };
+    recognition.onend=()=>{
+      trackedSpeechRecognitions.delete(recognition);
+      if(studentVoiceControlRecognition===recognition)studentVoiceControlRecognition=null;
+      if(session!==studentVoiceControlSession||studentVoiceControlStage!==stage)return;
+      const activeDeadline=studentVoiceControlDeadline||permissionWaitDeadline;
+      if(Date.now()>=activeDeadline)return stopStudentVoiceControl();
+      studentVoiceControlRestartTimer=setTimeout(launch,250);
+    };
+    try{recognition.start()}catch(e){
+      trackedSpeechRecognitions.delete(recognition);
+      if(studentVoiceControlRecognition===recognition)studentVoiceControlRecognition=null;
+      studentVoiceControlRestartTimer=setTimeout(launch,350);
+    }
+  };
+  launch();
 }
 
 function isPinyinLibraryReady(){
@@ -6303,6 +6535,7 @@ function finishTask(){
   }
   renderIncorrectSummary();
   showCompletionCelebration();
+  startStudentVoiceControlStage("finish");
 }
 
 function renderIncorrectSummary(){
@@ -6329,6 +6562,7 @@ function renderIncorrectSummary(){
 async function repeatTask(){
   if(isTeachingMode())return;
 
+  await stopStudentVoiceControl();
   stopCompletionCelebration();
   $("againBtn").disabled=true;
   $("endBtn").disabled=true;
@@ -6344,6 +6578,7 @@ async function repeatTask(){
 
 async function endTask(){
   if(exitInProgress)return;
+  await stopStudentVoiceControl();
   exitInProgress=true;
   stopCompletionCelebration();
   finished=true;
@@ -6392,6 +6627,7 @@ async function endTask(){
 }
 
 function stopAll(preserveClickRound=false){
+  stopStudentVoiceControl();
   taskSuccessAnimating=false;
   photoRecognizing=false;
   clearQuestionAutoSpeechTimer();
@@ -6509,9 +6745,15 @@ function handleHanziSpeechButton(){
   return recognizeHanziSpeech();
 }
 
-async function handleStartButtonClick(){
+async function handleStartButtonClick(options={}){
+  const fromVoiceControl=options&&options.fromVoiceControl===true;
+  if(fromVoiceControl)await releaseStudentVoiceControlMicrophone();
+  else await stopStudentVoiceControl();
   setSelectionAttention(null);
-  if(!primeSafariFirstQuestionSpeech())unlockPlatformSpeech();
+  if(fromVoiceControl&&isSafariBrowser()){
+    safariFirstQuestionFullVolumePending=false;
+    unlockPlatformSpeech();
+  }else if(!primeSafariFirstQuestionSpeech())unlockPlatformSpeech();
   const needsMicrophone=taskUsesBrowserSpeechRecognition();
   const microphoneReady=await primeBrowserSpeechMicrophoneFromGesture();
   if(needsMicrophone&&!microphoneReady){
@@ -6529,6 +6771,7 @@ $("speakDescriptionBtnTop").onclick=speakTeachingDescription;
 $("repeatAdvancedPromptBtn").onclick=()=>{markQuestionPromptInteraction();return speakAdvancedPrompt()};
 $("speakEvaluationTargetBtn").onclick=()=>{markQuestionPromptInteraction();return speakEvaluationTarget()};
 $("loadBtn").onclick=loadTask;
+$("safariVoiceControlBtn").onclick=activateSafariStudentVoiceControlFromGesture;
 $("startBtn").onclick=handleStartButtonClick;
 $("captureBtn").onclick=captureAndRecognize;
 $("voiceRecognizeBtn").onclick=handleOptionalSpeechButton;

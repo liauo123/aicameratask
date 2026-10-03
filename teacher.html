@@ -208,6 +208,7 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
           <div class="speechMatchingSettings">
             <label class="relaxedSpeechSetting"><input id="relaxedSpeechRecognition" type="checkbox">放寬語音辨識標準</label>
             <label class="relaxedSpeechSetting" title="開啟日常生活近義詞與語意關鍵詞辨識；主要詞、否定詞及方向仍須正確"><input id="fuzzySpeechRecognition" type="checkbox">語音模糊辨識</label>
+            <label class="relaxedSpeechSetting"><input id="speakingFullVoiceControl" type="checkbox">學生可以全程語音控制</label>
           </div>
         </div>
         <div class="clickHint">每一個勾選的文字項目會成為一題完整語音辨識。</div>
@@ -241,6 +242,7 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
           <div class="speechMatchingSettings">
             <label class="relaxedSpeechSetting"><input id="readingRelaxedSpeechRecognition" type="checkbox">放寬語音辨識標準</label>
             <label class="relaxedSpeechSetting" title="開啟日常生活近義詞與語意關鍵詞辨識；主要詞、否定詞及方向仍須正確"><input id="readingFuzzySpeechRecognition" type="checkbox">語音模糊辨識</label>
+            <label class="relaxedSpeechSetting"><input id="readingFullVoiceControl" type="checkbox">學生可以全程語音控制</label>
           </div>
         </div>
         <div class="modeHint">每一個勾選的文字項目，需填寫說明文字才會成為一題完整語音回答辨識。</div>
@@ -271,6 +273,7 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
           <div class="speechMatchingSettings">
             <label class="relaxedSpeechSetting"><input id="gameRelaxedSpeechRecognition" type="checkbox">放寬語音辨識標準</label>
             <label class="relaxedSpeechSetting" title="開啟日常生活近義詞與語意關鍵詞辨識；主要詞、否定詞及方向仍須正確"><input id="gameFuzzySpeechRecognition" type="checkbox">語音模糊辨識</label>
+            <label class="relaxedSpeechSetting"><input id="gameFullVoiceControl" type="checkbox">學生可以全程語音控制</label>
           </div>
         </div>
         <div class="gameHint">學生掃描 QR、選擇號碼並等待教師同意；教師統一開始後，依語音辨識回答，完成順序即時排名。</div>
@@ -361,6 +364,7 @@ function saveTeacherDraft(){
     gameSlowSpeech:$("gameSlowSpeech").checked,
     gameFuzzySpeechRecognition:$("gameFuzzySpeechRecognition").checked,
     gameRelaxedSpeechRecognition:$("gameRelaxedSpeechRecognition").checked,
+    gameFullVoiceControl:$("gameFullVoiceControl").checked,
     hanziTaskTitle:$("hanziTaskTitle").value,
     hanziPracticeMode:$("hanziPracticeMode").checked,
     hanziSpeechRecognition:false,
@@ -373,6 +377,7 @@ function saveTeacherDraft(){
     speakingRepeatPromptAfterError:$("speakingRepeatPromptAfterError").checked,
     fuzzySpeechRecognition:$("fuzzySpeechRecognition").checked,
     relaxedSpeechRecognition:$("relaxedSpeechRecognition").checked,
+    speakingFullVoiceControl:$("speakingFullVoiceControl").checked,
     readingTitle:$("readingTitle").value,
     readingSlowSpeech:$("readingSlowSpeech").checked,
     readingDisableAutoSpeech:$("readingDisableAutoSpeech").checked,
@@ -380,6 +385,7 @@ function saveTeacherDraft(){
     readingRepeatPromptAfterError:$("readingRepeatPromptAfterError").checked,
     readingFuzzySpeechRecognition:$("readingFuzzySpeechRecognition").checked,
     readingRelaxedSpeechRecognition:$("readingRelaxedSpeechRecognition").checked,
+    readingFullVoiceControl:$("readingFullVoiceControl").checked,
     readingDescriptionPrompt:$("readingDescriptionPrompt").checked,
     readingThumbnailHint:$("readingThumbnailHint").checked,
     clickTitle:$("clickTitle").value,
@@ -427,6 +433,7 @@ function restoreTeacherDraftBase(){
   $("gameSlowSpeech").checked=!!draft.gameSlowSpeech;
   $("gameFuzzySpeechRecognition").checked=!!draft.gameFuzzySpeechRecognition;
   $("gameRelaxedSpeechRecognition").checked=!!draft.gameRelaxedSpeechRecognition;
+  $("gameFullVoiceControl").checked=!!draft.gameFullVoiceControl;
   $("hanziTaskTitle").value=String(draft.hanziTaskTitle||"");
   $("hanziPracticeMode").checked=!!draft.hanziPracticeMode;
   $("hanziSpeechRecognition").checked=false;
@@ -441,6 +448,7 @@ function restoreTeacherDraftBase(){
   $("speakingRepeatPromptAfterError").checked=!!draft.speakingRepeatPromptAfterError;
   $("fuzzySpeechRecognition").checked=!!draft.fuzzySpeechRecognition;
   $("relaxedSpeechRecognition").checked=!!draft.relaxedSpeechRecognition;
+  $("speakingFullVoiceControl").checked=!!draft.speakingFullVoiceControl;
   updateSpeakingRepeatLabel();
   $("readingTitle").value=String(draft.readingTitle||"");
   $("readingSlowSpeech").checked=!!draft.readingSlowSpeech;
@@ -452,6 +460,7 @@ function restoreTeacherDraftBase(){
   $("readingRepeatPromptAfterError").checked=!!draft.readingRepeatPromptAfterError;
   $("readingFuzzySpeechRecognition").checked=!!draft.readingFuzzySpeechRecognition;
   $("readingRelaxedSpeechRecognition").checked=!!draft.readingRelaxedSpeechRecognition;
+  $("readingFullVoiceControl").checked=!!draft.readingFullVoiceControl;
   $("clickTitle").value=String(draft.clickTitle||"");
   $("clickSlowSpeech").checked=!!draft.clickSlowSpeech;
   $("clickDescriptionPrompt").checked=!!draft.clickDescriptionPrompt;
@@ -622,16 +631,19 @@ async function restoreTaskFromTaskList(taskId){
     $("gameSlowSpeech").checked=taskMode==="game"&&!!task.slowSpeechPlayback;
     $("relaxedSpeechRecognition").checked=taskMode==="speaking"&&!!task.relaxedSpeechRecognition;
     $("fuzzySpeechRecognition").checked=taskMode==="speaking"&&!!task.fuzzySpeechRecognition;
+    $("speakingFullVoiceControl").checked=taskMode==="speaking"&&!!task.studentFullVoiceControl;
     $("speakingDisableAutoSpeech").checked=taskMode==="speaking"&&!!task.disableAutoPromptSpeech;
     $("speakingButtonSpeechRecognition").checked=taskMode==="speaking"&&!!task.buttonSpeechRecognition;
     $("speakingRepeatPromptAfterError").checked=taskMode==="speaking"&&!!task.repeatPromptAfterSpeechError;
     $("readingRelaxedSpeechRecognition").checked=taskMode==="reading"&&!!task.relaxedSpeechRecognition;
     $("readingFuzzySpeechRecognition").checked=taskMode==="reading"&&!!task.fuzzySpeechRecognition;
+    $("readingFullVoiceControl").checked=taskMode==="reading"&&!!task.studentFullVoiceControl;
     $("readingDisableAutoSpeech").checked=taskMode==="reading"&&!!task.disableAutoPromptSpeech;
     $("readingButtonSpeechRecognition").checked=taskMode==="reading"&&!!task.buttonSpeechRecognition;
     $("readingRepeatPromptAfterError").checked=taskMode==="reading"&&!!task.repeatPromptAfterSpeechError;
     $("gameRelaxedSpeechRecognition").checked=taskMode==="game"&&!!task.relaxedSpeechRecognition;
     $("gameFuzzySpeechRecognition").checked=taskMode==="game"&&!!task.fuzzySpeechRecognition;
+    $("gameFullVoiceControl").checked=taskMode==="game"&&!!task.studentFullVoiceControl;
     if(taskMode==="teaching")$("teachingTitle").value=String(task.title||"");
     if(taskMode==="advanced")$("advancedTitle").value=String(task.title||"");
     if(taskMode==="game")$("gameTitle").value=String(task.title||"");
@@ -1167,6 +1179,7 @@ async function createGameModeQR(){
       skipPhotoRecognition,
       showNameText,
       showThumbnailHint,
+      studentFullVoiceControl:!!$("gameFullVoiceControl").checked,
       slowSpeechPlayback:!!$("gameSlowSpeech").checked,
       speechRecognitionMode:"browser",
       speechRecognitionLanguage:"zh-TW",
@@ -1356,6 +1369,7 @@ async function createSpeakingModeQR(){
       disableAutoPromptSpeech:!!$("speakingDisableAutoSpeech").checked,
       buttonSpeechRecognition:!!$("speakingButtonSpeechRecognition").checked,
       repeatPromptAfterSpeechError:!!$("speakingRepeatPromptAfterError").checked,
+      studentFullVoiceControl:!!$("speakingFullVoiceControl").checked,
       fuzzySpeechRecognition:!!$("fuzzySpeechRecognition").checked,
       relaxedSpeechRecognition:!!$("relaxedSpeechRecognition").checked,
       orderMode:"fixed",taskMode:"speaking",maxPlayers:15,status:"active",
@@ -1396,6 +1410,7 @@ $("createReadingBtn").onclick=async()=>{
       disableAutoPromptSpeech:!!$("readingDisableAutoSpeech").checked,
       buttonSpeechRecognition:!!$("readingButtonSpeechRecognition").checked,
       repeatPromptAfterSpeechError:!!$("readingRepeatPromptAfterError").checked,
+      studentFullVoiceControl:!!$("readingFullVoiceControl").checked,
       speechRecognitionMode:"browser",speechRecognitionLanguage:"zh-TW",
       requiredConsecutiveFrames:10,orderMode:"fixed",taskMode:"reading",
       interactionMode:"reading",
@@ -1413,7 +1428,7 @@ function studentURL(id,mode=""){const base=new URL("student.html",location.href)
 ["modelURL","ocrKeywords","teachingTitle","advancedTitle","gameTitle","clickTitle","hanziTaskTitle","speakingTaskTitle","readingTitle"].forEach(id=>{
   $(id).addEventListener("input",scheduleTeacherDraftSave);
 });
-["clickSlowSpeech","speakingSlowSpeech","readingSlowSpeech","gameSlowSpeech","relaxedSpeechRecognition","readingRelaxedSpeechRecognition","gameRelaxedSpeechRecognition","fuzzySpeechRecognition","readingFuzzySpeechRecognition","gameFuzzySpeechRecognition","speakingDisableAutoSpeech","speakingButtonSpeechRecognition","speakingRepeatPromptAfterError","readingDisableAutoSpeech","readingButtonSpeechRecognition","readingRepeatPromptAfterError","clickDescriptionPrompt"].forEach(id=>{
+["clickSlowSpeech","speakingSlowSpeech","readingSlowSpeech","gameSlowSpeech","relaxedSpeechRecognition","readingRelaxedSpeechRecognition","gameRelaxedSpeechRecognition","fuzzySpeechRecognition","readingFuzzySpeechRecognition","gameFuzzySpeechRecognition","speakingFullVoiceControl","readingFullVoiceControl","gameFullVoiceControl","speakingDisableAutoSpeech","speakingButtonSpeechRecognition","speakingRepeatPromptAfterError","readingDisableAutoSpeech","readingButtonSpeechRecognition","readingRepeatPromptAfterError","clickDescriptionPrompt"].forEach(id=>{
   $(id).addEventListener("change",scheduleTeacherDraftSave);
 });
 syncRecognitionEngineUI();
