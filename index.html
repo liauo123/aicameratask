@@ -113,7 +113,7 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
 .removedMode{display:none!important}
 .modeSettings{display:grid;gap:8px;margin:11px 0;padding:11px 12px;border:1px solid rgba(148,163,184,.45);border-radius:11px;background:rgba(255,255,255,.72)}
 .modeSetting{display:flex;align-items:flex-start;gap:8px;color:var(--ink);font-size:13px;font-weight:850;line-height:1.55;cursor:pointer}.modeSetting input{width:auto;margin:3px 0 0;accent-color:currentColor;flex:0 0 auto}
-.modeSetting.slowSpeechSetting,.modeSetting.repeatPromptAfterErrorSetting{color:#111827!important}
+.modeSetting.slowSpeechSetting,.modeSetting.repeatPromptAfterErrorSetting,.modeSetting.fullVoiceControlSetting{color:#111827!important}
 .rangeSetting{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px 12px;align-items:center;margin:12px 0;padding:11px;border:1px solid #fcd34d;border-radius:11px;background:rgba(255,255,255,.72)}
 .rangeSetting label{font-size:13px;font-weight:900}.rangeSetting output{min-width:54px;text-align:center;padding:5px 8px;border-radius:999px;background:#fef3c7;color:#92400e;font-weight:900}.rangeSetting input[type="range"]{grid-column:1/-1;width:100%;padding:0;accent-color:#d97706}
 .clickMode .rangeSetting{background:#fff8ed}
@@ -208,7 +208,6 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
           <div class="speechMatchingSettings">
             <label class="relaxedSpeechSetting"><input id="relaxedSpeechRecognition" type="checkbox">放寬語音辨識標準</label>
             <label class="relaxedSpeechSetting" title="開啟日常生活近義詞與語意關鍵詞辨識；主要詞、否定詞及方向仍須正確"><input id="fuzzySpeechRecognition" type="checkbox">語音模糊辨識</label>
-            <label class="relaxedSpeechSetting"><input id="speakingFullVoiceControl" type="checkbox">學生可以全程語音控制</label>
           </div>
         </div>
         <div class="clickHint">每一個勾選的文字項目會成為一題完整語音辨識。</div>
@@ -218,6 +217,7 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
           <label class="modeSetting speakingAutoSpeechSetting"><input id="speakingDisableAutoSpeech" type="checkbox">取消自動唸出語音</label>
           <label class="modeSetting speakingButtonSpeechSetting"><input id="speakingButtonSpeechRecognition" type="checkbox">取消自動語音辨識</label>
           <label class="modeSetting repeatPromptAfterErrorSetting"><input id="speakingRepeatPromptAfterError" type="checkbox">錯誤後語音再唸一次</label>
+          <label class="modeSetting fullVoiceControlSetting"><input id="speakingFullVoiceControl" type="checkbox">可以語音控制選號、開始、再一次、結束</label>
         </div>
         <input id="speakingSpeechRecognition" type="checkbox" class="hidden" checked aria-hidden="true">
         <div class="rangeSetting">
@@ -242,7 +242,6 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
           <div class="speechMatchingSettings">
             <label class="relaxedSpeechSetting"><input id="readingRelaxedSpeechRecognition" type="checkbox">放寬語音辨識標準</label>
             <label class="relaxedSpeechSetting" title="開啟日常生活近義詞與語意關鍵詞辨識；主要詞、否定詞及方向仍須正確"><input id="readingFuzzySpeechRecognition" type="checkbox">語音模糊辨識</label>
-            <label class="relaxedSpeechSetting"><input id="readingFullVoiceControl" type="checkbox">學生可以全程語音控制</label>
           </div>
         </div>
         <div class="modeHint">每一個勾選的文字項目，需填寫說明文字才會成為一題完整語音回答辨識。</div>
@@ -252,6 +251,7 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
           <label class="modeSetting"><input id="readingDisableAutoSpeech" type="checkbox">取消自動唸出語音</label>
           <label class="modeSetting"><input id="readingButtonSpeechRecognition" type="checkbox">取消自動語音辨識</label>
           <label class="modeSetting repeatPromptAfterErrorSetting"><input id="readingRepeatPromptAfterError" type="checkbox">錯誤後語音再唸一次</label>
+          <label class="modeSetting fullVoiceControlSetting"><input id="readingFullVoiceControl" type="checkbox">可以語音控制選號、開始、再一次、結束</label>
         </div>
         <input id="readingDescriptionPrompt" type="checkbox" class="hidden" checked aria-hidden="true">
         <input id="readingThumbnailHint" type="checkbox" class="hidden" checked aria-hidden="true">
@@ -273,7 +273,6 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
           <div class="speechMatchingSettings">
             <label class="relaxedSpeechSetting"><input id="gameRelaxedSpeechRecognition" type="checkbox">放寬語音辨識標準</label>
             <label class="relaxedSpeechSetting" title="開啟日常生活近義詞與語意關鍵詞辨識；主要詞、否定詞及方向仍須正確"><input id="gameFuzzySpeechRecognition" type="checkbox">語音模糊辨識</label>
-            <label class="relaxedSpeechSetting"><input id="gameFullVoiceControl" type="checkbox">學生可以全程語音控制</label>
           </div>
         </div>
         <div class="gameHint">學生掃描 QR、選擇號碼並等待教師同意；教師統一開始後，依語音辨識回答，完成順序即時排名。</div>
@@ -281,6 +280,7 @@ button:disabled{cursor:not-allowed;opacity:.58;transform:none}
         <div class="modeSettings">
           <label class="modeSetting"><input id="gameDescriptionPrompt" type="checkbox">說明文字出題</label>
           <label class="modeSetting slowSpeechSetting"><input id="gameSlowSpeech" type="checkbox">放慢語音速度</label>
+          <label class="modeSetting fullVoiceControlSetting"><input id="gameFullVoiceControl" type="checkbox">可以語音控制選號、開始</label>
         </div>
         <button id="createGameBtn" class="p" style="width:100%" disabled>建立遊戲並產生 QR</button>
         <div id="gameStatus" class="status">尚未建立。</div>

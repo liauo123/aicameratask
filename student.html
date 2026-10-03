@@ -1823,10 +1823,14 @@ function isButtonSpeechRecognitionRequired(){
   return !!(task&&(isSpeakingMode()||isReadingMode())&&task.buttonSpeechRecognition);
 }
 
+function isGameFullVoiceAnswerMode(){
+  return !!(task&&isGameMode()&&task.studentFullVoiceControl&&isOptionalAudioRequired());
+}
+
 function shouldAutomaticallyRecognizeSpeech(){
   return !!(
     task&&
-    (isSpeakingMode()||(isReadingMode()&&isOptionalAudioRequired()))&&
+    (isSpeakingMode()||(isReadingMode()&&isOptionalAudioRequired())||isGameFullVoiceAnswerMode())&&
     !isButtonSpeechRecognitionRequired()&&
     !automaticSpeechFallbackToButton&&
     !finished&&!paused&&!pageAutoPaused&&!exitInProgress&&
@@ -1867,7 +1871,7 @@ function switchAutomaticSpeechRecognitionToButton(){
   if(isSpeakingMode()){
     stopHanziSpeechRecognition(hanziSpeechRecognition,true);
     setStatus("hanziStatus","本題自動語音辨識已達 60 秒，請按麥克風按鈕繼續辨識。","error");
-  }else if(isReadingMode()){
+  }else if(isReadingMode()||isGameMode()){
     stopOptionalAudioRecognition(true);
     setVoiceResult("本題自動語音辨識已達 60 秒，請按麥克風按鈕繼續辨識。","error");
   }
@@ -1900,7 +1904,7 @@ function scheduleAutomaticSpeechRecognition(delay=450){
     if(key!==currentAutomaticSpeechQuestionKey()||!shouldAutomaticallyRecognizeSpeech())return;
     armAutomaticSpeechIdleTimer();
     if(isSpeakingMode())recognizeHanziSpeech({automatic:true});
-    else if(isReadingMode())startOptionalAudioRecognition({automatic:true});
+    else if(isReadingMode()||isGameFullVoiceAnswerMode())startOptionalAudioRecognition({automatic:true});
   },Math.max(speechRecognitionResumeDelay(),120,Number(delay)||450));
 }
 
@@ -1960,6 +1964,7 @@ function scheduleFirstPhotoOrGamePromptLikeSpeakingMode(){
     }else{
       await speakEvaluationTarget(true);
     }
+    if(isGameFullVoiceAnswerMode())scheduleAutomaticSpeechRecognition(speechRecognitionAfterPromptDelay());
   },300);
 }
 
@@ -2195,7 +2200,7 @@ function prepareAdvancedPrompt(autoSpeak=true){
   $("advancedPromptCard").classList.remove("hidden");
   $("repeatAdvancedPromptBtn").disabled=!currentAdvancedDescription;
 
-  if(autoSpeak&&isReadingMode()){
+  if(autoSpeak&&(isReadingMode()||isGameFullVoiceAnswerMode())){
     if(isAutomaticPromptSpeechDisabled()){
       scheduleAutomaticSpeechRecognition(300);
     }else if(currentAdvancedDescription){
@@ -2215,8 +2220,11 @@ function prepareCurrentQuestionPrompt(autoSpeak=true){
   if(currentIndex>=task.targetClasses.length)return;
   if(isAdvancedMode()||isDescriptionPromptMode()){
     prepareAdvancedPrompt(autoSpeak);
-  }else if(isEvaluationMode()&&autoSpeak){
-    scheduleQuestionAutoSpeech(()=>speakEvaluationTarget(true),250);
+  }else if((isEvaluationMode()||isGameFullVoiceAnswerMode())&&autoSpeak){
+    scheduleQuestionAutoSpeech(async()=>{
+      await speakEvaluationTarget(true);
+      if(isGameFullVoiceAnswerMode())scheduleAutomaticSpeechRecognition(speechRecognitionAfterPromptDelay());
+    },250);
   }
 }
 
